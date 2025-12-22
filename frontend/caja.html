@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Caja - GastroPOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background: #ecfdf5; padding: 20px; }
+        .ticket { background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #6ee7b7; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        button { background: #059669; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div style="display:flex; justify-content:space-between">
+        <h1>💸 Caja - Pedidos Listos</h1>
+        <button onclick="logout()" style="background:transparent; color:#059669; border:1px solid #059669">Cerrar Caja</button>
+    </div>
+    <div id="container">Cargando...</div>
+
+    <script src="js/api.js"></script>
+    <script>
+        checkAuth();
+
+        async function cargar() {
+            const res = await apiFetch('/ventas/');
+            if(res) {
+                // Solo mostrar LISTOS para cobrar
+                const listos = res.data.filter(v => v.estado === 'listo');
+                const div = document.getElementById('container');
+                div.innerHTML = listos.length ? '' : '<p>No hay pedidos por cobrar</p>';
+                
+                listos.forEach(v => {
+                    div.innerHTML += `
+                        <div class="ticket">
+                            <h3>${v.mesa} <span style="float:right">$${v.total}</span></h3>
+                            <p>${v.detalles.map(d => d.producto_nombre).join(', ')}</p>
+                            <button onclick="cobrar('${v.id}', ${v.total})">COBRAR</button>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        async function cobrar(id, total) {
+            // LÓGICA DE PROPINA VOLUNTARIA
+            let propinaInput = prompt(`Total Consumo: $${total}\n\nIngrese valor de PROPINA Voluntaria (Deje 0 si no hay):`, "0");
+            
+            if(propinaInput === null) return; // Cancelar
+            let propina = parseFloat(propinaInput);
+            if(isNaN(propina)) propina = 0;
+
+            let totalFinal = total + propina;
+
+            let metodo = prompt(`Total a Cobrar: $${totalFinal} (Inc. Propina)\n\nEscriba método:\nEfectivo, Tarjeta, Nequi`);
+            if(!metodo) return;
+
+            const payload = {
+                metodo_pago: metodo,
+                propina: propina
+            };
+
+            const res = await apiFetch(`/ventas/${id}/pagar`, 'PUT', payload);
+            if(res) {
+                alert(`✅ ¡Pago Exitoso!\nTotal: $${res.total_final}\n(Propina: $${res.propina})`);
+                cargar();
+            }
+        }
+
+        setInterval(cargar, 5000);
+        cargar();
+    </script>
+</body>
+</html>

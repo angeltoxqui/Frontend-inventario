@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala - GastroPOS Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        /* --- VARIABLES DINÁMICAS (TEMA) --- */
+        :root {
+            --bg-body: #f9fafb; --bg-card: #ffffff; --bg-sidebar: #101828;
+            --text-main: #101828; --text-muted: #667085; --border-color: #eaecf0;
+            --input-bg: #ffffff; --brand: #465fff; --success: #12b76a;
+            --warning: #f79009; --error: #f04438; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-body: #0f172a; --bg-card: #1e293b; --bg-sidebar: #020617;
+            --text-main: #f1f5f9; --text-muted: #94a3b8; --border-color: #334155;
+            --input-bg: #0f172a; --shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+        }
+
+        body { font-family: 'Outfit', sans-serif; background: var(--bg-body); margin: 0; display: flex; height: 100vh; overflow: hidden; color: var(--text-main); transition: background 0.3s, color 0.3s; }
+        
+        .sidebar { width: 260px; background: var(--bg-sidebar); color: white; padding: 24px; display: flex; flex-direction: column; transition: background 0.3s; }
+        .menu-item { padding: 12px; color: #94a3b8; display: flex; gap: 10px; cursor: pointer; border-radius: 8px; margin-bottom: 5px; text-decoration: none; align-items: center; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background: var(--brand); color: white; }
+        
+        .content { flex: 1; padding: 32px; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
+        
+        .card { background: var(--bg-card); height: 180px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border: 1px solid var(--border-color); box-shadow: var(--shadow); position: relative; transition: 0.3s; }
+        .card:hover { transform: translateY(-4px); border-color: var(--brand); }
+        .pill { position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+        
+        .libre .pill { background: #ecfdf3; color: var(--success); }
+        .ocupada .pill { background: #fef3f2; color: var(--error); } .ocupada { border-left: 4px solid var(--error); }
+        .por_cobrar .pill { background: #fffaeb; color: var(--warning); animation: pulse 1s infinite; } .por_cobrar { border-left: 4px solid var(--warning); }
+        .entregada .pill { background: #eff8ff; color: var(--brand); } .entregada { border-left: 4px solid var(--brand); }
+        @keyframes pulse { 50% { opacity: 0.6; } }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 100; }
+        .box { background: var(--bg-card); padding: 24px; border-radius: 16px; width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-main); }
+        
+        input, select { width: 100%; padding: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 8px; margin-bottom: 10px; outline: none; font-family: 'Outfit'; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
+        .btn-p { background: var(--brand); } .btn-s { background: var(--success); } .btn-w { background: var(--warning); } .btn-e { background: transparent; border: 1px solid var(--error); color: var(--error); }
+        
+        .theme-toggle { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: var(--brand); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: none; z-index: 1000; transition: transform 0.2s; }
+        .theme-toggle:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="color:white; margin-bottom:40px; display:flex; gap:10px; align-items:center"><span class="material-icons-round">restaurant</span> GastroPOS</h2>
+        <a href="#" class="menu-item active"><span class="material-icons-round">grid_view</span> Sala</a>
+        <a href="admin.html" id="lnk-admin" class="menu-item" style="display:none"><span class="material-icons-round">settings</span> Configuración</a>
+        <a href="reportes.html" id="lnk-repo" class="menu-item" style="display:none"><span class="material-icons-round">bar_chart</span> Reportes</a>
+        <div style="margin-top:auto; font-size:14px; color:#94a3b8">
+            <span id="u-name" style="font-weight:600; display:block; margin-bottom:10px; color:white">Usuario</span>
+            <button onclick="logout()" style="background:transparent; border:1px solid #334155; color:#cbd5e1; width:100%; padding:8px; border-radius:6px; cursor:pointer">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px">
+            <h1 style="margin:0">Sala Principal</h1>
+            <div id="admin-tag" style="display:none; padding:6px 12px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:20px; font-size:13px; color:var(--text-muted)">👁️ Admin (Solo Lectura)</div>
+        </div>
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <span class="material-icons-round" id="theme-icon">dark_mode</span>
+    </button>
+
+    <div id="mod-ped" class="overlay">
+        <div class="box">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px">
+                <h2 id="t-mesa" style="margin:0">Mesa</h2>
+                <button onclick="closeMod('mod-ped')" style="background:none; border:none; font-size:24px; color:var(--text-muted); cursor:pointer">&times;</button>
+            </div>
+            <div style="display:flex; gap:10px"><select id="sel-prod" onchange="verIng()"></select><input id="inp-cant" type="number" value="1" style="width:70px; text-align:center"></div>
+            <div id="ing-bx" style="font-size:13px; color:var(--brand); background:rgba(70,95,255,0.1); padding:8px; border-radius:6px; margin-bottom:10px; display:none"></div>
+            <div style="display:flex; gap:10px; margin-bottom:20px"><input id="inp-not" placeholder="Notas"><button onclick="addProd()" class="btn-p" style="width:auto; margin:0; padding:10px 20px">Agregar</button></div>
+            <div id="list-it" style="height:180px; overflow-y:auto; border:1px solid var(--border-color); padding:10px; border-radius:8px; background:var(--bg-body); margin-bottom:15px"></div>
+            <div style="display:flex; justify-content:space-between; font-size:1.2em; font-weight:700; margin-bottom:20px"><span>Total:</span><span>$<span id="txt-tot">0</span></span></div>
+            <div id="acts-ped"></div>
+        </div>
+    </div>
+
+    <div id="mod-pay" class="overlay">
+        <div class="box" style="width:400px">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px"><h2 style="margin:0">Cobrar</h2><button onclick="closeMod('mod-pay')" style="background:none; border:none; font-size:24px; color:var(--text-muted); cursor:pointer">&times;</button></div>
+            
+            <div style="text-align:center; margin-bottom:20px">
+                <span style="font-size:14px; color:var(--text-muted)">Total a Pagar</span>
+                <div style="font-size:2.5em; font-weight:700; color:var(--success)">$<span id="p-tot">0</span></div>
+            </div>
+
+            <label style="font-size:13px; font-weight:600">Método de Pago</label>
+            <select id="p-met" style="margin-top:5px">
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="nequi">Nequi/Daviplata</option>
+            </select>
+            
+            <div style="background:var(--bg-body); padding:10px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:15px">
+                <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px">Propina Voluntaria ($)</label>
+                <input type="number" id="inp-prop" value="0" min="0" onkeyup="calcPay()" style="margin:0; font-weight:bold; color:var(--brand)">
+            </div>
+
+            <div style="background:var(--bg-body); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                <div style="display:flex; gap:10px; color:var(--brand); cursor:pointer" onclick="toggleFe()"><input type="checkbox" id="chk-fe" style="width:18px; margin:0; pointer-events:none"><span>Factura Electrónica</span></div>
+                <div id="fe-form" style="display:none; margin-top:15px"><input id="c-doc" placeholder="NIT"><input id="c-nom" placeholder="Nombre"><input id="c-mail" placeholder="Email"><input id="c-tel" placeholder="Teléfono"></div>
+            </div>
+            
+            <button onclick="doPay()" class="btn-s" style="margin-top:20px">PAGAR CUENTA</button>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://127.0.0.1:8000";
+        let user = JSON.parse(localStorage.getItem('gastro_user'));
+        if(!user) location.href='login.html';
+        document.getElementById('u-name').innerText = user.username;
+
+        if(user.rol==='admin') { 
+            document.getElementById('lnk-admin').style.display='flex'; 
+            document.getElementById('lnk-repo').style.display='flex'; 
+            document.getElementById('admin-tag').style.display='block'; 
+        } else if(user.rol==='cajero') { 
+            document.getElementById('lnk-repo').style.display='flex'; 
+        }
+
+        function toggleTheme() {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            if(isDark) { document.body.removeAttribute('data-theme'); localStorage.setItem('theme','light'); document.getElementById('theme-icon').innerText='dark_mode'; }
+            else { document.body.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); document.getElementById('theme-icon').innerText='light_mode'; }
+        }
+        if(localStorage.getItem('theme')==='dark') toggleTheme();
+
+        let oid=null; let mid=null; let st=null; let tot=0; let prods=[];
+
+        async function load() {
+            const res = await fetch(API+'/mesas/'); const data = await res.json();
+            document.getElementById('grid').innerHTML = data.map(m => {
+                let s='libre', t='LIBRE', i='table_restaurant';
+                if(m.ocupada){
+                    if(m.estado_visual==='por_cobrar'){ s='por_cobrar'; t='COBRAR'; i='payments'; }
+                    else if(m.estado_visual==='entregada'){ s='entregada'; t='COMIENDO'; i='restaurant'; }
+                    else if(m.estado_visual==='listo_para_entregar'){ s='listo_entrega'; t='LISTO'; i='room_service'; }
+                    else { s='ocupada'; t='PREPARANDO'; i='soup_kitchen'; }
+                }
+                return `<div class="card ${s}" onclick='clkMesa(${JSON.stringify(m)})'><span class="pill">${t}</span><span class="material-icons-round" style="font-size:40px; margin-bottom:10px; color:var(--text-muted)">${i}</span><b>${m.nombre}</b></div>`;
+            }).join('');
+        }
+
+        async function clkMesa(m) {
+            if(user.rol==='admin') return alert("Modo administrador: Solo lectura en esta pantalla.");
+            if(!m.ocupada) { if(confirm("¿Abrir mesa?")) { await fetch(`${API}/ordenes/abrir/${m.id}`,{method:'POST'}); load(); } }
+            else { mid=m.id; st=m.estado_visual; openMod(m); }
+        }
+
+        async function openMod(m){
+            document.getElementById('t-mesa').innerText=m.nombre; await refresh();
+            if(prods.length===0){ const r = await fetch(API+'/productos/'); prods = await r.json(); const s = document.getElementById('sel-prod'); s.innerHTML='<option disabled selected>Producto...</option>'; prods.forEach(p=>s.innerHTML+=`<option value="${p.id}">${p.nombre} - $${p.precio}</option>`); }
+            document.getElementById('ing-bx').style.display='none'; renderActs(); document.getElementById('mod-ped').style.display='flex';
+        }
+
+        async function refresh(){
+            try {
+                const res = await fetch(`${API}/ordenes/mesa/${mid}/activa`); const d = await res.json();
+                oid=d.orden_id; tot=d.total; document.getElementById('txt-tot').innerText = tot.toLocaleString();
+                document.getElementById('list-it').innerHTML = d.items.map(i=>`<div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:14px"><div><b>${i.cantidad}x</b> ${i.producto} <small style="color:var(--warning)">${i.notas||''}</small></div><div style="display:flex; gap:10px"><span>$${(i.precio*i.cantidad).toLocaleString()}</span>${(user.rol==='mesero' && st!=='por_cobrar')?`<span onclick="delIt(${i.item_id})" style="color:var(--error); cursor:pointer" class="material-icons-round">delete</span>`:''}</div></div>`).join('');
+            } catch(e){}
+        }
+
+        function renderActs(){
+            const div = document.getElementById('acts-ped'); div.innerHTML='';
+            if(user.rol==='mesero'){
+                let cncl = (st!=='por_cobrar')?`<button onclick="cancel()" class="btn btn-e">🚫 Cancelar Mesa</button>`:'';
+                if(st==='listo_para_entregar') div.innerHTML=`<button onclick="entregar()" class="btn btn-p">✅ Entregar Pedido</button>`+cncl;
+                else if(st==='entregada') div.innerHTML=`<button onclick="pedir()" class="btn btn-w">📄 Pedir Cuenta</button>`+cncl;
+                else if(st==='por_cobrar') div.innerHTML=`<div style="text-align:center; color:var(--warning); font-weight:600">Esperando pago...</div>`;
+                else div.innerHTML=`<div style="text-align:center; font-size:13px; color:var(--text-muted)">Cuenta disponible al servir</div>`+cncl;
+            } else div.innerHTML=`<button onclick="payMod()" class="btn btn-s">COBRAR</button>`;
+        }
+
+        async function addProd(){
+            const pid=document.getElementById('sel-prod').value; const c=document.getElementById('inp-cant').value; const n=document.getElementById('inp-not').value;
+            if(!pid) return; await fetch(`${API}/ordenes/${oid}/agregar`,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({producto_id:pid, cantidad:c, notas:n})});
+            document.getElementById('inp-not').value=''; await refresh(); load();
+        }
+        async function delIt(id){ if(confirm("¿Borrar?")) { await fetch(`${API}/ordenes/items/${id}`,{method:'DELETE'}); await refresh(); load(); } }
+        async function cancel(){ if(confirm("¿CANCELAR?")) { await fetch(`${API}/ordenes/${oid}/cancelar`,{method:'POST'}); closeMod('mod-ped'); load(); } }
+        async function entregar(){ await fetch(`${API}/ordenes/${oid}/entregar_mesa`,{method:'POST'}); closeMod('mod-ped'); load(); }
+        async function pedir(){ await fetch(`${API}/ordenes/${oid}/solicitar_cuenta`,{method:'POST'}); closeMod('mod-ped'); load(); }
+
+        // --- PAGO ---
+        function payMod(){ 
+            document.getElementById('inp-prop').value = 0; // Reset propina
+            calcPay(); 
+            document.getElementById('chk-fe').checked=false; 
+            document.getElementById('fe-form').style.display='none'; 
+            document.getElementById('mod-pay').style.display='flex'; 
+        }
+        
+        function calcPay(){ 
+            const propina = parseFloat(document.getElementById('inp-prop').value) || 0; 
+            document.getElementById('p-tot').innerText = (tot + propina).toLocaleString(); 
+        }
+        
+        function toggleFe(){ const c=document.getElementById('chk-fe'); c.checked=!c.checked; document.getElementById('fe-form').style.display=c.checked?'block':'none'; }
+        
+        async function doPay(){
+            const fe=document.getElementById('chk-fe').checked; 
+            const doc=document.getElementById('c-doc').value; 
+            const nom=document.getElementById('c-nom').value; 
+            const em=document.getElementById('c-mail').value;
+            
+            if(fe && (!doc||!nom||!em)) return alert("Datos de factura incompletos");
+            
+            const propina = parseFloat(document.getElementById('inp-prop').value) || 0;
+            
+            const body = { 
+                propina: propina, 
+                metodo_pago: document.getElementById('p-met').value, 
+                factura_electronica: fe, 
+                cliente_doc: doc, 
+                cliente_nombre: nom, 
+                cliente_email: em, 
+                cliente_tel: document.getElementById('c-tel').value 
+            };
+            
+            const res = await fetch(`${API}/ordenes/${oid}/pagar_v2`,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+            if(res.ok){ alert(fe?"Factura Generada":"Pago OK"); closeMod('mod-pay'); closeMod('mod-ped'); load(); }
+        }
+
+        function verIng(){ const p=prods.find(x=>x.id==document.getElementById('sel-prod').value); const b=document.getElementById('ing-bx'); if(p&&p.descripcion){ b.innerHTML=`Ingredientes: ${p.descripcion}`; b.style.display='block'; } else b.style.display='none'; }
+        function closeMod(id){ document.getElementById(id).style.display='none'; }
+        function logout(){ localStorage.removeItem('gastro_user'); location.href='login.html'; }
+        setInterval(load, 5000); load();
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Administración - GastroPOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background: #f9fafb; display: flex; height: 100vh; margin: 0; }
+        .sidebar { width: 250px; background: #101828; color: white; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .content { flex: 1; padding: 30px; overflow-y: auto; }
+        .nav-btn { background: none; border: none; color: #94a3b8; padding: 12px; text-align: left; cursor: pointer; display: flex; gap: 10px; font-size: 16px; width: 100%; border-radius: 6px; }
+        .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.1); color: white; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; margin-bottom: 10px; box-sizing: border-box;}
+        button.primary { background: #465fff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Gastro Admin</h2>
+        <button class="nav-btn active" onclick="showSection('insumos')"><span class="material-icons-round">inventory_2</span> Inventario</button>
+        <button class="nav-btn" onclick="showSection('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
+        <button class="nav-btn" onclick="showSection('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
+        <button class="nav-btn" onclick="logout()" style="margin-top:auto; color: #f04438"><span class="material-icons-round">logout</span> Salir</button>
+    </div>
+
+    <div class="content">
+        <div id="sec-insumos" class="section active">
+            <h1>Inventario</h1>
+            <div class="card">
+                <input type="text" id="i-nombre" placeholder="Nombre (ej: Pollo)">
+                <input type="text" id="i-unidad" placeholder="Unidad (kg)">
+                <input type="number" id="i-costo" placeholder="Costo">
+                <input type="number" id="i-stock" placeholder="Stock">
+                <button class="primary" id="btn-insumo" onclick="guardarInsumo()">GUARDAR</button>
+            </div>
+            <div class="card"><table><tbody id="tabla-insumos"></tbody></table></div>
+        </div>
+
+        <div id="sec-productos" class="section">
+            <h1>Menú</h1>
+            <div class="card">
+                <input type="text" id="p-nombre" placeholder="Nombre Plato">
+                <input type="number" id="p-precio" placeholder="Precio Venta">
+                <h4>Ingredientes</h4>
+                <select id="receta-select"></select>
+                <input type="number" id="receta-cant" placeholder="Cantidad necesaria">
+                <button onclick="agregarIngrediente()" style="margin-bottom:10px">+ Agregar</button>
+                <div id="lista-temp"></div>
+                <button class="primary" onclick="crearProducto()">CREAR PLATO</button>
+            </div>
+            <div class="card"><table><tbody id="tabla-productos"></tbody></table></div>
+        </div>
+
+        <div id="sec-usuarios" class="section">
+            <h1>Recursos Humanos</h1>
+            <div class="card">
+                <input type="email" id="u-email" placeholder="Email (Login)">
+                <input type="password" id="u-pass" placeholder="Contraseña">
+                <input type="text" id="u-name" placeholder="Nombre">
+                <select id="u-rol">
+                    <option value="mesero">Mesero</option>
+                    <option value="cocinero">Cocinero</option>
+                    <option value="cajero">Cajero</option>
+                    <option value="admin">Administrador</option>
+                </select>
+                <button class="primary" onclick="crearUsuario()">CREAR USUARIO</button>
+            </div>
+            <div class="card"><table><tbody id="tabla-usuarios"></tbody></table></div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        checkAuth();
+        let insumos = [], recetaTemp = [], editId = null;
+
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('sec-'+id).classList.add('active');
+            if(id==='insumos') cargarInsumos();
+            if(id==='productos') { cargarInsumos(); cargarProductos(); }
+            if(id==='usuarios') cargarUsuarios();
+        }
+
+        // --- INSUMOS ---
+        async function cargarInsumos() {
+            const res = await apiFetch('/insumos/');
+            if(res) {
+                insumos = res.data;
+                const tbody = document.getElementById('tabla-insumos');
+                const select = document.getElementById('receta-select');
+                tbody.innerHTML = '<tr><th>Nombre</th><th>Stock</th><th>Acción</th></tr>';
+                select.innerHTML = '';
+                insumos.forEach(i => {
+                    tbody.innerHTML += `<tr><td>${i.nombre}</td><td>${i.stock_actual} ${i.unidad_medida}</td><td><button onclick="editarInsumo('${i.id}')">✏️</button></td></tr>`;
+                    select.innerHTML += `<option value="${i.id}">${i.nombre}</option>`;
+                });
+            }
+        }
+        
+        function editarInsumo(id) {
+            const item = insumos.find(i => i.id === id);
+            editId = id;
+            document.getElementById('i-nombre').value = item.nombre;
+            document.getElementById('i-unidad').value = item.unidad_medida;
+            document.getElementById('i-costo').value = item.costo;
+            document.getElementById('i-stock').value = item.stock_actual;
+            document.getElementById('btn-insumo').innerText = "ACTUALIZAR";
+            document.getElementById('btn-insumo').style.background = "#f59e0b";
+        }
+
+        async function guardarInsumo() {
+            const payload = {
+                nombre: document.getElementById('i-nombre').value,
+                unidad_medida: document.getElementById('i-unidad').value,
+                costo: document.getElementById('i-costo').value,
+                stock_actual: document.getElementById('i-stock').value
+            };
+            let res;
+            if(editId) res = await apiFetch(`/insumos/${editId}`, 'PUT', payload);
+            else res = await apiFetch('/insumos/', 'POST', payload);
+            
+            if(res) { alert("Guardado"); cargarInsumos(); editId=null; document.getElementById('btn-insumo').innerText="GUARDAR"; document.getElementById('btn-insumo').style.background="#465fff"; }
+        }
+
+        // --- PRODUCTOS ---
+        function agregarIngrediente() {
+            const sel = document.getElementById('receta-select');
+            recetaTemp.push({ insumo_id: sel.value, cantidad_requerida: document.getElementById('receta-cant').value, nombre: sel.options[sel.selectedIndex].text });
+            document.getElementById('lista-temp').innerHTML = recetaTemp.map(r => `<div>${r.nombre} (${r.cantidad_requerida})</div>`).join('');
+        }
+
+        async function crearProducto() {
+            const payload = {
+                nombre: document.getElementById('p-nombre').value,
+                precio: document.getElementById('p-precio').value,
+                ingredientes: recetaTemp
+            };
+            const res = await apiFetch('/productos/', 'POST', payload);
+            if(res) { alert("Plato creado"); cargarProductos(); recetaTemp=[]; document.getElementById('lista-temp').innerHTML=''; }
+        }
+
+        async function cargarProductos() {
+            const res = await apiFetch('/productos/');
+            if(res) {
+                document.getElementById('tabla-productos').innerHTML = res.data.map(p => `<tr><td>${p.nombre}</td><td>$${p.precio}</td></tr>`).join('');
+            }
+        }
+
+        // --- USUARIOS ---
+        async function crearUsuario() {
+            const payload = {
+                email: document.getElementById('u-email').value,
+                password: document.getElementById('u-pass').value,
+                full_name: document.getElementById('u-name').value,
+                rol: document.getElementById('u-rol').value
+            };
+            const res = await apiFetch('/users/', 'POST', payload);
+            if(res) { alert("Usuario creado"); cargarUsuarios(); }
+        }
+
+        async function cargarUsuarios() {
+            const res = await apiFetch('/users/');
+            if(res) document.getElementById('tabla-usuarios').innerHTML = res.data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td><b>${u.rol||'admin'}</b></td></tr>`).join('');
+        }
+
+        showSection('insumos');
+    </script>
+</body>
+</html>
