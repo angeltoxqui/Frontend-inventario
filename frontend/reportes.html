@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes Financieros</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background: #f8fafc; padding: 30px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .stat-box { background: linear-gradient(135deg, #465fff, #818cf8); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+        .big-num { font-size: 3em; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        .btn-back { background: #cbd5e1; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; text-decoration: none; color: #334155; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+    </style>
+</head>
+<body>
+    <div style="max-width: 800px; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+            <h1>📊 Reporte de Ventas (Hoy)</h1>
+            <button onclick="window.history.back()" class="btn-back"><span class="material-icons-round">arrow_back</span> Volver</button>
+        </div>
+
+        <div class="stat-box">
+            <div>Total Vendido Hoy</div>
+            <div class="big-num">$<span id="txt-total">0</span></div>
+            <div style="font-size:0.9em; opacity:0.8"><span id="txt-pedidos">0</span> pedidos completados</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="card">
+                <h3>🏆 Productos Más Vendidos</h3>
+                <ul id="list-top" style="padding-left:20px; line-height:1.8"></ul>
+            </div>
+            <div class="card">
+                <h3>🕒 Últimas Transacciones</h3>
+                <div style="overflow-y:auto; max-height:200px">
+                    <table style="font-size:14px">
+                        <thead><tr><th>Mesa</th><th>Total</th><th>Pago</th></tr></thead>
+                        <tbody id="tbl-hist"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        checkAuth();
+        
+        async function cargarReporte() {
+            try {
+                const data = await apiFetch('/ventas/reporte/resumen');
+                if(data) {
+                    document.getElementById('txt-total').innerText = data.ventas_hoy.toLocaleString();
+                    document.getElementById('txt-pedidos').innerText = data.pedidos_hoy;
+                    
+                    document.getElementById('list-top').innerHTML = data.top_productos.map(p => 
+                        `<li><b>${p.cantidad}x</b> ${p.nombre}</li>`
+                    ).join('');
+
+                    document.getElementById('tbl-hist').innerHTML = data.historial_reciente.map(v => 
+                        `<tr><td>${v.mesa}</td><td>$${v.total.toLocaleString()}</td><td>${v.metodo||'-'}</td></tr>`
+                    ).join('');
+                }
+            } catch(e) {
+                alert("No tienes permiso para ver reportes");
+                window.history.back();
+            }
+        }
+        cargarReporte();
+    </script>
+</body>
+</html>

@@ -4,68 +4,154 @@
     <meta charset="UTF-8">
     <title>Caja - GastroPOS</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
         body { font-family: 'Outfit', sans-serif; background: #ecfdf5; padding: 20px; }
         .ticket { background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #6ee7b7; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        button { background: #059669; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .group-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-pay { background: #059669; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; width: 450px; border-radius: 12px; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
     </style>
 </head>
 <body>
-    <div style="display:flex; justify-content:space-between">
-        <h1>💸 Caja - Pedidos Listos</h1>
-        <button onclick="logout()" style="background:transparent; color:#059669; border:1px solid #059669">Cerrar Caja</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+        <h1 style="margin:0; color:#065f46">💸 Caja - Cobros</h1>
+        <button onclick="logout()" style="background:white; border:1px solid #059669; color:#059669; padding:8px 15px; border-radius:6px; cursor:pointer">Salir</button>
     </div>
+    
     <div id="container">Cargando...</div>
+
+    <div id="modal-pago" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-titulo">Cobrar</h2>
+            
+            <div style="text-align:center; margin:20px 0;">
+                <span style="font-size:30px; font-weight:bold; color:#059669">$<span id="lbl-total">0</span></span>
+            </div>
+
+            <label>Facturación (NIT/CC):</label>
+            <input type="text" id="f-nit" placeholder="Consumidor Final">
+            <label>Nombre:</label>
+            <input type="text" id="f-nombre" placeholder="Nombre en factura">
+            
+            <label>Propina:</label>
+            <input type="number" id="f-propina" value="0" onchange="calcTotal()">
+            
+            <label>Método Pago:</label>
+            <select id="f-metodo">
+                <option>Efectivo</option>
+                <option>Tarjeta</option>
+                <option>Transferencia</option>
+            </select>
+
+            <button class="btn-pay" style="width:100%" onclick="confirmarPago()">CONFIRMAR PAGO</button>
+            <button onclick="document.getElementById('modal-pago').style.display='none'" style="background:transparent; border:none; width:100%; color:#666; margin-top:10px; cursor:pointer">Cancelar</button>
+        </div>
+    </div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
+        let ventaActual = null;
+        let itemsACobrar = []; // IDs
+        let montoBase = 0;
 
         async function cargar() {
             const res = await apiFetch('/ventas/');
             if(res) {
-                // Solo mostrar LISTOS para cobrar
-                const listos = res.data.filter(v => v.estado === 'listo');
-                const div = document.getElementById('container');
-                div.innerHTML = listos.length ? '' : '<p>No hay pedidos por cobrar</p>';
+                const container = document.getElementById('container');
+                const pendientes = (res.data || res).filter(v => v.estado === 'por_cobrar' || v.estado === 'entregado');
                 
-                listos.forEach(v => {
-                    div.innerHTML += `
-                        <div class="ticket">
-                            <h3>${v.mesa} <span style="float:right">$${v.total}</span></h3>
-                            <p>${v.detalles.map(d => d.producto_nombre).join(', ')}</p>
-                            <button onclick="cobrar('${v.id}', ${v.total})">COBRAR</button>
-                        </div>
-                    `;
+                container.innerHTML = pendientes.length ? '' : '<p>No hay cobros pendientes.</p>';
+
+                pendientes.forEach(v => {
+                    let contenidoHTML = `<div style="display:flex; justify-content:space-between"><h2>${v.mesa}</h2><h3>Total Restante: $${v.total.toLocaleString()}</h3></div>`;
+                    
+                    if (v.tipo_cuenta === 'separada') {
+                        // AGRUPAR POR COMENSAL
+                        const grupos = {};
+                        v.detalles.forEach(d => {
+                            const nombre = d.comensal || 'Mesa';
+                            if(!grupos[nombre]) grupos[nombre] = { total: 0, items: [] };
+                            grupos[nombre].total += d.subtotal;
+                            grupos[nombre].items.push(d);
+                        });
+
+                        contenidoHTML += `<p style="color:#1e40af; font-weight:bold">🧵 Cuenta Separada por Personas:</p>`;
+                        
+                        for (const [nombre, datos] of Object.entries(grupos)) {
+                            // Guardamos IDs en el botón para saber qué cobrar
+                            const ids = JSON.stringify(datos.items.map(i => i.id));
+                            contenidoHTML += `
+                                <div class="group-card">
+                                    <div>
+                                        <div style="font-weight:bold; font-size:18px">👤 ${nombre}</div>
+                                        <div style="font-size:12px; color:#666">${datos.items.length} productos</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div style="font-weight:bold; color:#059669">$${datos.total.toLocaleString()}</div>
+                                        <button class="btn-pay" onclick='iniciarCobro(${JSON.stringify(v)}, ${datos.total}, ${ids}, "${nombre}")'>Cobrar</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                    } else {
+                        // CUENTA ÚNICA
+                        contenidoHTML += `
+                            <p>Cuenta Única (Todo junto)</p>
+                            <button class="btn-pay" style="width:100%" onclick='iniciarCobro(${JSON.stringify(v)}, ${v.total}, [], "Mesa")'>COBRAR TODO ($${v.total.toLocaleString()})</button>
+                        `;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'ticket';
+                    card.innerHTML = contenidoHTML;
+                    container.appendChild(card);
                 });
             }
         }
 
-        async function cobrar(id, total) {
-            // LÓGICA DE PROPINA VOLUNTARIA
-            let propinaInput = prompt(`Total Consumo: $${total}\n\nIngrese valor de PROPINA Voluntaria (Deje 0 si no hay):`, "0");
+        function iniciarCobro(venta, monto, idsItems, nombreCliente) {
+            ventaActual = venta;
+            montoBase = monto;
+            itemsACobrar = idsItems; // Si está vacío es pago total
             
-            if(propinaInput === null) return; // Cancelar
-            let propina = parseFloat(propinaInput);
-            if(isNaN(propina)) propina = 0;
+            document.getElementById('modal-titulo').innerText = `Cobrar a ${nombreCliente}`;
+            document.getElementById('lbl-total').innerText = monto.toLocaleString();
+            
+            // Prellenar nombre si es una persona específica
+            document.getElementById('f-nombre').value = nombreCliente !== 'Mesa' ? nombreCliente : '';
+            document.getElementById('f-propina').value = 0;
+            
+            document.getElementById('modal-pago').style.display = 'flex';
+        }
 
-            let totalFinal = total + propina;
+        function calcTotal() {
+            const prop = parseFloat(document.getElementById('f-propina').value) || 0;
+            document.getElementById('lbl-total').innerText = (montoBase + prop).toLocaleString();
+        }
 
-            let metodo = prompt(`Total a Cobrar: $${totalFinal} (Inc. Propina)\n\nEscriba método:\nEfectivo, Tarjeta, Nequi`);
-            if(!metodo) return;
-
+        async function confirmarPago() {
             const payload = {
-                metodo_pago: metodo,
-                propina: propina
+                metodo_pago: document.getElementById('f-metodo').value,
+                propina: parseFloat(document.getElementById('f-propina').value) || 0,
+                cliente_nit: document.getElementById('f-nit').value || "222222222222",
+                cliente_nombre: document.getElementById('f-nombre').value || "Consumidor Final",
+                items_a_pagar: itemsACobrar
             };
 
-            const res = await apiFetch(`/ventas/${id}/pagar`, 'PUT', payload);
+            const res = await apiFetch(`/ventas/${ventaActual.id}/pagar_v2`, 'PUT', payload);
             if(res) {
-                alert(`✅ ¡Pago Exitoso!\nTotal: $${res.total_final}\n(Propina: $${res.propina})`);
+                alert("✅ Cobro registrado");
+                document.getElementById('modal-pago').style.display = 'none';
                 cargar();
             }
         }
 
+        function logout() { localStorage.clear(); window.location.href='login.html'; }
         setInterval(cargar, 5000);
         cargar();
     </script>
