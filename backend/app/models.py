@@ -12,7 +12,6 @@ class UserBase(SQLModel):
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
-    # ROL: admin, mesero, cocinero, cajero
     rol: str = Field(default="admin") 
 
 class UserCreate(UserBase):
@@ -22,7 +21,7 @@ class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=40)
     full_name: str | None = Field(default=None, max_length=255)
-    rol: str = Field(default="mesero") # Permitir definir rol al crear
+    rol: str = Field(default="mesero") 
 
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None, max_length=255)
@@ -134,19 +133,48 @@ class ProductosPublic(SQLModel):
     count: int
 
 # ==========================================
+#           MESAS
+# ==========================================
+
+class MesaBase(SQLModel):
+    nombre: str = Field(unique=True, index=True)
+    activa: bool = Field(default=True)
+
+class Mesa(MesaBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
+class MesaCreate(MesaBase):
+    pass
+
+class MesaPublic(MesaBase):
+    id: uuid.UUID
+
+class MesasPublic(SQLModel):
+    data: list[MesaPublic]
+    count: int
+
+# ==========================================
 #           VENTAS Y PEDIDOS
 # ==========================================
 
-# Esquema para recibir el pago (Con PROPINA)
+# Modelo para recibir el pago (Con Datos Facturación y Split)
 class VentaPago(SQLModel):
     metodo_pago: str 
-    propina: float = 0.0 # Propina voluntaria
+    propina: float = 0.0
+    # Datos Facturación Electrónica (Opcionales)
+    cliente_nombre: str | None = None
+    cliente_nit: str | None = None
+    cliente_email: str | None = None
+    cliente_telefono: str | None = None
+    # IDs de items para pago parcial
+    items_a_pagar: list[uuid.UUID] | None = None 
 
-# 1. DETALLE DE VENTA
 class DetalleVentaBase(SQLModel):
     cantidad: int
     precio_unitario: float
     subtotal: float
+    # Nuevo campo para asignar nombre del cliente al item
+    comensal: str | None = Field(default="Mesa") 
 
 class DetalleVenta(DetalleVentaBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -159,19 +187,27 @@ class DetalleVenta(DetalleVentaBase, table=True):
 class DetalleVentaCreate(SQLModel):
     producto_id: uuid.UUID
     cantidad: int
+    comensal: str = "Mesa"
 
 class DetalleVentaPublic(DetalleVentaBase):
+    id: uuid.UUID 
     producto_nombre: str 
 
-# 2. VENTA
 class VentaBase(SQLModel):
     mesa: str | None = Field(default=None)
-    estado: str = Field(default="pendiente") # pendiente -> listo -> pagado
-    total: float = Field(default=0.0) # Total productos
-    propina: float = Field(default=0.0) # Propina aparte
-    total_final: float = Field(default=0.0) # Total + Propina
+    estado: str = Field(default="pendiente")
+    tipo_cuenta: str = Field(default="unica") # 'unica' o 'separada'
+    total: float = Field(default=0.0)
+    propina: float = Field(default=0.0)
+    total_final: float = Field(default=0.0)
     fecha: datetime = Field(default_factory=datetime.utcnow)
-    metodo_pago: str | None = Field(default=None) 
+    metodo_pago: str | None = Field(default=None)
+    
+    # Datos Cliente Factura
+    cliente_nombre: str | None = Field(default=None)
+    cliente_nit: str | None = Field(default=None)
+    cliente_email: str | None = Field(default=None)
+    cliente_telefono: str | None = Field(default=None)
 
 class VentaCreate(VentaBase):
     detalles: list[DetalleVentaCreate]
