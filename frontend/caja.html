@@ -10,9 +10,16 @@
         .ticket { background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #6ee7b7; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .group-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .btn-pay { background: #059669; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 30px; width: 450px; border-radius: 12px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; width: 450px; border-radius: 12px; max-height:90vh; overflow-y:auto; }
+        
         input, select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        
+        /* Estilo para el Toggle de Factura */
+        .toggle-container { display: flex; align-items: center; gap: 10px; background: #f0fdf4; padding: 10px; border-radius: 8px; border: 1px dashed #16a34a; margin-bottom: 15px; cursor: pointer; }
+        .toggle-container input { width: auto; margin: 0; }
+        .toggle-container label { cursor: pointer; font-weight: bold; color: #166534; flex: 1; }
     </style>
 </head>
 <body>
@@ -25,28 +32,53 @@
 
     <div id="modal-pago" class="modal">
         <div class="modal-content">
-            <h2 id="modal-titulo">Cobrar</h2>
+            <h2 id="modal-titulo" style="margin-top:0">Cobrar</h2>
             
             <div style="text-align:center; margin:20px 0;">
-                <span style="font-size:30px; font-weight:bold; color:#059669">$<span id="lbl-total">0</span></span>
+                <span style="font-size:32px; font-weight:bold; color:#059669">$<span id="lbl-total">0</span></span>
             </div>
 
-            <label>Facturación (NIT/CC):</label>
-            <input type="text" id="f-nit" placeholder="Consumidor Final">
-            <label>Nombre:</label>
-            <input type="text" id="f-nombre" placeholder="Nombre en factura">
-            
-            <label>Propina:</label>
-            <input type="number" id="f-propina" value="0" onchange="calcTotal()">
-            
-            <label>Método Pago:</label>
-            <select id="f-metodo">
-                <option>Efectivo</option>
-                <option>Tarjeta</option>
-                <option>Transferencia</option>
-            </select>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <div>
+                    <label style="font-size:12px; font-weight:bold">Método Pago:</label>
+                    <select id="f-metodo">
+                        <option>Efectivo</option>
+                        <option>Tarjeta</option>
+                        <option>Nequi/Daviplata</option>
+                        <option>Transferencia</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:bold">Propina Voluntaria:</label>
+                    <input type="number" id="f-propina" value="0" onchange="calcTotal()">
+                </div>
+            </div>
 
-            <button class="btn-pay" style="width:100%" onclick="confirmarPago()">CONFIRMAR PAGO</button>
+            <div class="toggle-container" onclick="document.getElementById('chk-factura').click()">
+                <input type="checkbox" id="chk-factura" onclick="event.stopPropagation(); toggleFactura()">
+                <label for="chk-factura">¿Requiere Factura Electrónica?</label>
+            </div>
+
+            <div id="sec-factura" style="display:none; border-top:1px solid #eee; padding-top:10px; animation: fadeIn 0.3s">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                    <div>
+                        <label style="font-size:12px">NIT / C.C.:</label>
+                        <input type="text" id="f-nit" placeholder="Ej: 123456789">
+                    </div>
+                    <div>
+                        <label style="font-size:12px">Teléfono:</label>
+                        <input type="text" id="f-tel" placeholder="Ej: 3001234567">
+                    </div>
+                </div>
+                
+                <label style="font-size:12px">Nombre / Razón Social:</label>
+                <input type="text" id="f-nombre" placeholder="Nombre completo">
+                
+                <label style="font-size:12px">Correo Electrónico (Para XML):</label>
+                <input type="email" id="f-email" placeholder="cliente@email.com">
+            </div>
+
+            <button class="btn-pay" style="width:100%; margin-top:10px; padding:12px; font-size:16px" onclick="confirmarPago()">CONFIRMAR PAGO ✅</button>
             <button onclick="document.getElementById('modal-pago').style.display='none'" style="background:transparent; border:none; width:100%; color:#666; margin-top:10px; cursor:pointer">Cancelar</button>
         </div>
     </div>
@@ -64,10 +96,18 @@
                 const container = document.getElementById('container');
                 const pendientes = (res.data || res).filter(v => v.estado === 'por_cobrar' || v.estado === 'entregado');
                 
-                container.innerHTML = pendientes.length ? '' : '<p>No hay cobros pendientes.</p>';
+                container.innerHTML = pendientes.length ? '' : '<p style="text-align:center; color:#666; margin-top:50px">Todo al día. No hay cobros pendientes.</p>';
 
                 pendientes.forEach(v => {
-                    let contenidoHTML = `<div style="display:flex; justify-content:space-between"><h2>${v.mesa}</h2><h3>Total Restante: $${v.total.toLocaleString()}</h3></div>`;
+                    let contenidoHTML = `
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px">
+                            <div>
+                                <h2 style="margin:0">${v.mesa}</h2>
+                                <small style="color:#666">${new Date(v.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+                            </div>
+                            <h3 style="margin:0; color:#059669">$${v.total.toLocaleString()}</h3>
+                        </div>
+                    `;
                     
                     if (v.tipo_cuenta === 'separada') {
                         // AGRUPAR POR COMENSAL
@@ -79,20 +119,22 @@
                             grupos[nombre].items.push(d);
                         });
 
-                        contenidoHTML += `<p style="color:#1e40af; font-weight:bold">🧵 Cuenta Separada por Personas:</p>`;
+                        contenidoHTML += `<p style="color:#1e40af; font-weight:bold; font-size:13px; margin-bottom:5px">👥 CUENTAS SEPARADAS:</p>`;
                         
                         for (const [nombre, datos] of Object.entries(grupos)) {
-                            // Guardamos IDs en el botón para saber qué cobrar
                             const ids = JSON.stringify(datos.items.map(i => i.id));
                             contenidoHTML += `
                                 <div class="group-card">
-                                    <div>
-                                        <div style="font-weight:bold; font-size:18px">👤 ${nombre}</div>
-                                        <div style="font-size:12px; color:#666">${datos.items.length} productos</div>
+                                    <div style="display:flex; gap:10px; align-items:center">
+                                        <div style="background:#dbeafe; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#1e40af; font-weight:bold">${nombre.charAt(0).toUpperCase()}</div>
+                                        <div>
+                                            <div style="font-weight:bold;">${nombre}</div>
+                                            <div style="font-size:11px; color:#666">${datos.items.length} items</div>
+                                        </div>
                                     </div>
                                     <div style="text-align:right">
                                         <div style="font-weight:bold; color:#059669">$${datos.total.toLocaleString()}</div>
-                                        <button class="btn-pay" onclick='iniciarCobro(${JSON.stringify(v)}, ${datos.total}, ${ids}, "${nombre}")'>Cobrar</button>
+                                        <button class="btn-pay" onclick='iniciarCobro(${JSON.stringify(v)}, ${datos.total}, ${ids}, "${nombre}")' style="font-size:12px; padding:5px 10px">Cobrar</button>
                                     </div>
                                 </div>
                             `;
@@ -101,8 +143,10 @@
                     } else {
                         // CUENTA ÚNICA
                         contenidoHTML += `
-                            <p>Cuenta Única (Todo junto)</p>
-                            <button class="btn-pay" style="width:100%" onclick='iniciarCobro(${JSON.stringify(v)}, ${v.total}, [], "Mesa")'>COBRAR TODO ($${v.total.toLocaleString()})</button>
+                            <div style="background:#f0fdf4; padding:10px; border-radius:6px; text-align:center; color:#166534; font-size:14px; margin-bottom:10px">
+                                Cuenta Única (Todo incluido)
+                            </div>
+                            <button class="btn-pay" style="width:100%; padding:12px" onclick='iniciarCobro(${JSON.stringify(v)}, ${v.total}, [], "Mesa")'>COBRAR TOTAL ($${v.total.toLocaleString()})</button>
                         `;
                     }
 
@@ -117,16 +161,28 @@
         function iniciarCobro(venta, monto, idsItems, nombreCliente) {
             ventaActual = venta;
             montoBase = monto;
-            itemsACobrar = idsItems; // Si está vacío es pago total
+            itemsACobrar = idsItems; 
             
             document.getElementById('modal-titulo').innerText = `Cobrar a ${nombreCliente}`;
             document.getElementById('lbl-total').innerText = monto.toLocaleString();
             
-            // Prellenar nombre si es una persona específica
-            document.getElementById('f-nombre').value = nombreCliente !== 'Mesa' ? nombreCliente : '';
+            // Resetear formulario
+            document.getElementById('chk-factura').checked = false;
+            toggleFactura(); // Ocultar campos
+            
             document.getElementById('f-propina').value = 0;
+            // Prellenar nombre si es cuenta separada
+            document.getElementById('f-nombre').value = (nombreCliente !== 'Mesa') ? nombreCliente : ''; 
+            document.getElementById('f-nit').value = '';
+            document.getElementById('f-tel').value = '';
+            document.getElementById('f-email').value = '';
             
             document.getElementById('modal-pago').style.display = 'flex';
+        }
+
+        function toggleFactura() {
+            const chk = document.getElementById('chk-factura');
+            document.getElementById('sec-factura').style.display = chk.checked ? 'block' : 'none';
         }
 
         function calcTotal() {
@@ -135,24 +191,50 @@
         }
 
         async function confirmarPago() {
+            const requiereFactura = document.getElementById('chk-factura').checked;
+            
+            // Lógica por defecto (Consumidor Final) si no pide factura
+            const datosFactura = requiereFactura ? {
+                nit: document.getElementById('f-nit').value,
+                nombre: document.getElementById('f-nombre').value,
+                email: document.getElementById('f-email').value,
+                tel: document.getElementById('f-tel').value
+            } : {
+                nit: "222222222222",
+                nombre: "Consumidor Final",
+                email: "",
+                tel: ""
+            };
+
+            if (requiereFactura && !datosFactura.nit) {
+                return alert("Por favor ingresa el NIT/C.C. para la factura electrónica.");
+            }
+
             const payload = {
                 metodo_pago: document.getElementById('f-metodo').value,
                 propina: parseFloat(document.getElementById('f-propina').value) || 0,
-                cliente_nit: document.getElementById('f-nit').value || "222222222222",
-                cliente_nombre: document.getElementById('f-nombre').value || "Consumidor Final",
+                cliente_nit: datosFactura.nit,
+                cliente_nombre: datosFactura.nombre,
+                cliente_email: datosFactura.email,
+                cliente_telefono: datosFactura.tel,
                 items_a_pagar: itemsACobrar
             };
 
-            const res = await apiFetch(`/ventas/${ventaActual.id}/pagar_v2`, 'PUT', payload);
-            if(res) {
-                alert("✅ Cobro registrado");
-                document.getElementById('modal-pago').style.display = 'none';
-                cargar();
+            try {
+                const res = await apiFetch(`/ventas/${ventaActual.id}/pagar_v2`, 'PUT', payload);
+                if(res) {
+                    alert("✅ Cobro registrado exitosamente");
+                    document.getElementById('modal-pago').style.display = 'none';
+                    cargar();
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error al procesar el pago");
             }
         }
 
         function logout() { localStorage.clear(); window.location.href='login.html'; }
-        setInterval(cargar, 5000);
+        setInterval(cargar, 5000); // Refrescar cada 5s
         cargar();
     </script>
 </body>
