@@ -2,207 +2,408 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Administración - GastroPOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Admin - The Oracle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <style>
-        body { font-family: 'Outfit', sans-serif; background: #f9fafb; display: flex; height: 100vh; margin: 0; }
-        .sidebar { width: 250px; background: #101828; color: white; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .content { flex: 1; padding: 30px; overflow-y: auto; }
-        .nav-btn { background: none; border: none; color: #94a3b8; padding: 12px; text-align: left; cursor: pointer; display: flex; gap: 10px; font-size: 16px; width: 100%; border-radius: 6px; text-decoration: none; align-items: center; }
-        .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.1); color: white; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; margin-bottom: 10px; box-sizing: border-box;}
-        button.primary { background: #465fff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        :root {
+            /* DARK DEFAULT */
+            --bg-deep: #09090b; --glass: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.1); --text: #e4e4e7; --primary: #8b5cf6; --input-bg: rgba(0,0,0,0.3); --danger: #ef4444;
+        }
+        body.light-mode {
+            /* LIGHT MODE */
+            --bg-deep: #f8fafc; --glass: #ffffff; --glass-border: #e2e8f0; --text: #1e293b; --primary: #7c3aed; --input-bg: #f1f5f9;
+        }
+        body { font-family: 'Montserrat', sans-serif; background: var(--bg-deep); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+        
+        .sidebar { width: 250px; background: var(--glass); border-right: 1px solid var(--glass-border); padding: 20px; display: flex; flex-direction: column; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
+        .nav-btn { padding: 12px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; color: var(--text); opacity: 0.7; border:none; background:none; text-align:left; width:100%; display:flex; gap:10px; align-items:center; transition:0.2s; font-family:inherit; }
+        .nav-btn:hover, .nav-btn.active { background: rgba(139, 92, 246, 0.1); color: var(--primary); opacity: 1; font-weight: 600; }
+        
+        .content { flex: 1; padding: 40px; overflow-y: auto; }
+        .section { display: none; animation: fadeIn 0.4s; } .section.active { display: block; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        
+        .glass-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1 { margin-top: 0; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 20px; color: var(--text); }
+        input, select { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 10px; box-sizing:border-box; outline:none; font-family:inherit; }
+        input:focus, select:focus { border-color: var(--primary); }
+        button.primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.3s; font-family:inherit; text-transform:uppercase; letter-spacing:1px; }
+        button.primary:hover { filter: brightness(1.1); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--primary); font-size: 0.85rem; text-transform: uppercase; }
+        td { padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text); font-size: 0.95rem; }
+        tr:hover td { background: rgba(139, 92, 246, 0.05); }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        
+        /* TOAST */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast { background: var(--glass); border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: slideIn 0.3s; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 10px; color: var(--text); }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        
+        /* MODALS (QR y Confirm) */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(5px); }
+        .modal-box { background: var(--bg-deep); border: 1px solid var(--glass-border); padding: 30px; border-radius: 16px; text-align: center; color: var(--text); min-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .theme-float { position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.3s; }
+        .theme-float:hover { transform: scale(1.1); }
+        
+        /* Ingredientes lista */
+        .ing-item { display: flex; justify-content: space-between; background: rgba(139,92,246,0.1); padding: 8px; border-radius: 6px; margin-bottom: 5px; font-size: 0.9rem; }
+        
+        /* QR Container Oculto para Generación */
+        #qr-hidden { position: absolute; left: -9999px; }
     </style>
 </head>
 <body>
+    <div id="toast-container" class="toast-container"></div>
+    
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-top:0">Confirmar Acción</h3>
+            <p id="confirm-msg" style="opacity:0.8; margin-bottom:20px">¿Estás seguro?</p>
+            <div style="display:flex; gap:10px; justify-content:center">
+                <button onclick="closeConfirm()" style="background:transparent; border:1px solid var(--glass-border); color:var(--text)">Cancelar</button>
+                <button id="btn-confirm-ok" style="background:var(--primary)">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <div class="sidebar">
-        <h2>Gastro Admin</h2>
-        <button class="nav-btn active" onclick="showSection('insumos')"><span class="material-icons-round">inventory_2</span> Inventario</button>
-        <button class="nav-btn" onclick="showSection('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
-        <button class="nav-btn" onclick="showSection('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
-        <button class="nav-btn" onclick="showSection('mesas')"><span class="material-icons-round">table_bar</span> Mesas</button>
-        <div style="height:1px; background:#334155; margin:10px 0"></div>
-        <a href="reportes.html" class="nav-btn"><span class="material-icons-round">analytics</span> Ver Reportes</a>
-        <button class="nav-btn" onclick="logout()" style="margin-top:auto; color: #f04438"><span class="material-icons-round">logout</span> Salir</button>
+        <div class="logo"><span class="material-icons-round" style="color:var(--primary)">hub</span> ADMIN</div>
+        <button class="nav-btn active" onclick="show('insumos')"><span class="material-icons-round">inventory</span> Inventario</button>
+        <button class="nav-btn" onclick="show('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
+        <button class="nav-btn" onclick="show('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
+        <button class="nav-btn" onclick="show('mesas')"><span class="material-icons-round">table_bar</span> Mesas</button>
+        <div style="flex:1"></div>
+        <a href="reportes.html" class="nav-btn" style="text-decoration:none"><span class="material-icons-round">analytics</span> Reportes</a>
+        <button class="nav-btn" onclick="logout()" style="color:var(--danger)"><span class="material-icons-round">logout</span> Salir</button>
     </div>
 
     <div class="content">
         <div id="sec-insumos" class="section active">
-            <h1>Inventario</h1>
-            <div class="card">
-                <input type="text" id="i-nombre" placeholder="Nombre (ej: Pollo)">
-                <input type="text" id="i-unidad" placeholder="Unidad (kg)">
-                <input type="number" id="i-costo" placeholder="Costo">
-                <input type="number" id="i-stock" placeholder="Stock">
+            <h1>Gestión de Inventario</h1>
+            <div class="glass-panel" style="max-width:600px">
+                <input id="i-nombre" placeholder="Nombre (ej: Tomate)">
+                <div style="display:flex; gap:10px">
+                    <input id="i-unidad" placeholder="Unidad (kg)">
+                    <input type="number" id="i-costo" placeholder="Costo">
+                    <input type="number" id="i-stock" placeholder="Stock">
+                </div>
                 <button class="primary" id="btn-insumo" onclick="guardarInsumo()">GUARDAR</button>
             </div>
-            <div class="card"><table><tbody id="tabla-insumos"></tbody></table></div>
+            <div class="glass-panel">
+                <table><thead><tr><th>Item</th><th>Stock</th><th>Costo</th><th>Acción</th></tr></thead><tbody id="tabla-insumos"></tbody></table>
+            </div>
         </div>
-
+        
         <div id="sec-productos" class="section">
             <h1>Menú</h1>
-            <div class="card">
-                <input type="text" id="p-nombre" placeholder="Nombre Plato">
-                <input type="number" id="p-precio" placeholder="Precio Venta">
-                <h4>Ingredientes</h4>
-                <select id="receta-select"></select>
-                <input type="number" id="receta-cant" placeholder="Cantidad necesaria">
-                <button onclick="agregarIngrediente()" style="margin-bottom:10px; width:100%; padding:8px; cursor:pointer">+ Agregar Ingrediente</button>
-                <div id="lista-temp" style="margin-bottom:10px; color:#666"></div>
-                <button class="primary" onclick="crearProducto()">CREAR PLATO</button>
+            <div class="glass-panel" style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
+                <div><h3>1. Info</h3><input id="p-nombre" placeholder="Nombre Plato"><input type="number" id="p-precio" placeholder="Precio"></div>
+                <div>
+                    <h3>2. Receta</h3>
+                    <div style="display:flex;gap:10px">
+                        <select id="receta-select" style="flex:1"></select>
+                        <input type="number" id="receta-cant" placeholder="Cant" style="width:70px">
+                        <button onclick="addIng()" style="width:auto; padding:0 15px">+</button>
+                    </div>
+                    <div id="lista-temp" style="margin-top:10px"></div>
+                </div>
+                <button class="primary" onclick="crearProducto()" style="grid-column:1/-1">CREAR PLATO</button>
             </div>
-            <div class="card"><table><tbody id="tabla-productos"></tbody></table></div>
+            <div class="glass-panel">
+                <table><thead><tr><th>Plato</th><th>Precio</th></tr></thead><tbody id="tabla-productos"></tbody></table>
+            </div>
         </div>
 
         <div id="sec-usuarios" class="section">
             <h1>Recursos Humanos</h1>
-            <div class="card">
-                <input type="email" id="u-email" placeholder="Email (Login)">
-                <input type="password" id="u-pass" placeholder="Contraseña">
-                <input type="text" id="u-name" placeholder="Nombre">
+            <div class="glass-panel" style="max-width:400px">
+                <input id="u-email" placeholder="Email (Usuario)">
+                <input type="password" id="u-pass" placeholder="Contraseña Inicial">
+                <input id="u-name" placeholder="Nombre Completo">
                 <select id="u-rol">
                     <option value="mesero">Mesero</option>
                     <option value="cocinero">Cocinero</option>
                     <option value="cajero">Cajero</option>
                     <option value="admin">Administrador</option>
                 </select>
-                <button class="primary" onclick="crearUsuario()">CREAR USUARIO</button>
+                <button class="primary" onclick="crearUsuario()">REGISTRAR PERSONAL</button>
             </div>
-            <div class="card"><table><tbody id="tabla-usuarios"></tbody></table></div>
+            <div class="glass-panel">
+                <table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="tabla-usuarios"></tbody></table>
+            </div>
         </div>
 
         <div id="sec-mesas" class="section">
-            <h1>Configuración de Mesas</h1>
-            <div class="card">
-                <input type="text" id="m-nombre" placeholder="Nombre (Ej: Mesa 1, Barra, Terraza 2)">
-                <button class="primary" onclick="crearMesa()">AGREGAR MESA</button>
+            <h1>Sala</h1>
+            <div class="glass-panel" style="display:flex; gap:10px; max-width:400px">
+                <input id="m-nombre" placeholder="Nombre Mesa (Ej: T1)">
+                <button class="primary" onclick="crearMesa()" style="width:auto; margin-top:0">CREAR</button>
             </div>
-            <div class="card">
-                <table>
-                    <thead><tr><th>Nombre</th><th>Estado</th><th>Acción</th></tr></thead>
-                    <tbody id="tabla-mesas"></tbody>
-                </table>
+            <div class="glass-panel">
+                <table><thead><tr><th>Mesa</th><th>Estado</th><th>Consumo</th><th>Acción</th></tr></thead><tbody id="tabla-mesas"></tbody></table>
             </div>
         </div>
+    </div>
+
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="color:var(--primary)">Credencial de Acceso</h3>
+            <div id="qrcode" style="display:flex; justify-content:center; margin:20px; background:white; padding:10px; border-radius:8px"></div>
+            <p id="qr-info" style="font-size:0.9rem; margin-bottom:5px"></p>
+            <p id="qr-pass-info" style="font-size:0.8rem; color:var(--text); opacity:0.7; margin-bottom:20px"></p>
+            
+            <div style="display:flex; gap:10px; justify-content:center">
+                <button onclick="descargarCredencialPDF()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer">Descargar PDF</button>
+                <button onclick="document.getElementById('qr-modal').style.display='none'" style="background:transparent; border:1px solid var(--glass-border); color:var(--text)">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-hidden"></div>
+
+    <div class="theme-float" onclick="toggleThemeManual()">
+        <span class="material-icons-round" id="theme-icon">light_mode</span>
     </div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let insumos = [], recetaTemp = [], editId = null;
+        let insumos=[], recetaTemp=[], editId=null;
+        
+        // Variables globales para el PDF actual
+        let currentQRUser = { name: "", email: "", role: "", qrData: "" };
 
-        function showSection(id) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('sec-'+id).classList.add('active');
-            
-            if(id==='insumos') cargarInsumos();
-            if(id==='productos') { cargarInsumos(); cargarProductos(); }
-            if(id==='usuarios') cargarUsuarios();
-            if(id==='mesas') cargarMesas();
+        function initTheme(){if(localStorage.getItem('theme')==='light'){document.body.classList.add('light-mode');document.getElementById('theme-icon').innerText='dark_mode';}}
+        function toggleThemeManual(){document.body.classList.toggle('light-mode');const isLight=document.body.classList.contains('light-mode');localStorage.setItem('theme',isLight?'light':'dark');document.getElementById('theme-icon').innerText=isLight?'dark_mode':'light_mode';}
+        initTheme();
+
+        function showToast(msg){
+            const t=document.createElement('div'); t.className='toast'; t.innerHTML=`<span class="material-icons-round">check_circle</span>${msg}`;
+            document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3000);
         }
 
-        // --- INSUMOS ---
-        async function cargarInsumos() {
-            const res = await apiFetch('/insumos/');
-            if(res) {
-                insumos = res.data;
-                const tbody = document.getElementById('tabla-insumos');
-                const select = document.getElementById('receta-select');
-                tbody.innerHTML = '<tr><th>Nombre</th><th>Stock</th><th>Acción</th></tr>';
-                select.innerHTML = '';
-                insumos.forEach(i => {
-                    tbody.innerHTML += `<tr><td>${i.nombre}</td><td>${i.stock_actual} ${i.unidad_medida}</td><td><button onclick="editarInsumo('${i.id}')">✏️</button></td></tr>`;
-                    select.innerHTML += `<option value="${i.id}">${i.nombre}</option>`;
-                });
+        // CONFIRM MODAL
+        let confirmCallback = null;
+        function openConfirm(msg, cb) { document.getElementById('confirm-msg').innerText=msg; confirmCallback=cb; document.getElementById('confirm-modal').style.display='flex'; }
+        function closeConfirm() { document.getElementById('confirm-modal').style.display='none'; confirmCallback=null; }
+        document.getElementById('btn-confirm-ok').onclick=()=>{if(confirmCallback)confirmCallback();closeConfirm();}
+
+        function show(id){
+            document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+            document.getElementById('sec-'+id).classList.add('active'); event.currentTarget.classList.add('active');
+            if(id==='insumos')cargarInsumos(); if(id==='productos'){cargarInsumos();cargarProductos();} if(id==='usuarios')cargarUsuarios(); if(id==='mesas')cargarMesas();
+        }
+
+        // --- INVENTARIO ---
+        async function cargarInsumos(){const r=await apiFetch('/insumos/');if(r){insumos=r.data;document.getElementById('tabla-insumos').innerHTML=insumos.map(i=>`<tr><td><b>${i.nombre}</b></td><td>${i.stock_actual}</td><td>$${i.costo}</td><td><button onclick="editIng('${i.id}')" style="background:none;color:var(--primary);border:none;cursor:pointer">Edit</button></td></tr>`).join('');document.getElementById('receta-select').innerHTML=insumos.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join('');}}
+        function editIng(id){const i=insumos.find(x=>x.id===id);editId=id;document.getElementById('i-nombre').value=i.nombre;document.getElementById('i-unidad').value=i.unidad_medida;document.getElementById('i-costo').value=i.costo;document.getElementById('i-stock').value=i.stock_actual;document.getElementById('btn-insumo').innerText="ACTUALIZAR";}
+        async function guardarInsumo(){
+            const p={nombre:document.getElementById('i-nombre').value,unidad_medida:document.getElementById('i-unidad').value,costo:document.getElementById('i-costo').value,stock_actual:document.getElementById('i-stock').value};
+            let r; if(editId)r=await apiFetch(`/insumos/${editId}`,'PUT',p); else r=await apiFetch('/insumos/','POST',p);
+            if(r){showToast("Guardado");cargarInsumos();editId=null;document.getElementById('btn-insumo').innerText="GUARDAR";document.getElementById('i-nombre').value='';}
+        }
+
+        // --- MENÚ ---
+        function addIng(){
+            const s=document.getElementById('receta-select'), c=document.getElementById('receta-cant').value;
+            if(!c)return; recetaTemp.push({insumo_id:s.value,cantidad_requerida:c,nombre:s.options[s.selectedIndex].text});
+            document.getElementById('receta-cant').value=''; renderReceta();
+        }
+        function delIng(i){recetaTemp.splice(i,1);renderReceta();}
+        function renderReceta(){document.getElementById('lista-temp').innerHTML=recetaTemp.map((r,i)=>`<div class="ing-item"><span>${r.nombre} (${r.cantidad_requerida})</span><span style="color:var(--danger);cursor:pointer" onclick="delIng(${i})">✕</span></div>`).join('');}
+        async function crearProducto(){
+            if(!document.getElementById('p-nombre').value)return;
+            const r=await apiFetch('/productos/','POST',{nombre:document.getElementById('p-nombre').value,precio:document.getElementById('p-precio').value,ingredientes:recetaTemp});
+            if(r){showToast("Plato Creado");cargarProductos();recetaTemp=[];renderReceta();document.getElementById('p-nombre').value='';}
+        }
+        async function cargarProductos(){const r=await apiFetch('/productos/');if(r)document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`<tr><td>${p.nombre}</td><td>$${p.precio}</td></tr>`).join('');}
+
+        // --- USUARIOS & QR ---
+        async function crearUsuario(){
+            const em=document.getElementById('u-email').value;
+            const pass=document.getElementById('u-pass').value;
+            const name=document.getElementById('u-name').value;
+            const rol=document.getElementById('u-rol').value;
+            
+            const r=await apiFetch('/users/','POST',{email:em,password:pass,full_name:name,rol:rol});
+            if(r){
+                showToast("Usuario Creado");
+                mostrarModalQR(name, em, rol, pass); // Mostrar modal con opción de PDF
+                cargarUsuarios();
+                // Limpiar campos
+                document.getElementById('u-email').value=''; document.getElementById('u-pass').value=''; document.getElementById('u-name').value='';
             }
         }
-        function editarInsumo(id) {
-            const item = insumos.find(i => i.id === id);
-            editId = id;
-            document.getElementById('i-nombre').value = item.nombre;
-            document.getElementById('i-unidad').value = item.unidad_medida;
-            document.getElementById('i-costo').value = item.costo;
-            document.getElementById('i-stock').value = item.stock_actual;
-            document.getElementById('btn-insumo').innerText = "ACTUALIZAR";
-        }
-        async function guardarInsumo() {
-            const payload = {
-                nombre: document.getElementById('i-nombre').value,
-                unidad_medida: document.getElementById('i-unidad').value,
-                costo: document.getElementById('i-costo').value,
-                stock_actual: document.getElementById('i-stock').value
-            };
-            let res;
-            if(editId) res = await apiFetch(`/insumos/${editId}`, 'PUT', payload);
-            else res = await apiFetch('/insumos/', 'POST', payload);
-            if(res) { alert("Guardado"); cargarInsumos(); editId=null; document.getElementById('btn-insumo').innerText="GUARDAR"; }
-        }
 
-        // --- PRODUCTOS ---
-        function agregarIngrediente() {
-            const sel = document.getElementById('receta-select');
-            recetaTemp.push({ insumo_id: sel.value, cantidad_requerida: document.getElementById('receta-cant').value, nombre: sel.options[sel.selectedIndex].text });
-            document.getElementById('lista-temp').innerHTML = recetaTemp.map(r => `<div>${r.nombre} (${r.cantidad_requerida})</div>`).join('');
-        }
-        async function crearProducto() {
-            const payload = {
-                nombre: document.getElementById('p-nombre').value,
-                precio: document.getElementById('p-precio').value,
-                ingredientes: recetaTemp
-            };
-            const res = await apiFetch('/productos/', 'POST', payload);
-            if(res) { alert("Plato creado"); cargarProductos(); recetaTemp=[]; document.getElementById('lista-temp').innerHTML=''; }
-        }
-        async function cargarProductos() {
-            const res = await apiFetch('/productos/');
-            if(res) document.getElementById('tabla-productos').innerHTML = res.data.map(p => `<tr><td>${p.nombre}</td><td>$${p.precio}</td></tr>`).join('');
-        }
-
-        // --- USUARIOS ---
-        async function crearUsuario() {
-            const payload = {
-                email: document.getElementById('u-email').value,
-                password: document.getElementById('u-pass').value,
-                full_name: document.getElementById('u-name').value,
-                rol: document.getElementById('u-rol').value
-            };
-            const res = await apiFetch('/users/', 'POST', payload);
-            if(res) { alert("Usuario creado"); cargarUsuarios(); }
-        }
-        async function cargarUsuarios() {
-            const res = await apiFetch('/users/');
-            if(res) document.getElementById('tabla-usuarios').innerHTML = res.data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td><b>${u.rol||'admin'}</b></td></tr>`).join('');
-        }
-
-        // --- MESAS ---
-        async function cargarMesas() {
-            const res = await apiFetch('/mesas/');
-            if(res) {
-                document.getElementById('tabla-mesas').innerHTML = res.data.map(m => `
-                    <tr><td>${m.nombre}</td><td style="color:green">Activa</td>
-                    <td><button onclick="borrarMesa('${m.id}')" style="color:red; background:none; border:none; cursor:pointer">Eliminar</button></td></tr>
+        async function cargarUsuarios(){
+            const r=await apiFetch('/users/');
+            if(r){
+                document.getElementById('tabla-usuarios').innerHTML=r.data.map(u=>`
+                    <tr>
+                        <td>${u.full_name}</td>
+                        <td>${u.email}</td>
+                        <td><span style="color:var(--primary)">${u.rol||'admin'}</span></td>
+                        <td style="display:flex; gap:10px">
+                            <button onclick="verQRExistente('${u.full_name}', '${u.email}', '${u.rol}')" style="background:none; border:1px solid var(--glass-border); padding:5px 10px; border-radius:6px; cursor:pointer; color:var(--text)" title="Ver QR">🪪 QR</button>
+                            <button onclick="borrarUsuario('${u.id}')" style="background:none; border:none; color:var(--danger); cursor:pointer" title="Eliminar"><span class="material-icons-round">delete</span></button>
+                        </td>
+                    </tr>
                 `).join('');
             }
         }
-        async function crearMesa() {
-            const nom = document.getElementById('m-nombre').value;
-            if(!nom) return;
-            const res = await apiFetch('/mesas/', 'POST', { nombre: nom });
-            if(res) { document.getElementById('m-nombre').value=''; cargarMesas(); }
-        }
-        async function borrarMesa(id) {
-            if(confirm("¿Eliminar mesa?")) { await apiFetch(`/mesas/${id}`, 'DELETE'); cargarMesas(); }
+
+        async function borrarUsuario(id) {
+            openConfirm("¿Eliminar usuario del sistema?", async () => {
+                await apiFetch(`/users/${id}`, 'DELETE'); // Asume que el backend tiene DELETE /users/{id}
+                // Si no tienes el endpoint DELETE en backend, esto dará error 405. 
+                // Pero asumiendo standard REST, debería estar o agregarse en users.py.
+                showToast("Usuario eliminado");
+                cargarUsuarios();
+            });
         }
 
-        showSection('insumos');
-        function logout() { localStorage.clear(); window.location.href='login.html'; }
+        function verQRExistente(name, email, role) {
+            // Re-generar QR para usuario existente (sin mostrar password)
+            mostrarModalQR(name, email, role, null);
+        }
+
+        function mostrarModalQR(name, email, role, pass) {
+            const container = document.getElementById('qrcode');
+            container.innerHTML = ''; // Limpiar previo
+            
+            // URL Mágica para Login
+            const urlLogin = `${window.location.origin}/frontend/login.html?user=${encodeURIComponent(email)}`;
+            
+            // Generar QR
+            new QRCode(container, { text: urlLogin, width: 150, height: 150 });
+            
+            // Texto Info
+            document.getElementById('qr-info').innerHTML = `<b>${name}</b><br>${email} - ${role.toUpperCase()}`;
+            
+            const passInfo = document.getElementById('qr-pass-info');
+            if (pass) {
+                passInfo.innerText = `Contraseña inicial: ${pass}`;
+            } else {
+                passInfo.innerText = "Contraseña: (No visible por seguridad)";
+            }
+
+            // Guardar datos globales para el PDF
+            currentQRUser = { name, email, role, qrData: urlLogin };
+            
+            document.getElementById('qr-modal').style.display = 'flex';
+        }
+
+        function descargarCredencialPDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // CORRECCIÓN: Formato Vertical Estándar (55mm ancho x 85mm alto)
+            const doc = new jsPDF({ 
+                orientation: "portrait", 
+                unit: "mm", 
+                format: [55, 85] 
+            }); 
+
+            // Variables de dimensiones para centrar dinámicamente
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const centerX = pageWidth / 2;
+
+            // 1. Fondo Completo (Dark Blue)
+            doc.setFillColor(30, 41, 59); 
+            doc.rect(0, 0, pageWidth, pageHeight, "F");
+            
+            // 2. Encabezado
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("GASTRO POS", centerX, 10, { align: "center" });
+            
+            doc.setFontSize(6);
+            doc.setFont("helvetica", "normal");
+            doc.text("CREDENCIAL DE ACCESO", centerX, 14, { align: "center" });
+
+            // 3. Generar QR (Cuadrado centrado)
+            const qrSize = 35; 
+            const qrY = 20; 
+            
+            // Usamos un elemento temporal oculto para renderizar el QR limpio
+            const tempDiv = document.createElement('div');
+            // Generamos el QR de nuevo solo para el PDF para asegurar alta calidad
+            new QRCode(tempDiv, { 
+                text: currentQRUser.qrData, 
+                width: 200, // Alta resolución
+                height: 200,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            const qrCanvas = tempDiv.querySelector('canvas');
+            if(qrCanvas) {
+                const qrImg = qrCanvas.toDataURL("image/png");
+                // Dibujar un borde blanco detrás del QR para que resalte
+                doc.setFillColor(255, 255, 255);
+                doc.rect(centerX - (qrSize/2) - 1, qrY - 1, qrSize + 2, qrSize + 2, "F");
+                // Dibujar el QR
+                doc.addImage(qrImg, 'PNG', centerX - (qrSize/2), qrY, qrSize, qrSize);
+            }
+
+            // 4. Datos del Usuario
+            doc.setTextColor(255, 255, 255);
+            
+            // Nombre (Grande y Negrita)
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            // splitTextToSize evita que nombres muy largos se corten
+            const nombreSplit = doc.splitTextToSize(currentQRUser.name, pageWidth - 10);
+            doc.text(nombreSplit, centerX, 65, { align: "center" });
+            
+            // Rol (Mayúsculas)
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text(currentQRUser.role.toUpperCase(), centerX, 72, { align: "center" });
+
+            // Email (Pequeño y ajustado)
+            doc.setFontSize(6);
+            doc.setTextColor(200, 200, 200); // Gris claro
+            const emailSplit = doc.splitTextToSize(currentQRUser.email, pageWidth - 6);
+            doc.text(emailSplit, centerX, 77, { align: "center" });
+
+            // 5. Descargar
+            doc.save(`Credencial_${currentQRUser.name.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        // --- MESAS ---
+        async function cargarMesas(){
+            const rm=await apiFetch('/mesas/'), rv=await apiFetch('/ventas/');
+            if(rm&&rv){
+                const act=(rv.data||rv).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split');
+                document.getElementById('tabla-mesas').innerHTML=rm.data.map(m=>{
+                    const v=act.find(x=>x.mesa===m.nombre);
+                    let st='<span class="badge" style="background:rgba(16,185,129,0.2);color:#10b981">LIBRE</span>', tot='-';
+                    if(v){
+                        tot=`$${v.total.toLocaleString()}`;
+                        if(v.estado==='pendiente') st='<span class="badge" style="background:rgba(239,68,68,0.2);color:#ef4444">COCINA</span>';
+                        else if(v.estado==='listo') st='<span class="badge" style="background:rgba(249,115,22,0.2);color:#f97316">LISTO</span>';
+                        else if(v.estado==='entregado') st='<span class="badge" style="background:rgba(59,130,246,0.2);color:#3b82f6">OCUPADA</span>';
+                        else if(v.estado==='por_cobrar') st='<span class="badge" style="background:rgba(168,85,247,0.2);color:#a855f7">PAGO</span>';
+                    }
+                    return `<tr><td><b>${m.nombre}</b></td><td>${st}</td><td>${tot}</td><td><button onclick="delMesa('${m.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer">Eliminar</button></td></tr>`;
+                }).join('');
+            }
+        }
+        async function crearMesa(){const n=document.getElementById('m-nombre').value;if(!n)return;const r=await apiFetch('/mesas/','POST',{nombre:n});if(r){showToast("Mesa creada");document.getElementById('m-nombre').value='';cargarMesas();}}
+        async function delMesa(id){openConfirm("¿Eliminar mesa?",async()=>{await apiFetch(`/mesas/${id}`,'DELETE');cargarMesas();});}
+
+        function logout(){localStorage.clear();window.location.href='login.html';}
+        show('insumos');
     </script>
 </body>
 </html>

@@ -4,269 +4,303 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sala - GastroPOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
     <style>
-        :root { --bg: #f9fafb; --card: #ffffff; --brand: #465fff; --success: #12b76a; --warning: #f79009; --error: #f04438; }
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; }
-        .sidebar { width: 250px; background: #101828; color: white; padding: 20px; display: flex; flex-direction: column; }
-        .content { flex: 1; padding: 30px; overflow-y: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-        .card { background: var(--card); height: 160px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent; transition: .3s; position: relative; }
-        .card:hover { transform: translateY(-3px); }
-        .libre { border-color: #e2e8f0; } 
-        .pendiente { background: #fef2f2; border-color: var(--error); }
-        .listo { background: #ecfdf5; border-color: var(--success); animation: pulse 2s infinite; }
-        .entregado { background: #eff8ff; border-color: var(--brand); }
-        .por_cobrar { background: #fffbeb; border-color: var(--warning); }
-        @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(18, 183, 106, 0);} 100% {box-shadow: 0 0 0 0 rgba(18, 183, 106, 0);} }
-        .pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; }
-        .libre .pill { background: #f1f5f9; color: #64748b; }
-        .pendiente .pill { background: #fee2e2; color: var(--error); }
-        .listo .pill { background: #d1fae5; color: var(--success); }
-        .entregado .pill { background: #dbeafe; color: var(--brand); }
-        .por_cobrar .pill { background: #fef3c7; color: var(--warning); }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
-        .modal-box { background: white; padding: 25px; border-radius: 12px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y:auto; }
-        button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
-        .btn-primary { background: var(--brand); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-warning { background: var(--warning); color: white; }
-        .btn-outline { background: transparent; border: 1px solid #ccc; color: #333; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+        :root {
+            /* MODO OSCURO */
+            --bg-deep: #121212; --bg-sidebar: rgba(20, 20, 20, 0.95);
+            --glass-panel: rgba(255, 255, 255, 0.05); --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff; --text-muted: #a0a0a0;
+            --mesa-bg: rgba(255, 255, 255, 0.05); --input-bg: rgba(0, 0, 0, 0.5);
+            --neon-primary: #ff7e5f; --selected-bg: rgba(255, 126, 95, 0.2);
+            /* Estados */
+            --status-free: #4b5563; --status-cooking: #ef4444;
+            --status-ready: #10b981; --status-eating: #3b82f6; --status-paying: #f59e0b;
+        }
+
+        body.light-mode {
+            /* MODO CLARO */
+            --bg-deep: #f3f4f6; --bg-sidebar: #ffffff;
+            --glass-panel: #ffffff; --glass-border: #d1d5db;
+            --text-main: #111827; --text-muted: #4b5563;
+            --mesa-bg: #ffffff; --input-bg: #f9fafb;
+            --neon-primary: #ea580c; --selected-bg: rgba(234, 88, 12, 0.1);
+        }
+
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+
+        .sidebar { width: 80px; background: var(--bg-sidebar); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; padding: 30px 0; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .nav-btn { width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); margin-bottom: 20px; transition: 0.3s; cursor: pointer; }
+        .nav-btn:hover { background: var(--glass-panel); color: var(--neon-primary); }
+
+        .content { flex: 1; padding: 40px; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 30px; }
+
+        .mesa-node {
+            aspect-ratio: 1; background: var(--mesa-bg); border: 2px solid var(--glass-border); border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; color: var(--text-main); position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .mesa-node:hover { transform: scale(1.05); border-color: var(--neon-primary); }
+        .mesa-node.libre { border-color: var(--status-free); opacity: 0.8; }
+        .mesa-node.pendiente { border-color: var(--status-cooking); box-shadow: 0 0 15px var(--status-cooking); animation: breathe 3s infinite; }
+        .mesa-node.listo { border-color: var(--status-ready); box-shadow: 0 0 15px var(--status-ready); animation: pulse 1.5s infinite; }
+        .mesa-node.entregado { border-color: var(--status-eating); }
+        .mesa-node.por_cobrar { border-color: var(--status-paying); border-radius: 20px; }
         
-        /* Estilos Split */
-        .split-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; }
-        .split-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } }
+
+        /* MODALES */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: var(--bg-deep); border: 1px solid var(--glass-border); border-radius: 24px; padding: 30px; width: 500px; max-width: 90%; max-height: 85vh; overflow-y: auto; color: var(--text-main); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+
+        /* NUEVA LISTA DE PRODUCTOS (Reemplaza al Select) */
+        .prod-list-container {
+            max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--input-bg);
+        }
+        .prod-item {
+            padding: 10px 15px; border-bottom: 1px solid var(--glass-border); cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; transition: 0.2s;
+        }
+        .prod-item:hover { background: var(--glass-panel); }
+        .prod-item.selected { background: var(--selected-bg); border-left: 4px solid var(--neon-primary); font-weight: bold; }
+
+        input { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 12px; border-radius: 10px; width: 100%; outline: none; box-sizing: border-box; }
+        input:focus { border-color: var(--neon-primary); }
+
+        .btn-neon { background: var(--neon-primary); color: white; border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-ghost { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 12px; border-radius: 10px; width: 100%; cursor: pointer; margin-top: 10px; }
+        
+        .cart-item { background: var(--glass-panel); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .theme-toggle { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: var(--bg-sidebar); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2>🍽️ GastroPOS</h2>
-        <div style="margin-top:auto">
-            <p id="user-display" style="color:#94a3b8; font-size:14px">Mesero</p>
-            <button onclick="logout()" style="background:#334155; color:white">Salir</button>
-        </div>
+        <span class="material-icons-round" style="font-size:32px;color:var(--neon-primary);margin-bottom:40px">restaurant</span>
+        <div class="nav-btn" onclick="location.reload()"><span class="material-icons-round">refresh</span></div>
+        <div class="nav-btn" style="margin-top:auto" onclick="logout()"><span class="material-icons-round">logout</span></div>
     </div>
 
     <div class="content">
-        <h1>Sala Principal</h1>
-        <div id="grid" class="grid">Cargando mesas...</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+            <h1 style="margin:0; font-family:'Montserrat'; font-size:2rem">Sala</h1>
+            <div id="reloj" style="font-weight:600">--:--</div>
+        </div>
+        <div id="grid" class="grid">Cargando...</div>
     </div>
+
+    <div class="theme-toggle" onclick="toggleThemeManual()"><span class="material-icons-round" id="theme-icon">light_mode</span></div>
 
     <div id="modal-order" class="modal">
         <div class="modal-box">
-            <h2 id="modal-title">Nueva Orden</h2>
-            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <label style="font-size:12px; font-weight:bold; color:#64748b">AGREGAR PRODUCTO</label>
-                <div style="display:flex; gap:10px; margin-top:5px">
-                    <select id="sel-prod" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:6px"></select>
-                    <input type="number" id="inp-cant" value="1" min="1" style="width:60px; padding:10px; border:1px solid #ccc; border-radius:6px">
+            <h2 style="margin-top:0">Nuevo Pedido</h2>
+            <p id="modal-subtitle" style="color:var(--text-muted); margin-bottom:15px">Agrega productos</p>
+            
+            <input type="text" id="prod-search" placeholder="🔍 Buscar producto..." onkeyup="filtrarProductos()" style="margin-bottom: 10px;">
+            
+            <div id="prod-list" class="prod-list-container"></div>
+
+            <div style="background:var(--glass-panel); padding:15px; border-radius:12px; margin-bottom:15px">
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
+                    <span id="lbl-selected" style="flex:1; font-weight:bold; color:var(--neon-primary)">Selecciona un producto</span>
+                    <input type="number" id="inp-cant" value="1" min="1" style="width:70px; text-align:center; font-weight:bold">
                 </div>
-                <button class="btn-outline" onclick="agregarAlCarrito()" style="margin-top:10px; font-size:13px">
-                    <span class="material-icons-round" style="font-size:16px; vertical-align:middle">add</span> Agregar a la lista
-                </button>
+                <input type="text" id="inp-notas" placeholder="📝 Notas (Sin cebolla...)" style="font-size:0.9rem">
+                <button onclick="agregarAlCarrito()" class="btn-ghost" style="color:var(--neon-primary); border-color:var(--neon-primary)">+ AÑADIR</button>
             </div>
-            <div id="cart-list" style="min-height: 50px; margin-bottom: 15px;"></div>
-            <button class="btn-primary" onclick="enviarPedido()">ENVIAR A COCINA</button>
-            <button onclick="closeModal('modal-order')" style="background:transparent; color:#666">Cancelar</button>
+
+            <div id="cart-list" style="max-height:150px; overflow-y:auto; margin-bottom:15px"></div>
+            
+            <button class="btn-neon" onclick="enviarPedido()">ENVIAR A COCINA</button>
+            <button onclick="closeModal('modal-order')" class="btn-ghost" style="border:none">Cancelar</button>
         </div>
     </div>
 
     <div id="modal-actions" class="modal">
-        <div class="modal-box">
-            <h2 id="act-title">Mesa</h2>
-            <p id="act-info" style="font-size:14px; color:#64748b; margin-bottom:20px"></p>
-            <div id="act-buttons"></div>
-            
-            <div id="div-cuenta" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:15px">
-                <p style="font-weight:bold; margin-bottom:10px">Opciones de Cuenta:</p>
+        <div class="modal-box" style="text-align:center">
+            <h2 id="act-title" style="margin-top:0">Mesa</h2>
+            <div id="act-info" style="font-size:1.5rem; font-weight:bold; color:var(--neon-primary); margin:15px 0"></div>
+            <div id="act-buttons" style="display:flex; flex-direction:column; gap:10px"></div>
+            <div id="div-cuenta" style="display:none; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:20px">
                 <div style="display:flex; gap:10px">
-                    <button class="btn-primary" onclick="pedirCuenta('unica')">Cuenta Única</button>
-                    <button class="btn-warning" onclick="prepararDivision()">Cuentas Separadas</button>
+                    <button class="btn-neon" style="background:#3b82f6" onclick="pedirCuenta('unica')">Única</button>
+                    <button class="btn-neon" style="background:#f59e0b" onclick="prepararDivision()">Separada</button>
                 </div>
             </div>
-            <button onclick="closeModal('modal-actions')" style="background:transparent; color:#666; margin-top:15px">Cerrar</button>
+            <button onclick="closeModal('modal-actions')" class="btn-ghost" style="border:none; margin-top:15px">Cerrar</button>
         </div>
     </div>
 
     <div id="modal-split" class="modal">
         <div class="modal-box">
             <h2>Dividir Cuenta</h2>
-            <p style="font-size:13px; color:#666; margin-bottom:15px">Asigna el nombre de quien paga cada producto.</p>
-            <div id="split-list" style="max-height:300px; overflow-y:auto; margin-bottom:20px"></div>
-            <button class="btn-success" onclick="confirmarDivision()">✅ Enviar a Caja Separado</button>
-            <button onclick="closeModal('modal-split')" style="background:transparent; color:#666">Cancelar</button>
+            <div id="split-list" style="max-height:300px; overflow-y:auto; margin-bottom:15px"></div>
+            <button class="btn-neon" onclick="confirmarDivision()">CONFIRMAR</button>
+            <button onclick="closeModal('modal-split')" class="btn-ghost">Volver</button>
         </div>
     </div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let MESAS = [], productos = [], ventasActivas = [], carrito = [];
-        let mesaSeleccionada = null, ventaActual = null;
+        let MESAS=[], productos=[], allProductos=[], ventasActivas=[], carrito=[], mesaSeleccionada=null, ventaActual=null;
+        let selectedProdId = null; // Variable para controlar la selección estable
 
-        document.getElementById('user-display').innerText = localStorage.getItem('user_name') || 'Usuario';
+        function toggleThemeManual() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-icon').innerText = isLight ? 'dark_mode' : 'light_mode';
+        }
+        if(localStorage.getItem('theme')==='light') toggleThemeManual();
+        setInterval(() => document.getElementById('reloj').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), 1000);
 
         async function init() {
-            await cargarProductos();
-            await cargarMesasReales();
-            await cargarVentas();
-            renderMesas();
+            try {
+                await cargarProductos();
+                await cargarMesasReales();
+                await cargarVentas();
+                renderMesas();
+            } catch(e) { console.error("Error init:", e); }
         }
 
-        async function cargarMesasReales() {
-            const res = await apiFetch('/mesas/');
-            if(res && res.data) MESAS = res.data.map(m => m.nombre);
+        async function cargarMesasReales(){ const r=await apiFetch('/mesas/'); if(r) MESAS=r.data.map(m=>m.nombre); }
+        async function cargarProductos(){ const r=await apiFetch('/productos/'); if(r){ allProductos=r.data; renderProdList(allProductos); } }
+        async function cargarVentas(){ const r=await apiFetch('/ventas/'); if(r) ventasActivas=(r.data||r).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split'); }
+
+        // --- NUEVA LÓGICA DE LISTA VISUAL ---
+        function renderProdList(lista) {
+            const container = document.getElementById('prod-list');
+            if(!container) return;
+            container.innerHTML = lista.map(p => `
+                <div class="prod-item ${selectedProdId === p.id ? 'selected' : ''}" onclick="selectProduct('${p.id}', '${p.nombre}')">
+                    <span>${p.nombre}</span>
+                    <span style="font-weight:600">$${p.precio.toLocaleString('es-CO')}</span>
+                </div>
+            `).join('');
         }
 
-        async function cargarProductos() {
-            const res = await apiFetch('/productos/');
-            if(res) {
-                productos = res.data || res;
-                document.getElementById('sel-prod').innerHTML = productos.map(p => `<option value="${p.id}">${p.nombre} - $${p.precio}</option>`).join('');
-            }
+        function filtrarProductos() {
+            const term = document.getElementById('prod-search').value.toLowerCase();
+            const filtrados = allProductos.filter(p => p.nombre.toLowerCase().includes(term));
+            renderProdList(filtrados);
         }
 
-        async function cargarVentas() {
-            const res = await apiFetch('/ventas/');
-            if(res) ventasActivas = (res.data || res).filter(v => v.estado !== 'pagado' && v.estado !== 'cerrado_split');
+        function selectProduct(id, nombre) {
+            selectedProdId = id;
+            document.getElementById('lbl-selected').innerText = nombre;
+            // Re-renderizar para mostrar el resaltado (clase .selected)
+            filtrarProductos(); 
         }
 
+        // --- RESTO DEL CÓDIGO ---
         function renderMesas() {
-            const grid = document.getElementById('grid');
-            if(MESAS.length > 0) grid.innerHTML = '';
-            MESAS.forEach(mesaNombre => {
-                const venta = ventasActivas.find(v => v.mesa === mesaNombre);
-                let estado='libre', texto='LIBRE', icono='table_restaurant';
-                if (venta) {
-                    if (venta.estado === 'pendiente') { estado='pendiente'; texto='COCINANDO'; icono='soup_kitchen'; }
-                    else if (venta.estado === 'listo') { estado='listo'; texto='¡LISTO!'; icono='room_service'; }
-                    else if (venta.estado === 'entregado') { estado='entregado'; texto='COMIENDO'; icono='restaurant'; }
-                    else if (venta.estado === 'por_cobrar') { estado='por_cobrar'; texto='COBRAR'; icono='attach_money'; }
+            const grid=document.getElementById('grid'); if(MESAS.length)grid.innerHTML='';
+            MESAS.forEach(nom => {
+                const v = ventasActivas.find(x=>x.mesa===nom);
+                let st='libre', txt='DISPONIBLE', totalStr='';
+                if(v){
+                    totalStr = `$${v.total.toLocaleString('es-CO')}`;
+                    if(v.estado==='pendiente'){st='pendiente';txt='COCINANDO';}
+                    else if(v.estado==='listo'){st='listo';txt='SERVIR';}
+                    else if(v.estado==='entregado'){st='entregado';txt='OCUPADA';}
+                    else if(v.estado==='por_cobrar'){st='por_cobrar';txt='PAGANDO';}
                 }
-                const card = document.createElement('div');
-                card.className = `card ${estado}`;
-                card.onclick = () => clickMesa(mesaNombre, venta);
-                card.innerHTML = `
-                    <span class="pill">${texto}</span>
-                    <span class="material-icons-round" style="font-size:40px; color:${estado==='libre'?'#94a3b8':'inherit'}">${icono}</span>
-                    <h3>${mesaNombre}</h3>
-                    ${venta ? `<small>$${venta.total}</small>` : ''}
-                `;
-                grid.appendChild(card);
+                const d=document.createElement('div'); d.className=`mesa-node ${st}`;
+                d.onclick=()=>clickMesa(nom,v);
+                d.innerHTML=`<div style="font-weight:700;font-size:1.1rem">${nom}</div><div style="font-size:0.75rem;opacity:0.8;margin-bottom:5px">${txt}</div><div style="font-weight:700">${totalStr}</div>`;
+                grid.appendChild(d);
             });
         }
 
-        function clickMesa(nombre, venta) {
-            mesaSeleccionada = nombre;
-            ventaActual = venta;
-            
-            if (!venta) {
-                abrirModalPedido(nombre);
+        function clickMesa(nom, venta) {
+            mesaSeleccionada=nom; ventaActual=venta;
+            if(!venta) {
+                abrirModalPedido(nom);
             } else {
-                document.getElementById('act-title').innerText = nombre;
-                const itemsTxt = venta.detalles.map(d => `${d.cantidad} ${d.producto_nombre}`).join(', ');
-                document.getElementById('act-info').innerHTML = `<b>Total:</b> $${venta.total}<br><div style="font-size:12px;color:#666">${itemsTxt}</div>`;
+                document.getElementById('act-title').innerText=nom;
+                const itemsList = (venta.detalles||[]).map(d=>`<div>${d.cantidad} ${d.producto_nombre} ${d.notas?`<small>(${d.notas})</small>`:''}</div>`).join('');
+                document.getElementById('act-info').innerHTML=`$${venta.total.toLocaleString('es-CO')}<div style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; max-height:100px; overflow-y:auto; font-weight:normal">${itemsList}</div>`;
+                const b=document.getElementById('act-buttons'); document.getElementById('div-cuenta').style.display='none'; b.innerHTML='';
                 
-                const btnDiv = document.getElementById('act-buttons');
-                const divCuenta = document.getElementById('div-cuenta');
-                btnDiv.innerHTML = '';
-                divCuenta.style.display = 'none';
-
-                if (venta.estado === 'pendiente') {
-                    btnDiv.innerHTML = `<p style="color:#f04438;text-align:center">⏳ Cocinando...</p><button class="btn-outline" onclick="abrirModalPedido('${nombre}')">➕ Agregar más</button>`;
-                } else if (venta.estado === 'listo') {
-                    btnDiv.innerHTML = `<button class="btn-success" onclick="accionMesa('entregar_mesa')">✅ Servir Mesa</button>`;
-                } else if (venta.estado === 'entregado') {
-                    btnDiv.innerHTML = `<button class="btn-primary" onclick="abrirModalPedido('${nombre}')">➕ Agregar más</button><button class="btn-warning" onclick="document.getElementById('div-cuenta').style.display='block'">📄 Pedir la Cuenta</button>`;
-                } else if (venta.estado === 'por_cobrar') {
-                    btnDiv.innerHTML = `<p style="color:#f59e0b;text-align:center">💸 Esperando a Caja (${venta.tipo_cuenta})</p>`;
-                }
-                document.getElementById('modal-actions').style.display = 'flex';
+                if(venta.estado==='pendiente') b.innerHTML=`<div style="color:var(--status-cooking);font-weight:bold;margin-bottom:10px">COCINANDO...</div><button class="btn-ghost" onclick="abrirModalPedido('${nom}')">AGREGAR PRODUCTO</button>`;
+                else if(venta.estado==='listo') b.innerHTML=`<button class="btn-neon" style="background:var(--status-ready)" onclick="accionMesa('entregar_mesa')">✅ SERVIR A MESA</button>`;
+                else if(venta.estado==='entregado') b.innerHTML=`<button class="btn-ghost" onclick="abrirModalPedido('${nom}')">AGREGAR PRODUCTO</button><button class="btn-neon" onclick="document.getElementById('div-cuenta').style.display='block'">💵 PEDIR CUENTA</button>`;
+                else if(venta.estado==='por_cobrar') b.innerHTML=`<div style="color:var(--status-paying);font-weight:bold">EN PROCESO DE COBRO...</div>`;
+                
+                document.getElementById('modal-actions').style.display='flex';
             }
         }
 
-        // --- CARRITO ---
-        function abrirModalPedido(nombre) {
-            closeModal('modal-actions');
-            mesaSeleccionada = nombre;
-            carrito = [];
-            renderCarrito();
-            document.getElementById('modal-title').innerText = `Pedido ${nombre}`;
-            document.getElementById('modal-order').style.display = 'flex';
-        }
-        function agregarAlCarrito() {
-            const prodId = document.getElementById('sel-prod').value;
-            const cant = parseInt(document.getElementById('inp-cant').value);
-            const prod = productos.find(p => p.id === prodId);
-            if (cant > 0) {
-                carrito.push({ producto_id: prodId, nombre: prod.nombre, cantidad: cant });
-                renderCarrito();
-            }
-        }
-        function renderCarrito() {
-            const div = document.getElementById('cart-list');
-            div.innerHTML = carrito.length ? '' : '<p style="text-align:center;color:#999">Lista vacía</p>';
-            carrito.forEach((it, i) => div.innerHTML += `<div class="cart-item"><span>${it.cantidad}x ${it.nombre}</span><span onclick="carrito.splice(${i},1);renderCarrito()" style="color:red;cursor:pointer">x</span></div>`);
-        }
-        async function enviarPedido() {
-            if(!carrito.length) return;
-            const res = await apiFetch('/ventas/', 'POST', { mesa: mesaSeleccionada, detalles: carrito });
-            if(res) { closeModal('modal-order'); init(); }
-        }
-
-        // --- LOGICA DE DIVISION DE CUENTA (NUEVO) ---
-        function prepararDivision() {
-            closeModal('modal-actions');
-            const list = document.getElementById('split-list');
-            list.innerHTML = '';
+        function abrirModalPedido(nom) {
+            closeModal('modal-actions'); mesaSeleccionada=nom; carrito=[]; renderCarrito();
+            document.getElementById('modal-subtitle').innerText=`Mesa: ${nom}`;
             
-            // Generamos una fila por cada producto para ponerle nombre
-            ventaActual.detalles.forEach(d => {
-                // Si hay cantidad > 1, idealmente se dividiría, pero para simplificar v1
-                // asumimos que el bloque completo va a una persona o el mesero separó en el pedido.
-                // Aquí mostramos "2x Coca Cola" y un input para el nombre.
-                list.innerHTML += `
-                    <div class="split-row">
-                        <div style="width:150px; font-size:14px"><b>${d.cantidad}x</b> ${d.producto_nombre}</div>
-                        <input type="text" id="split-name-${d.id}" placeholder="Nombre comensal (Ej: Juan)" value="${d.comensal !== 'Mesa' ? d.comensal : ''}">
-                    </div>
-                `;
-            });
-            document.getElementById('modal-split').style.display = 'flex';
+            // Resetear búsqueda
+            document.getElementById('prod-search').value = '';
+            selectedProdId = null;
+            document.getElementById('lbl-selected').innerText = "Selecciona un producto";
+            renderProdList(allProductos);
+            
+            document.getElementById('modal-order').style.display='flex';
+            setTimeout(() => document.getElementById('prod-search').focus(), 100);
         }
 
-        async function confirmarDivision() {
-            const asignaciones = [];
-            ventaActual.detalles.forEach(d => {
-                const nombre = document.getElementById(`split-name-${d.id}`).value.trim() || "Mesa";
-                asignaciones.push({ detalle_id: d.id, comensal: nombre });
-            });
+        function agregarAlCarrito() {
+            if(!selectedProdId) return alert("Selecciona un producto primero");
+            const cant = parseInt(document.getElementById('inp-cant').value);
+            const nota = document.getElementById('inp-notas').value.trim();
+            const p = allProductos.find(x => x.id === selectedProdId);
 
-            const res = await apiFetch(`/ventas/${ventaActual.id}/dividir_por_nombres`, 'POST', { asignaciones });
-            if(res) {
-                alert("✅ Cuenta enviada a caja separada por nombres.");
-                closeModal('modal-split');
-                init();
+            if (p && cant > 0) {
+                carrito.push({ producto_id: p.id, nombre: p.nombre, cantidad: cant, notas: nota });
+                renderCarrito();
+                // Reset inputs
+                document.getElementById('inp-notas').value = '';
+                document.getElementById('inp-cant').value = 1;
+                // Mantener selección o limpiar? Mejor limpiar para evitar duplicados accidentales
+                // selectedProdId = null;
+                // document.getElementById('lbl-selected').innerText = "Selecciona un producto";
+                // renderProdList(allProductos);
             }
         }
 
-        async function pedirCuenta(tipo) {
-            if(!confirm("¿Pedir cuenta total?")) return;
-            const res = await apiFetch(`/ventas/${ventaActual.id}/solicitar_cuenta?tipo=${tipo}`, 'POST', {});
-            if(res) { closeModal('modal-actions'); init(); }
+        function renderCarrito(){
+            const div=document.getElementById('cart-list');
+            if(!carrito.length) div.innerHTML='<p style="text-align:center;color:var(--text-muted);padding:20px">Carrito vacío</p>';
+            else div.innerHTML=carrito.map((c,i)=>`
+                <div class="cart-item">
+                    <div><b>${c.cantidad}x</b> ${c.nombre} ${c.notas?`<br><small style="color:var(--neon-primary)">📝 ${c.notas}</small>`:''}</div>
+                    <span class="material-icons-round" style="color:#ef4444;cursor:pointer" onclick="carrito.splice(${i},1);renderCarrito()">delete</span>
+                </div>`).join('');
         }
 
-        async function accionMesa(act) {
-            await apiFetch(`/ventas/${ventaActual.id}/${act}`, 'POST', {});
-            closeModal('modal-actions'); init();
+        async function enviarPedido(){
+            if(!carrito.length) return alert("Agrega productos");
+            await apiFetch('/ventas/','POST',{mesa:mesaSeleccionada,detalles:carrito});
+            closeModal('modal-order'); init();
         }
 
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function logout() { localStorage.clear(); window.location.href='login.html'; }
-        setInterval(init, 5000);
-        init();
+        function prepararDivision(){
+            closeModal('modal-actions'); const div=document.getElementById('split-list'); div.innerHTML='';
+            (ventaActual.detalles||[]).forEach(d=>{
+                div.innerHTML+=`<div class="cart-item"><span><b>${d.cantidad}x</b> ${d.producto_nombre}</span><input type="text" id="split-${d.id}" value="${d.comensal!=='Mesa'?d.comensal:''}" placeholder="Nombre" style="width:120px;padding:8px"></div>`;
+            });
+            document.getElementById('modal-split').style.display='flex';
+        }
+        async function confirmarDivision(){
+            const asignaciones = ventaActual.detalles.map(d=>({detalle_id:d.id, comensal:document.getElementById(`split-${d.id}`).value.trim()||"Mesa"}));
+            await apiFetch(`/ventas/${ventaActual.id}/dividir_por_nombres`,'POST',{asignaciones}); closeModal('modal-split'); init();
+        }
+        async function pedirCuenta(t){ await apiFetch(`/ventas/${ventaActual.id}/solicitar_cuenta?tipo=${t}`,'POST',{}); closeModal('modal-actions'); init(); }
+        async function accionMesa(a){ await apiFetch(`/ventas/${ventaActual.id}/${a}`,'POST',{}); closeModal('modal-actions'); init(); }
+        function closeModal(id){document.getElementById(id).style.display='none';}
+        function logout(){localStorage.removeItem('token');window.location.href='login.html';}
+        setInterval(init, 5000); init();
     </script>
 </body>
 </html>

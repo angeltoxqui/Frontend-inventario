@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -14,7 +14,6 @@ from app.models import (
 
 router = APIRouter(prefix="/ventas", tags=["ventas"])
 
-# --- ESQUEMAS PARA DIVISIÓN DE CUENTA ---
 class ItemDivision(SQLModel):
     detalle_id: uuid.UUID
     comensal: str
@@ -53,7 +52,6 @@ def crear_venta(
             venta.estado = "pendiente"
 
     total_adicional = 0.0
-    detalles_respuesta = []
 
     for item in venta_in.detalles:
         producto = session.get(Producto, item.producto_id)
@@ -75,23 +73,16 @@ def crear_venta(
             cantidad=item.cantidad,
             precio_unitario=producto.precio,
             subtotal=subtotal,
-            comensal="Mesa" # Por defecto
+            comensal="Mesa", # Por defecto
+            notas=item.notas # Guardar nota (sin cebolla, etc.)
         )
         session.add(detalle)
         session.commit() 
         session.refresh(detalle)
-        
-        detalles_respuesta.append(DetalleVentaPublic(
-            id=detalle.id,
-            cantidad=item.cantidad, 
-            precio_unitario=producto.precio,
-            subtotal=subtotal, 
-            producto_nombre=producto.nombre,
-            comensal=detalle.comensal
-        ))
 
     venta.total += total_adicional
-    venta.total_final = venta.total 
+    # Recalcular total final (considerando propina si ya hubiera, descuentos se aplican al pagar)
+    venta.total_final = venta.total + venta.propina 
     session.add(venta)
     session.commit()
     session.refresh(venta)
@@ -104,7 +95,8 @@ def crear_venta(
 @router.put("/{venta_id}/marcar-listo", response_model=VentaPublic)
 def marcar_pedido_listo(venta_id: uuid.UUID, session: SessionDep, current_user: CurrentUser) -> Any:
     venta = session.get(Venta, venta_id)
-    if not venta: raise HTTPException(status_code=404)
+    if not venta: raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
     venta.estado = "listo"
     session.add(venta)
     session.commit()
@@ -113,7 +105,8 @@ def marcar_pedido_listo(venta_id: uuid.UUID, session: SessionDep, current_user: 
 @router.post("/{venta_id}/entregar_mesa", response_model=VentaPublic)
 def entregar_pedido_mesa(venta_id: uuid.UUID, session: SessionDep, current_user: CurrentUser) -> Any:
     venta = session.get(Venta, venta_id)
-    if not venta: raise HTTPException(status_code=404)
+    if not venta: raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
     venta.estado = "entregado"
     session.add(venta)
     session.commit()
@@ -127,9 +120,6 @@ def entregar_pedido_mesa(venta_id: uuid.UUID, session: SessionDep, current_user:
 def dividir_cuenta_nombres(
     venta_id: uuid.UUID, division: DivisionCuenta, session: SessionDep, current_user: CurrentUser
 ) -> Any:
-    """
-    Asigna nombres de comensales a los items de una venta.
-    """
     venta = session.get(Venta, venta_id)
     if not venta: raise HTTPException(status_code=404, detail="Venta no encontrada")
     
@@ -155,7 +145,7 @@ def solicitar_cuenta(
     tipo: str = Query("unica")
 ) -> Any:
     venta = session.get(Venta, venta_id)
-    if not venta: raise HTTPException(status_code=404)
+    if not venta: raise HTTPException(status_code=404, detail="Venta no encontrada")
     
     venta.estado = "por_cobrar"
     venta.tipo_cuenta = tipo
@@ -180,8 +170,12 @@ def pagar_venta(
     # Pago Total
     venta.estado = "pagado"
     venta.metodo_pago = pago_in.metodo_pago
+    venta.descuento_porcentaje = pago_in.descuento
     venta.propina = pago_in.propina
-    venta.total_final = venta.total + pago_in.propina
+    
+    # Calculo final: (Total - Descuento) + Propina
+    subtotal_con_descuento = venta.total - (venta.total * pago_in.descuento / 100)
+    venta.total_final = subtotal_con_descuento + pago_in.propina
     
     # Datos Facturación
     venta.cliente_nombre = pago_in.cliente_nombre
@@ -195,8 +189,6 @@ def pagar_venta(
     return construir_respuesta(venta)
 
 def procesar_pago_parcial(venta_origen: Venta, pago: VentaPago, session):
-    """Mueve items a una nueva venta pagada y resta de la original"""
-    
     nueva_venta = Venta(
         mesa=venta_origen.mesa,
         estado="pagado",
@@ -205,6 +197,7 @@ def procesar_pago_parcial(venta_origen: Venta, pago: VentaPago, session):
         tipo_cuenta="separada-pagada",
         metodo_pago=pago.metodo_pago,
         propina=pago.propina,
+        descuento_porcentaje=pago.descuento,
         cliente_nombre=pago.cliente_nombre,
         cliente_nit=pago.cliente_nit,
         cliente_email=pago.cliente_email,
@@ -223,11 +216,14 @@ def procesar_pago_parcial(venta_origen: Venta, pago: VentaPago, session):
             total_movido += detalle.subtotal
             session.add(detalle)
             
+    # Calculo final hija
+    subtotal_hija_desc = total_movido - (total_movido * pago.descuento / 100)
     nueva_venta.total = total_movido
-    nueva_venta.total_final = total_movido + pago.propina
+    nueva_venta.total_final = subtotal_hija_desc + pago.propina
     
     venta_origen.total -= total_movido
-    venta_origen.total_final = venta_origen.total
+    # Recalculo madre (sin descuento ni propina de la hija)
+    venta_origen.total_final = venta_origen.total 
     
     # Si la original queda vacía, la cerramos
     restantes = session.exec(select(func.count()).where(DetalleVenta.venta_id == venta_origen.id)).one()
@@ -243,6 +239,84 @@ def procesar_pago_parcial(venta_origen: Venta, pago: VentaPago, session):
 # -----------------------------------------------------------------------------
 # 5. LISTADOS Y REPORTES
 # -----------------------------------------------------------------------------
+@router.get("/reporte/resumen")
+def reporte_ventas_kpi(session: SessionDep, current_user: CurrentUser) -> Any:
+    if current_user.rol not in ["admin", "cajero"] and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    hoy = datetime.utcnow().date()
+    # Traer todas las ventas PAGADAS de hoy
+    ventas_hoy = [v for v in session.exec(select(Venta)).all() if v.fecha.date() == hoy and v.estado == 'pagado']
+    
+    # Cálculos Financieros
+    total_ventas_netas = sum(v.total for v in ventas_hoy) # Solo consumo de productos
+    total_propinas = sum(v.propina for v in ventas_hoy)   # Solo propinas
+    total_caja = sum(v.total_final for v in ventas_hoy)   # Dinero total recibido (Venta + Propina)
+
+    return {
+        "ventas_netas": total_ventas_netas,
+        "propinas": total_propinas,
+        "total_caja": total_caja,
+        "pedidos_hoy": len(ventas_hoy),
+        "historial_reciente": [
+            {
+                "mesa": v.mesa, 
+                "total": v.total_final, # Mostramos total pagado por el cliente
+                "metodo": v.metodo_pago, 
+                "cliente": v.cliente_nombre or "Consumidor Final"
+            } 
+            for v in ventas_hoy
+        ]
+    }
+
+@router.get("/reporte/graficos")
+def obtener_datos_graficos(session: SessionDep, current_user: CurrentUser) -> Any:
+    if current_user.rol not in ["admin", "cajero"] and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    hoy = datetime.utcnow().date()
+    inicio_semana = hoy - timedelta(days=6)
+    
+    ventas_semana = [
+        v for v in session.exec(select(Venta).where(Venta.estado == 'pagado')).all() 
+        if v.fecha.date() >= inicio_semana
+    ]
+
+    # Datos para gráfico de área (Ventas Netas por día)
+    datos_dias = {}
+    for i in range(7):
+        dia = (inicio_semana + timedelta(days=i)).strftime("%Y-%m-%d")
+        datos_dias[dia] = 0.0
+
+    for v in ventas_semana:
+        dia_str = v.fecha.date().strftime("%Y-%m-%d")
+        if dia_str in datos_dias:
+            datos_dias[dia_str] += v.total # Graficamos venta neta (sin propina) para medir productividad
+
+    # Datos para gráfico de dona (Top Productos)
+    detalles = session.exec(select(DetalleVenta)).all()
+    conteo = {}
+    for d in detalles:
+        if d.producto:
+            conteo[d.producto.nombre] = conteo.get(d.producto.nombre, 0) + d.cantidad
+    
+    top_5 = sorted(conteo.items(), key=lambda x:x[1], reverse=True)[:5]
+
+    # Total Histórico Neto
+    total_hist_neto = sum(v.total for v in session.exec(select(Venta).where(Venta.estado == 'pagado')).all())
+
+    return {
+        "grafico_ventas": {
+            "categorias": list(datos_dias.keys()),
+            "data": list(datos_dias.values())
+        },
+        "grafico_productos": {
+            "labels": [x[0] for x in top_5],
+            "series": [x[1] for x in top_5]
+        },
+        "total_historico": total_hist_neto
+    }
+
 @router.get("/", response_model=VentasPublic)
 def leer_ventas(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
     statement = select(Venta).where(Venta.estado != "cerrado_split").offset(skip).limit(limit).order_by(Venta.fecha.desc())
@@ -251,43 +325,19 @@ def leer_ventas(session: SessionDep, current_user: CurrentUser, skip: int = 0, l
     data = [construir_respuesta(v) for v in ventas]
     return VentasPublic(data=data, count=count)
 
-@router.get("/reporte/resumen")
-def reporte_ventas(session: SessionDep, current_user: CurrentUser) -> Any:
-    if current_user.rol not in ["admin", "cajero"] and not current_user.is_superuser:
-        raise HTTPException(status_code=403)
-
-    hoy = datetime.utcnow().date()
-    ventas_hoy = [v for v in session.exec(select(Venta)).all() if v.fecha.date() == hoy and v.estado == 'pagado']
-    total_hoy = sum(v.total_final for v in ventas_hoy)
-    
-    todos = session.exec(select(DetalleVenta)).all()
-    conteo = {}
-    for d in todos:
-        if d.producto:
-            conteo[d.producto.nombre] = conteo.get(d.producto.nombre, 0) + d.cantidad
-            
-    return {
-        "ventas_hoy": total_hoy,
-        "pedidos_hoy": len(ventas_hoy),
-        "top_productos": [{"nombre": k, "cantidad": v} for k,v in sorted(conteo.items(), key=lambda x:x[1], reverse=True)[:5]],
-        "historial_reciente": [
-            {"id": str(v.id), "mesa": v.mesa, "total": v.total_final, "metodo": v.metodo_pago} 
-            for v in ventas_hoy
-        ]
-    }
-
 def construir_respuesta(venta: Venta) -> VentaPublic:
     detalles_fmt = [
         DetalleVentaPublic(
             id=d.id,
             cantidad=d.cantidad, precio_unitario=d.precio_unitario, 
-            subtotal=d.subtotal, producto_nombre=d.producto.nombre if d.producto else "???",
-            comensal=d.comensal
+            subtotal=d.subtotal, producto_nombre=d.producto.nombre if d.producto else "Producto Borrado",
+            comensal=d.comensal,
+            notas=d.notas
         ) for d in venta.detalles
     ]
     return VentaPublic(
         id=venta.id, mesa=venta.mesa, estado=venta.estado, tipo_cuenta=venta.tipo_cuenta,
-        total=venta.total, propina=venta.propina, total_final=venta.total_final,
+        total=venta.total, descuento_porcentaje=venta.descuento_porcentaje, propina=venta.propina, total_final=venta.total_final,
         fecha=venta.fecha, metodo_pago=venta.metodo_pago,
         cliente_nombre=venta.cliente_nombre, cliente_nit=venta.cliente_nit,
         cliente_email=venta.cliente_email, cliente_telefono=venta.cliente_telefono,

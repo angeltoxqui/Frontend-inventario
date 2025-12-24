@@ -4,35 +4,129 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - GastroPOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&family=Orbitron:wght@500&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
-        :root { --bg: #f9fafb; --card: #ffffff; --text: #101828; --brand: #465fff; }
-        [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; }
+        :root {
+            /* MODO OSCURO (Default) */
+            --bg-deep: #050505;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --text-color: #ffffff;
+            --text-muted: #9ca3af;
+            --input-bg: rgba(0,0,0,0.3);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --neon-accent: #06b6d4;
+        }
+
+        body.light-mode {
+            /* MODO CLARO */
+            --bg-deep: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --input-bg: #f9fafb;
+            --border-color: #e5e7eb;
+            --neon-accent: #0891b2; /* Azul más oscuro para contraste */
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-color);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: 0.3s ease;
+        }
         
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; color: var(--text); }
-        .card { background: var(--card); padding: 40px; width: 380px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; }
-        input { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: var(--brand); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        button:hover { opacity: 0.9; }
-        .error { color: #f04438; font-size: 13px; margin-top: 10px; display: none; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; z-index: 0; }
+        .orb-1 { width: 300px; height: 300px; background: var(--neon-accent); top: -50px; left: -50px; }
+
+        .login-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            padding: 50px;
+            border-radius: 24px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            position: relative;
+        }
+
+        h1 { font-family: 'Orbitron', sans-serif; font-size: 2rem; margin-bottom: 5px; letter-spacing: 2px; }
+        p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px; }
+
+        .input-group { position: relative; margin-bottom: 20px; text-align: left; }
+        input {
+            width: 100%; padding: 15px; padding-left: 45px;
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; color: var(--text-color); outline: none; box-sizing: border-box;
+            transition: 0.3s;
+        }
+        input:focus { border-color: var(--neon-accent); }
+        .input-icon { position: absolute; left: 15px; top: 14px; color: var(--text-muted); }
+
+        button {
+            width: 100%; padding: 15px;
+            background: linear-gradient(90deg, #06b6d4, #3b82f6);
+            border: none; border-radius: 12px;
+            color: white; font-weight: 700; font-size: 1rem;
+            cursor: pointer; transition: 0.3s;
+            margin-top: 10px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(6, 182, 212, 0.3); }
+
+        .error { color: #ef4444; font-size: 0.8rem; margin-top: 15px; display: none; }
+
+        .theme-toggle {
+            position: absolute; bottom: 20px; right: 20px;
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            padding: 10px; border-radius: 50%; cursor: pointer;
+            color: var(--text-color); display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🍽️ GastroPOS</h1>
-        <p>Inicia sesión para continuar</p>
+    <div class="orb orb-1"></div>
+
+    <div class="login-card">
+        <h1>GastroPOS</h1>
+        <p>Acceso al Sistema</p>
         
-        <input type="text" id="email" placeholder="admin@example.com">
-        <input type="password" id="password" placeholder="Contraseña">
+        <div class="input-group">
+            <span class="material-icons-round input-icon">email</span>
+            <input type="text" id="email" placeholder="Usuario">
+        </div>
+        <div class="input-group">
+            <span class="material-icons-round input-icon">lock</span>
+            <input type="password" id="password" placeholder="Contraseña" onkeyup="if(event.key==='Enter') login()">
+        </div>
         
         <button onclick="login()">INGRESAR</button>
         <p id="error-msg" class="error"></p>
     </div>
 
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <span class="material-icons-round" id="theme-icon">light_mode</span>
+    </div>
+
     <script>
-        // URL correcta de tu Backend
         const API_URL = "http://127.0.0.1:8000/api/v1";
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-icon').innerText = isLight ? 'dark_mode' : 'light_mode';
+        }
+        if(localStorage.getItem('theme') === 'light') toggleTheme();
 
         async function login() {
             const email = document.getElementById('email').value.trim();
@@ -42,12 +136,11 @@
             errorMsg.style.display = 'none';
 
             if (!email || !password) {
-                mostrarError("Por favor completa los campos");
+                mostrarError("Completa los campos");
                 return;
             }
 
             try {
-                // 1. Obtener Token (Formato x-www-form-urlencoded)
                 const formData = new URLSearchParams();
                 formData.append('username', email);
                 formData.append('password', password);
@@ -61,38 +154,24 @@
                 if (!res.ok) throw new Error("Credenciales incorrectas");
 
                 const data = await res.json();
-                const token = data.access_token;
-                
-                // Guardar Token
-                localStorage.setItem('token', token);
+                localStorage.setItem('token', data.access_token);
 
-                // 2. Obtener Rol del Usuario
-                const userRes = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // Obtener Rol
+                const userRes = await fetch(`${API_URL}/users/me`, { headers: { 'Authorization': `Bearer ${data.access_token}` } });
                 const user = await userRes.json();
 
-                // Guardar datos básicos para el POS
                 const role = user.is_superuser ? 'admin' : (user.rol || 'mesero');
                 localStorage.setItem('user_role', role);
                 localStorage.setItem('user_name', user.full_name || user.email);
-                
-                // IMPORTANTE: Guardamos este objeto para compatibilidad con código antiguo si queda alguno
-                localStorage.setItem('gastro_user', JSON.stringify({
-                    username: user.full_name,
-                    email: user.email,
-                    rol: role
-                }));
 
-                // 3. Redirigir
+                // Redirección
                 if (role === 'admin') window.location.href = 'admin.html';
                 else if (role === 'cocinero') window.location.href = 'cocina.html';
                 else if (role === 'cajero') window.location.href = 'caja.html';
-                else window.location.href = 'pos.html'; // Meseros
+                else window.location.href = 'pos.html'; 
 
             } catch (error) {
-                console.error(error);
-                mostrarError("Error: " + error.message);
+                mostrarError(error.message);
             }
         }
 

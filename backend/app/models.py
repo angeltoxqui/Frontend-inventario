@@ -157,24 +157,24 @@ class MesasPublic(SQLModel):
 #           VENTAS Y PEDIDOS
 # ==========================================
 
-# Modelo para recibir el pago (Con Datos Facturación y Split)
+# Modelo para recibir el pago
 class VentaPago(SQLModel):
     metodo_pago: str 
     propina: float = 0.0
-    # Datos Facturación Electrónica (Opcionales)
+    descuento: float = 0.0 # Porcentaje 0-100
+    # Datos Facturación
     cliente_nombre: str | None = None
     cliente_nit: str | None = None
     cliente_email: str | None = None
     cliente_telefono: str | None = None
-    # IDs de items para pago parcial
     items_a_pagar: list[uuid.UUID] | None = None 
 
 class DetalleVentaBase(SQLModel):
     cantidad: int
     precio_unitario: float
     subtotal: float
-    # Nuevo campo para asignar nombre del cliente al item
     comensal: str | None = Field(default="Mesa") 
+    notas: str | None = Field(default=None) # Notas de preparación (ej: sin cebolla)
 
 class DetalleVenta(DetalleVentaBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -188,6 +188,7 @@ class DetalleVentaCreate(SQLModel):
     producto_id: uuid.UUID
     cantidad: int
     comensal: str = "Mesa"
+    notas: str | None = None
 
 class DetalleVentaPublic(DetalleVentaBase):
     id: uuid.UUID 
@@ -196,10 +197,11 @@ class DetalleVentaPublic(DetalleVentaBase):
 class VentaBase(SQLModel):
     mesa: str | None = Field(default=None)
     estado: str = Field(default="pendiente")
-    tipo_cuenta: str = Field(default="unica") # 'unica' o 'separada'
-    total: float = Field(default=0.0)
+    tipo_cuenta: str = Field(default="unica")
+    total: float = Field(default=0.0) # Subtotal consumo
+    descuento_porcentaje: float = Field(default=0.0) # Descuento aplicado
     propina: float = Field(default=0.0)
-    total_final: float = Field(default=0.0)
+    total_final: float = Field(default=0.0) # Lo que realmente pagó el cliente (Total - Descuento + Propina)
     fecha: datetime = Field(default_factory=datetime.utcnow)
     metodo_pago: str | None = Field(default=None)
     

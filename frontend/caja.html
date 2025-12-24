@@ -3,239 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <title>Caja - GastroPOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; background: #ecfdf5; padding: 20px; }
-        .ticket { background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #6ee7b7; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .group-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-pay { background: #059669; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; width: 450px; border-radius: 12px; max-height:90vh; overflow-y:auto; }
-        
-        input, select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        
-        /* Estilo para el Toggle de Factura */
-        .toggle-container { display: flex; align-items: center; gap: 10px; background: #f0fdf4; padding: 10px; border-radius: 8px; border: 1px dashed #16a34a; margin-bottom: 15px; cursor: pointer; }
-        .toggle-container input { width: auto; margin: 0; }
-        .toggle-container label { cursor: pointer; font-weight: bold; color: #166534; flex: 1; }
+        :root { --bg-deep:#0f1115; --card-bg:rgba(20,20,20,0.6); --neon-green:#00f260; --neon-cyan:#0575e6; --text:#e0e0e0; }
+        body { font-family:'Poppins',sans-serif; background:var(--bg-deep); color:var(--text); padding:30px; margin:0; background-image:radial-gradient(circle at 10% 20%, rgba(0, 242, 96, 0.05) 0%, transparent 20%); }
+        h1 { font-family:'Orbitron'; color:var(--neon-green); margin:0; }
+        .ticket { background:var(--card-bg); border:1px solid rgba(16,185,129,0.3); border-radius:16px; padding:20px; margin-bottom:20px; transition:0.3s; }
+        .ticket:hover { border-color:var(--neon-green); transform:translateY(-5px); }
+        .item-list { background:rgba(0,0,0,0.3); border-radius:8px; padding:10px; margin:10px 0; max-height:150px; overflow-y:auto; font-size:0.85rem; color:#aaa; }
+        .item-row { display:flex; justify-content:space-between; border-bottom:1px dashed #333; padding:4px 0; }
+        .btn-pay { background:linear-gradient(90deg,var(--neon-green),#0575e6); border:none; color:#000; font-weight:800; padding:10px; border-radius:6px; width:100%; cursor:pointer; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; z-index:999; }
+        .modal-content { background:#1a1a1a; border:1px solid var(--neon-green); padding:30px; border-radius:20px; width:450px; }
+        input, select { background:#0f1115; border:1px solid #333; color:white; padding:10px; border-radius:8px; width:100%; box-sizing:border-box; margin-bottom:10px; }
     </style>
 </head>
 <body>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-        <h1 style="margin:0; color:#065f46">💸 Caja - Cobros</h1>
-        <button onclick="logout()" style="background:white; border:1px solid #059669; color:#059669; padding:8px 15px; border-radius:6px; cursor:pointer">Salir</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px">
+        <div style="display:flex; gap:10px; align-items:center"><span class="material-icons-round" style="color:var(--neon-green);font-size:35px">point_of_sale</span> <h1>CAJA</h1></div>
+        <div style="display:flex; gap:10px">
+            <button onclick="abrirArqueo()" style="background:#333; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer">💰 Cierre de caja</button>
+            <button onclick="logout()" style="border:1px solid #666; background:none; color:#888; padding:10px 20px; border-radius:8px; cursor:pointer">Salir</button>
+        </div>
     </div>
     
-    <div id="container">Cargando...</div>
+    <div id="container" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(350px,1fr)); gap:20px"></div>
 
     <div id="modal-pago" class="modal">
         <div class="modal-content">
-            <h2 id="modal-titulo" style="margin-top:0">Cobrar</h2>
-            
+            <h2 style="margin-top:0">Cobrar</h2>
             <div style="text-align:center; margin:20px 0;">
-                <span style="font-size:32px; font-weight:bold; color:#059669">$<span id="lbl-total">0</span></span>
+                <div style="font-size:3rem; font-family:'Orbitron'; color:var(--neon-green)">$<span id="lbl-total">0</span></div>
+            </div>
+            
+            <div style="display:flex; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px">
+                <input type="checkbox" id="chk-factura" onclick="toggleFactura()" style="width:auto"> <label>Factura Electrónica</label>
+            </div>
+            <div id="sec-factura" style="display:none">
+                <div style="display:flex; gap:10px"><input id="f-nit" placeholder="NIT"><input id="f-tel" placeholder="Teléfono"></div>
+                <input id="f-nombre" placeholder="Nombre"><input id="f-email" placeholder="Email">
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                <div>
-                    <label style="font-size:12px; font-weight:bold">Método Pago:</label>
-                    <select id="f-metodo">
-                        <option>Efectivo</option>
-                        <option>Tarjeta</option>
-                        <option>Nequi/Daviplata</option>
-                        <option>Transferencia</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:12px; font-weight:bold">Propina Voluntaria:</label>
-                    <input type="number" id="f-propina" value="0" onchange="calcTotal()">
-                </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px">
+                <div><label style="font-size:0.7rem">MÉTODO</label><select id="f-metodo"><option>Efectivo</option><option>Tarjeta</option><option>Nequi</option></select></div>
+                <div><label style="font-size:0.7rem">DTO %</label><input type="number" id="f-desc" value="0" min="0" max="100" onchange="calcTotal()"></div>
+                <div><label style="font-size:0.7rem">PROPINA</label><input type="number" id="f-prop" value="0" onchange="calcTotal()"></div>
             </div>
 
-            <div class="toggle-container" onclick="document.getElementById('chk-factura').click()">
-                <input type="checkbox" id="chk-factura" onclick="event.stopPropagation(); toggleFactura()">
-                <label for="chk-factura">¿Requiere Factura Electrónica?</label>
-            </div>
+            <button class="btn-pay" onclick="confirmarPago()">CONFIRMAR PAGO</button>
+            <button onclick="imprimirPreCuenta()" style="background:none; border:1px dashed #666; color:#aaa; width:100%; padding:10px; margin-top:10px; cursor:pointer; border-radius:6px">🖨️ Imprimir Ticket</button>
+            <button onclick="document.getElementById('modal-pago').style.display='none'" style="background:none; border:none; color:#666; width:100%; margin-top:10px; cursor:pointer">Cancelar</button>
+        </div>
+    </div>
 
-            <div id="sec-factura" style="display:none; border-top:1px solid #eee; padding-top:10px; animation: fadeIn 0.3s">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                    <div>
-                        <label style="font-size:12px">NIT / C.C.:</label>
-                        <input type="text" id="f-nit" placeholder="Ej: 123456789">
-                    </div>
-                    <div>
-                        <label style="font-size:12px">Teléfono:</label>
-                        <input type="text" id="f-tel" placeholder="Ej: 3001234567">
-                    </div>
-                </div>
-                
-                <label style="font-size:12px">Nombre / Razón Social:</label>
-                <input type="text" id="f-nombre" placeholder="Nombre completo">
-                
-                <label style="font-size:12px">Correo Electrónico (Para XML):</label>
-                <input type="email" id="f-email" placeholder="cliente@email.com">
+    <div id="modal-arqueo" class="modal">
+        <div class="modal-content">
+            <h2>Cierre de Caja</h2>
+            <p>Dinero Físico en Cajón:</p>
+            <input type="number" id="arq-fisico" placeholder="Total contado">
+            <button class="btn-pay" onclick="calcularArqueo()">COMPARAR</button>
+            <div id="arq-result" style="margin-top:20px; padding:15px; background:rgba(0,0,0,0.3); border-radius:8px; display:none">
+                <p>Sistema: <b id="sys-total">$0</b></p>
+                <p>Diferencia: <b id="dif-total" style="font-size:1.2rem">$0</b></p>
             </div>
-
-            <button class="btn-pay" style="width:100%; margin-top:10px; padding:12px; font-size:16px" onclick="confirmarPago()">CONFIRMAR PAGO ✅</button>
-            <button onclick="document.getElementById('modal-pago').style.display='none'" style="background:transparent; border:none; width:100%; color:#666; margin-top:10px; cursor:pointer">Cancelar</button>
+            <button onclick="document.getElementById('modal-arqueo').style.display='none'" style="background:none; border:none; color:#666; width:100%; margin-top:10px; cursor:pointer">Cerrar</button>
         </div>
     </div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let ventaActual = null;
-        let itemsACobrar = []; // IDs
-        let montoBase = 0;
+        let ventaActual=null, itemsACobrar=[], montoBase=0;
 
-        async function cargar() {
-            const res = await apiFetch('/ventas/');
-            if(res) {
-                const container = document.getElementById('container');
-                const pendientes = (res.data || res).filter(v => v.estado === 'por_cobrar' || v.estado === 'entregado');
-                
-                container.innerHTML = pendientes.length ? '' : '<p style="text-align:center; color:#666; margin-top:50px">Todo al día. No hay cobros pendientes.</p>';
-
-                pendientes.forEach(v => {
-                    let contenidoHTML = `
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px">
-                            <div>
-                                <h2 style="margin:0">${v.mesa}</h2>
-                                <small style="color:#666">${new Date(v.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
-                            </div>
-                            <h3 style="margin:0; color:#059669">$${v.total.toLocaleString()}</h3>
-                        </div>
-                    `;
-                    
-                    if (v.tipo_cuenta === 'separada') {
-                        // AGRUPAR POR COMENSAL
-                        const grupos = {};
-                        v.detalles.forEach(d => {
-                            const nombre = d.comensal || 'Mesa';
-                            if(!grupos[nombre]) grupos[nombre] = { total: 0, items: [] };
-                            grupos[nombre].total += d.subtotal;
-                            grupos[nombre].items.push(d);
-                        });
-
-                        contenidoHTML += `<p style="color:#1e40af; font-weight:bold; font-size:13px; margin-bottom:5px">👥 CUENTAS SEPARADAS:</p>`;
-                        
-                        for (const [nombre, datos] of Object.entries(grupos)) {
-                            const ids = JSON.stringify(datos.items.map(i => i.id));
-                            contenidoHTML += `
-                                <div class="group-card">
-                                    <div style="display:flex; gap:10px; align-items:center">
-                                        <div style="background:#dbeafe; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#1e40af; font-weight:bold">${nombre.charAt(0).toUpperCase()}</div>
-                                        <div>
-                                            <div style="font-weight:bold;">${nombre}</div>
-                                            <div style="font-size:11px; color:#666">${datos.items.length} items</div>
-                                        </div>
-                                    </div>
-                                    <div style="text-align:right">
-                                        <div style="font-weight:bold; color:#059669">$${datos.total.toLocaleString()}</div>
-                                        <button class="btn-pay" onclick='iniciarCobro(${JSON.stringify(v)}, ${datos.total}, ${ids}, "${nombre}")' style="font-size:12px; padding:5px 10px">Cobrar</button>
-                                    </div>
-                                </div>
-                            `;
+        async function cargar(){
+            const res=await apiFetch('/ventas/');
+            const div=document.getElementById('container');
+            if(res){
+                const list=(res.data||res).filter(v=>v.estado==='por_cobrar'||v.estado==='entregado');
+                div.innerHTML=list.length?'':'<div style="grid-column:1/-1;text-align:center;color:#666;margin-top:50px">Caja Cerrada (Sin pendientes)</div>';
+                list.forEach(v=>{
+                    let html=`<div class="mesa-title"><span>${v.mesa}</span> <small style="opacity:0.7">$${v.total.toLocaleString('es-CO')}</small></div>`;
+                    if(v.tipo_cuenta==='separada'){
+                        const gr={}; v.detalles.forEach(d=>{const n=d.comensal||'Mesa'; if(!gr[n])gr[n]={t:0,i:[]}; gr[n].t+=d.subtotal; gr[n].i.push(d)});
+                        html+=`<div style="font-size:0.8rem;color:var(--neon-cyan);margin-bottom:10px">CUENTAS SEPARADAS</div>`;
+                        for(const[n,d]of Object.entries(gr)){
+                            const desc=d.i.map(x=>`<div>${x.cantidad} ${x.producto_nombre}</div>`).join('');
+                            html+=`<div style="background:rgba(255,255,255,0.05);padding:10px;margin-bottom:5px;border-radius:8px;border-left:3px solid var(--neon-cyan)">
+                                <div style="display:flex;justify-content:space-between"><b>${n}</b><b style="color:var(--neon-green)">$${d.t.toLocaleString('es-CO')}</b></div>
+                                <div style="font-size:0.8rem;color:#888;margin:5px 0">${desc}</div>
+                                <button class="btn-pay" style="padding:5px;font-size:0.8rem" onclick='initPay(${JSON.stringify(v)},${d.t},${JSON.stringify(d.i.map(x=>x.id))},"${n}")'>Cobrar</button>
+                            </div>`;
                         }
-
                     } else {
-                        // CUENTA ÚNICA
-                        contenidoHTML += `
-                            <div style="background:#f0fdf4; padding:10px; border-radius:6px; text-align:center; color:#166534; font-size:14px; margin-bottom:10px">
-                                Cuenta Única (Todo incluido)
-                            </div>
-                            <button class="btn-pay" style="width:100%; padding:12px" onclick='iniciarCobro(${JSON.stringify(v)}, ${v.total}, [], "Mesa")'>COBRAR TOTAL ($${v.total.toLocaleString()})</button>
-                        `;
+                        const all=v.detalles.map(x=>`<div class="item-row"><span>${x.cantidad} ${x.producto_nombre}</span><span>$${x.subtotal.toLocaleString('es-CO')}</span></div>`).join('');
+                        html+=`<div class="item-list">${all}</div><button class="btn-pay" onclick='initPay(${JSON.stringify(v)},${v.total},[],"Mesa")'>COBRAR TOTAL</button>`;
                     }
-
-                    const card = document.createElement('div');
-                    card.className = 'ticket';
-                    card.innerHTML = contenidoHTML;
-                    container.appendChild(card);
+                    const c=document.createElement('div'); c.className='ticket'; c.innerHTML=html; div.appendChild(c);
                 });
             }
         }
 
-        function iniciarCobro(venta, monto, idsItems, nombreCliente) {
-            ventaActual = venta;
-            montoBase = monto;
-            itemsACobrar = idsItems; 
-            
-            document.getElementById('modal-titulo').innerText = `Cobrar a ${nombreCliente}`;
-            document.getElementById('lbl-total').innerText = monto.toLocaleString();
-            
-            // Resetear formulario
-            document.getElementById('chk-factura').checked = false;
-            toggleFactura(); // Ocultar campos
-            
-            document.getElementById('f-propina').value = 0;
-            // Prellenar nombre si es cuenta separada
-            document.getElementById('f-nombre').value = (nombreCliente !== 'Mesa') ? nombreCliente : ''; 
-            document.getElementById('f-nit').value = '';
-            document.getElementById('f-tel').value = '';
-            document.getElementById('f-email').value = '';
-            
-            document.getElementById('modal-pago').style.display = 'flex';
+        function initPay(v,m,ids,nom){
+            ventaActual=v; montoBase=m; itemsACobrar=ids;
+            document.getElementById('lbl-total').innerText=m.toLocaleString('es-CO');
+            document.getElementById('f-nombre').value=nom!=='Mesa'?nom:'';
+            document.getElementById('f-desc').value=0; document.getElementById('f-prop').value=0;
+            document.getElementById('chk-factura').checked=false; toggleFactura();
+            document.getElementById('modal-pago').style.display='flex';
+        }
+        function toggleFactura(){document.getElementById('sec-factura').style.display=document.getElementById('chk-factura').checked?'block':'none';}
+        
+        function calcTotal(){
+            const d=parseFloat(document.getElementById('f-desc').value)||0;
+            const p=parseFloat(document.getElementById('f-prop').value)||0;
+            const sub = montoBase - (montoBase*d/100);
+            document.getElementById('lbl-total').innerText=(sub+p).toLocaleString('es-CO');
         }
 
-        function toggleFactura() {
-            const chk = document.getElementById('chk-factura');
-            document.getElementById('sec-factura').style.display = chk.checked ? 'block' : 'none';
-        }
-
-        function calcTotal() {
-            const prop = parseFloat(document.getElementById('f-propina').value) || 0;
-            document.getElementById('lbl-total').innerText = (montoBase + prop).toLocaleString();
-        }
-
-        async function confirmarPago() {
-            const requiereFactura = document.getElementById('chk-factura').checked;
-            
-            // Lógica por defecto (Consumidor Final) si no pide factura
-            const datosFactura = requiereFactura ? {
-                nit: document.getElementById('f-nit').value,
-                nombre: document.getElementById('f-nombre').value,
-                email: document.getElementById('f-email').value,
-                tel: document.getElementById('f-tel').value
-            } : {
-                nit: "222222222222",
-                nombre: "Consumidor Final",
-                email: "",
-                tel: ""
+        async function confirmarPago(){
+            const fact=document.getElementById('chk-factura').checked;
+            const payload={
+                metodo_pago:document.getElementById('f-metodo').value,
+                propina:parseFloat(document.getElementById('f-prop').value)||0,
+                descuento:parseFloat(document.getElementById('f-desc').value)||0,
+                cliente_nit:fact?document.getElementById('f-nit').value:"222222222222",
+                cliente_nombre:fact?document.getElementById('f-nombre').value:"Consumidor Final",
+                cliente_email:document.getElementById('f-email').value,
+                cliente_telefono:document.getElementById('f-tel').value,
+                items_a_pagar:itemsACobrar
             };
-
-            if (requiereFactura && !datosFactura.nit) {
-                return alert("Por favor ingresa el NIT/C.C. para la factura electrónica.");
-            }
-
-            const payload = {
-                metodo_pago: document.getElementById('f-metodo').value,
-                propina: parseFloat(document.getElementById('f-propina').value) || 0,
-                cliente_nit: datosFactura.nit,
-                cliente_nombre: datosFactura.nombre,
-                cliente_email: datosFactura.email,
-                cliente_telefono: datosFactura.tel,
-                items_a_pagar: itemsACobrar
-            };
-
-            try {
-                const res = await apiFetch(`/ventas/${ventaActual.id}/pagar_v2`, 'PUT', payload);
-                if(res) {
-                    alert("✅ Cobro registrado exitosamente");
-                    document.getElementById('modal-pago').style.display = 'none';
-                    cargar();
-                }
-            } catch (e) {
-                console.error(e);
-                alert("Error al procesar el pago");
-            }
+            await apiFetch(`/ventas/${ventaActual.id}/pagar_v2`,'PUT',payload);
+            document.getElementById('modal-pago').style.display='none'; cargar();
         }
 
-        function logout() { localStorage.clear(); window.location.href='login.html'; }
-        setInterval(cargar, 5000); // Refrescar cada 5s
-        cargar();
+        function imprimirPreCuenta(){
+            const win=window.open('','','width=300,height=400');
+            win.document.write(`<pre style="font-family:monospace">
+GASTRO POS - PRE CUENTA
+-----------------------
+Mesa: ${ventaActual.mesa}
+Cliente: ${document.getElementById('f-nombre').value||'xxxxx'}
+-----------------------
+Total Base: $${montoBase.toLocaleString('es-CO')}
+-----------------------
+Gracias por su visita
+</pre>`);
+            win.print();
+        }
+
+        // --- ESTA ES LA FUNCIÓN QUE FALTABA ---
+        function abrirArqueo() {
+            document.getElementById('modal-arqueo').style.display = 'flex';
+            document.getElementById('arq-fisico').value = '';
+            document.getElementById('arq-result').style.display = 'none';
+        }
+
+        async function calcularArqueo(){
+            const r=await apiFetch('/ventas/reporte/resumen');
+            const sis=r.total_caja; const fis=parseFloat(document.getElementById('arq-fisico').value)||0;
+            const dif=fis-sis;
+            document.getElementById('sys-total').innerText=`$${sis.toLocaleString('es-CO')}`;
+            document.getElementById('dif-total').innerText=`$${dif.toLocaleString('es-CO')}`;
+            document.getElementById('dif-total').style.color=dif>=0?'#00f260':'#ff4444';
+            document.getElementById('arq-result').style.display='block';
+        }
+
+        function logout(){localStorage.clear();window.location.href='login.html';}
+        setInterval(cargar,5000); cargar();
     </script>
 </body>
 </html>

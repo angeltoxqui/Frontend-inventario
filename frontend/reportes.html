@@ -2,74 +2,181 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reportes Financieros</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <title>Reportes - Oracle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Outfit', sans-serif; background: #f8fafc; padding: 30px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .stat-box { background: linear-gradient(135deg, #465fff, #818cf8); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        .big-num { font-size: 3em; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        .btn-back { background: #cbd5e1; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; text-decoration: none; color: #334155; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        :root {
+            /* DARK MODE */
+            --bg-deep: #09090b; --text-main: #ffffff; --glass-bg: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.1); --purple-glow: #8b5cf6;
+        }
+        body.light-mode {
+            /* LIGHT MODE */
+            --bg-deep: #f1f5f9; --text-main: #1e293b; --glass-bg: #ffffff; --glass-border: #e2e8f0; --purple-glow: #7c3aed;
+        }
+        body { background-color: var(--bg-deep); color: var(--text-main); font-family: 'Montserrat', sans-serif; transition: 0.3s; }
+        .glass-card { background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .theme-toggle { position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.3s; }
+        .theme-toggle:hover { transform: scale(1.1); }
+
+        /* NOTIFICACIONES TOAST */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: var(--glass-bg); border-left: 4px solid; padding: 16px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); display: flex; align-items: center; gap: 12px; min-width: 300px; animation: slideIn 0.3s ease-out; backdrop-filter: blur(12px); border: 1px solid var(--glass-border); }
+        .toast.success { border-left-color: #10b981; } .toast.success .icon { color: #10b981; }
+        .toast.error { border-left-color: #ef4444; } .toast.error .icon { color: #ef4444; }
+        .toast-title { font-weight: 600; font-size: 0.95rem; }
+        .toast-msg { font-size: 0.85rem; opacity: 0.8; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(100%); } }
     </style>
 </head>
-<body>
-    <div style="max-width: 800px; margin: 0 auto;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-            <h1>📊 Reporte de Ventas (Hoy)</h1>
-            <button onclick="window.history.back()" class="btn-back"><span class="material-icons-round">arrow_back</span> Volver</button>
-        </div>
+<body class="overflow-hidden">
+    <div id="toast-container" class="toast-container"></div> <div class="flex h-screen">
+        <aside class="w-64 glass-card m-4 mr-0 flex flex-col p-6">
+            <div class="flex items-center gap-3 mb-10 text-2xl font-bold" style="color:var(--purple-glow)"><span class="material-icons-round">analytics</span> ADMIN</div>
+            <nav class="flex-1 space-y-4">
+                <a href="admin.html" class="flex items-center gap-3 opacity-60 hover:opacity-100 hover:text-purple-500 transition"><span class="material-icons-round">arrow_back</span> Volver Admin</a>
+            </nav>
+        </aside>
 
-        <div class="stat-box">
-            <div>Total Vendido Hoy</div>
-            <div class="big-num">$<span id="txt-total">0</span></div>
-            <div style="font-size:0.9em; opacity:0.8"><span id="txt-pedidos">0</span> pedidos completados</div>
-        </div>
+        <main class="flex-1 p-6 overflow-y-auto">
+            <header class="flex justify-between items-center mb-8">
+                <div><h1 class="text-3xl font-bold">Inteligencia de Negocio</h1><p class="opacity-60 text-sm">Finanzas desglosadas</p></div>
+                <button onclick="descargarExcel()" class="glass-card px-6 py-3 flex items-center gap-2 hover:bg-purple-500/10 transition border border-purple-500/30 text-purple-500 font-bold"><span class="material-icons-round">download</span> Exportar</button>
+            </header>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div class="card">
-                <h3>🏆 Productos Más Vendidos</h3>
-                <ul id="list-top" style="padding-left:20px; line-height:1.8"></ul>
-            </div>
-            <div class="card">
-                <h3>🕒 Últimas Transacciones</h3>
-                <div style="overflow-y:auto; max-height:200px">
-                    <table style="font-size:14px">
-                        <thead><tr><th>Mesa</th><th>Total</th><th>Pago</th></tr></thead>
-                        <tbody id="tbl-hist"></tbody>
-                    </table>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8"> <div class="glass-card p-6">
+                    <div class="opacity-60 text-sm mb-1">Ventas Netas (Hoy)</div>
+                    <div class="text-3xl font-bold text-green-500">$<span id="kpi-ventas">0</span></div>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="opacity-60 text-sm mb-1">Propinas (Hoy)</div>
+                    <div class="text-3xl font-bold text-yellow-500">$<span id="kpi-propinas">0</span></div>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="opacity-60 text-sm mb-1">Total Caja (Hoy)</div>
+                    <div class="text-3xl font-bold">$<span id="kpi-caja">0</span></div>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="opacity-60 text-sm mb-1">Pedidos</div>
+                    <div class="text-3xl font-bold" id="kpi-pedidos">0</div>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="opacity-60 text-sm mb-1">Histórico Neto</div>
+                    <div class="text-3xl font-bold text-purple-500">$<span id="kpi-total">0</span></div>
                 </div>
             </div>
-        </div>
+
+            <div class="grid grid-cols-3 gap-6 mb-8">
+                <div class="glass-card col-span-2 p-6"><h3 class="font-bold mb-4">Ingresos Netos (Sin Propinas)</h3><div id="chart-revenue"></div></div>
+                <div class="glass-card col-span-1 p-6"><h3 class="font-bold mb-4">Top Productos</h3><div id="chart-products"></div></div>
+            </div>
+
+            <div class="glass-card p-6">
+                <h3 class="font-bold mb-4">Transacciones Recientes</h3>
+                <table class="w-full text-left">
+                    <thead><tr class="text-purple-500 text-sm uppercase border-b border-gray-700/50"><th class="py-3">Mesa / Cliente</th><th>Método</th><th>Total</th><th>Estado</th></tr></thead>
+                    <tbody id="tabla-body" class="text-sm opacity-80"></tbody>
+                </table>
+            </div>
+        </main>
     </div>
+
+    <div class="theme-toggle" onclick="toggleThemeManual()"><span class="material-icons-round" id="theme-icon">light_mode</span></div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        
-        async function cargarReporte() {
-            try {
-                const data = await apiFetch('/ventas/reporte/resumen');
-                if(data) {
-                    document.getElementById('txt-total').innerText = data.ventas_hoy.toLocaleString();
-                    document.getElementById('txt-pedidos').innerText = data.pedidos_hoy;
-                    
-                    document.getElementById('list-top').innerHTML = data.top_productos.map(p => 
-                        `<li><b>${p.cantidad}x</b> ${p.nombre}</li>`
-                    ).join('');
+        let datosParaExcel = [];
 
-                    document.getElementById('tbl-hist').innerHTML = data.historial_reciente.map(v => 
-                        `<tr><td>${v.mesa}</td><td>$${v.total.toLocaleString()}</td><td>${v.metodo||'-'}</td></tr>`
-                    ).join('');
-                }
-            } catch(e) {
-                alert("No tienes permiso para ver reportes");
-                window.history.back();
-            }
+        function initTheme() { if(localStorage.getItem('theme')==='light'){ document.body.classList.add('light-mode'); document.getElementById('theme-icon').innerText='dark_mode'; } }
+        function toggleThemeManual() { document.body.classList.toggle('light-mode'); const isLight = document.body.classList.contains('light-mode'); localStorage.setItem('theme', isLight?'light':'dark'); document.getElementById('theme-icon').innerText=isLight?'dark_mode':'light_mode'; location.reload(); }
+        initTheme();
+
+        // --- SISTEMA DE NOTIFICACIONES TOAST ---
+        function showToast(title, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? 'check_circle' : 'error';
+            
+            toast.innerHTML = `
+                <span class="material-icons-round icon">${icon}</span>
+                <div><div class="toast-title">${title}</div></div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'fadeOut 0.3s forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
         }
-        cargarReporte();
+
+        async function cargarDatos() {
+            try {
+                const resumen = await apiFetch('/ventas/reporte/resumen');
+                if(resumen) {
+                    // Nuevos KPIs separados
+                    document.getElementById('kpi-ventas').innerText = resumen.ventas_netas.toLocaleString();
+                    document.getElementById('kpi-propinas').innerText = resumen.propinas.toLocaleString();
+                    document.getElementById('kpi-caja').innerText = resumen.total_caja.toLocaleString();
+                    
+                    document.getElementById('kpi-pedidos').innerText = resumen.pedidos_hoy;
+                    
+                    const tbody = document.getElementById('tabla-body');
+                    tbody.innerHTML = '';
+                    datosParaExcel = resumen.historial_reciente;
+                    
+                    resumen.historial_reciente.forEach(v => {
+                        tbody.innerHTML += `
+                            <tr class="border-b border-gray-700/20 hover:bg-gray-500/10">
+                                <td class="py-3">${v.mesa} <span class="text-xs opacity-50 block">${v.cliente||'Consumidor Final'}</span></td>
+                                <td>${v.metodo||'Efectivo'}</td>
+                                <td class="font-bold text-green-500">$${v.total.toLocaleString()}</td>
+                                <td><span class="bg-green-500/20 text-green-500 px-2 py-1 rounded text-xs">Pagado</span></td>
+                            </tr>`;
+                    });
+                    showToast("Datos actualizados", "success");
+                }
+
+                const graficos = await apiFetch('/ventas/reporte/graficos');
+                if(graficos) {
+                    document.getElementById('kpi-total').innerText = graficos.total_historico.toLocaleString();
+                    renderCharts(graficos);
+                }
+            } catch(e) { showToast("Error cargando datos", "error"); console.error(e); }
+        }
+
+        function renderCharts(data) {
+            const isLight = document.body.classList.contains('light-mode');
+            const textColor = isLight ? '#1e293b' : '#ffffff';
+            new ApexCharts(document.querySelector("#chart-revenue"), {
+                series: [{ name: 'Ventas Netas', data: data.grafico_ventas.data }],
+                chart: { type: 'area', height: 300, toolbar: { show: false }, background: 'transparent' },
+                theme: { mode: isLight ? 'light' : 'dark' },
+                stroke: { curve: 'smooth', width: 3 },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.1 } },
+                colors: ['#8b5cf6'],
+                xaxis: { categories: data.grafico_ventas.categorias, labels: { style: { colors: textColor } } },
+                yaxis: { labels: { style: { colors: textColor } } },
+                grid: { borderColor: isLight ? '#e2e8f0' : '#334155' },
+                dataLabels: { enabled: false }
+            }).render();
+            new ApexCharts(document.querySelector("#chart-products"), {
+                series: data.grafico_productos.series, labels: data.grafico_productos.labels,
+                chart: { type: 'donut', background: 'transparent' }, theme: { mode: isLight ? 'light' : 'dark' },
+                colors: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'], legend: { position: 'bottom', labels: { colors: textColor } },
+                dataLabels: { enabled: false }
+            }).render();
+        }
+
+        function descargarExcel() {
+            if(!datosParaExcel.length) return showToast("No hay datos", "error");
+            const ws = XLSX.utils.json_to_sheet(datosParaExcel);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+            XLSX.writeFile(wb, "Reporte_GastroPOS.xlsx");
+            showToast("Reporte descargado", "success");
+        }
+        cargarDatos();
     </script>
 </body>
 </html>
