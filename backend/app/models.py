@@ -70,6 +70,7 @@ class InsumoBase(SQLModel):
     unidad_medida: str
     costo: float = Field(default=0.0)
     stock_actual: float = Field(default=0.0)
+    stock_maximo: float = Field(default=1000.0) # Para calcular el % de alerta
 
 class InsumoCreate(InsumoBase):
     pass
@@ -79,6 +80,7 @@ class InsumoUpdate(SQLModel):
     unidad_medida: str | None = None
     costo: float | None = None
     stock_actual: float | None = None
+    stock_maximo: float | None = None
 
 class Insumo(InsumoBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -157,12 +159,10 @@ class MesasPublic(SQLModel):
 #           VENTAS Y PEDIDOS
 # ==========================================
 
-# Modelo para recibir el pago
 class VentaPago(SQLModel):
     metodo_pago: str 
     propina: float = 0.0
-    descuento: float = 0.0 # Porcentaje 0-100
-    # Datos Facturación
+    descuento: float = 0.0
     cliente_nombre: str | None = None
     cliente_nit: str | None = None
     cliente_email: str | None = None
@@ -174,7 +174,8 @@ class DetalleVentaBase(SQLModel):
     precio_unitario: float
     subtotal: float
     comensal: str | None = Field(default="Mesa") 
-    notas: str | None = Field(default=None) # Notas de preparación (ej: sin cebolla)
+    notas: str | None = Field(default=None)
+    receta_snapshot: str | None = Field(default=None) # Texto con la receta exacta
 
 class DetalleVenta(DetalleVentaBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -198,14 +199,13 @@ class VentaBase(SQLModel):
     mesa: str | None = Field(default=None)
     estado: str = Field(default="pendiente")
     tipo_cuenta: str = Field(default="unica")
-    total: float = Field(default=0.0) # Subtotal consumo
-    descuento_porcentaje: float = Field(default=0.0) # Descuento aplicado
+    total: float = Field(default=0.0) 
+    descuento_porcentaje: float = Field(default=0.0)
     propina: float = Field(default=0.0)
-    total_final: float = Field(default=0.0) # Lo que realmente pagó el cliente (Total - Descuento + Propina)
+    total_final: float = Field(default=0.0)
     fecha: datetime = Field(default_factory=datetime.utcnow)
     metodo_pago: str | None = Field(default=None)
     
-    # Datos Cliente Factura
     cliente_nombre: str | None = Field(default=None)
     cliente_nit: str | None = Field(default=None)
     cliente_email: str | None = Field(default=None)

@@ -62,8 +62,9 @@
         .prod-list-container {
             max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--input-bg);
         }
+        .prod-item-wrapper { border-bottom: 1px solid var(--glass-border); }
         .prod-item {
-            padding: 10px 15px; border-bottom: 1px solid var(--glass-border); cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; transition: 0.2s;
+            padding: 10px 15px; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; transition: 0.2s;
         }
         .prod-item:hover { background: var(--glass-panel); }
         .prod-item.selected { background: var(--selected-bg); border-left: 4px solid var(--neon-primary); font-weight: bold; }
@@ -148,7 +149,7 @@
     <script>
         checkAuth();
         let MESAS=[], productos=[], allProductos=[], ventasActivas=[], carrito=[], mesaSeleccionada=null, ventaActual=null;
-        let selectedProdId = null; // Variable para controlar la selección estable
+        let selectedProdId = null;
 
         function toggleThemeManual() {
             document.body.classList.toggle('light-mode');
@@ -172,16 +173,22 @@
         async function cargarProductos(){ const r=await apiFetch('/productos/'); if(r){ allProductos=r.data; renderProdList(allProductos); } }
         async function cargarVentas(){ const r=await apiFetch('/ventas/'); if(r) ventasActivas=(r.data||r).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split'); }
 
-        // --- NUEVA LÓGICA DE LISTA VISUAL ---
+        // --- LISTA VISUAL CON DETALLES ---
         function renderProdList(lista) {
             const container = document.getElementById('prod-list');
             if(!container) return;
-            container.innerHTML = lista.map(p => `
-                <div class="prod-item ${selectedProdId === p.id ? 'selected' : ''}" onclick="selectProduct('${p.id}', '${p.nombre}')">
-                    <span>${p.nombre}</span>
-                    <span style="font-weight:600">$${p.precio.toLocaleString('es-CO')}</span>
-                </div>
-            `).join('');
+            container.innerHTML = lista.map(p => {
+                const ingredientesStr = p.recetas.map(r => `${r.insumo_nombre} (${r.cantidad_requerida}${r.insumo_medida})`).join(', ');
+                const tieneIng = p.recetas.length > 0;
+                return `
+                <div class="prod-item-wrapper">
+                    <div class="prod-item ${selectedProdId === p.id ? 'selected' : ''}" onclick="selectProduct('${p.id}', '${p.nombre}')">
+                        <span>${p.nombre}</span>
+                        <span style="font-weight:600">$${p.precio.toLocaleString('es-CO')}</span>
+                    </div>
+                    ${tieneIng ? `<details style="padding:0 15px 10px 15px; font-size:0.8rem; color:var(--text-muted)"><summary style="cursor:pointer; outline:none; color:var(--neon-primary)">Ver Ingredientes</summary><p style="margin:5px 0 0 0; padding-left:10px; border-left:2px solid var(--glass-border)">${ingredientesStr}</p></details>` : ''}
+                </div>`;
+            }).join('');
         }
 
         function filtrarProductos() {
@@ -193,7 +200,6 @@
         function selectProduct(id, nombre) {
             selectedProdId = id;
             document.getElementById('lbl-selected').innerText = nombre;
-            // Re-renderizar para mostrar el resaltado (clase .selected)
             filtrarProductos(); 
         }
 
@@ -239,13 +245,10 @@
         function abrirModalPedido(nom) {
             closeModal('modal-actions'); mesaSeleccionada=nom; carrito=[]; renderCarrito();
             document.getElementById('modal-subtitle').innerText=`Mesa: ${nom}`;
-            
-            // Resetear búsqueda
             document.getElementById('prod-search').value = '';
             selectedProdId = null;
             document.getElementById('lbl-selected').innerText = "Selecciona un producto";
             renderProdList(allProductos);
-            
             document.getElementById('modal-order').style.display='flex';
             setTimeout(() => document.getElementById('prod-search').focus(), 100);
         }
@@ -259,13 +262,8 @@
             if (p && cant > 0) {
                 carrito.push({ producto_id: p.id, nombre: p.nombre, cantidad: cant, notas: nota });
                 renderCarrito();
-                // Reset inputs
                 document.getElementById('inp-notas').value = '';
                 document.getElementById('inp-cant').value = 1;
-                // Mantener selección o limpiar? Mejor limpiar para evitar duplicados accidentales
-                // selectedProdId = null;
-                // document.getElementById('lbl-selected').innerText = "Selecciona un producto";
-                // renderProdList(allProductos);
             }
         }
 

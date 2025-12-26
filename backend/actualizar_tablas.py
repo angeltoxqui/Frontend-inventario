@@ -2,43 +2,30 @@ import sqlite3
 
 DB_NAME = "gastro_pro.db"
 
-def update_schema():
-    print(f"Conectando a {DB_NAME}...")
+def update_schema_v2():
+    print(f"🔧 Conectando a {DB_NAME}...")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # 1. Agregar 'descuento_porcentaje' a la tabla VENTA (Para la caja)
+    # 1. Agregar 'stock_maximo' a INSUMO (Para calcular el 10%)
     try:
-        print("--- Verificando columna 'descuento_porcentaje' en tabla 'venta' ---")
-        cursor.execute("ALTER TABLE venta ADD COLUMN descuento_porcentaje FLOAT DEFAULT 0.0")
-        print("✅ Columna 'descuento_porcentaje' agregada.")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name" in str(e):
-            print("ℹ️ La columna 'descuento_porcentaje' ya existe.")
-        else:
-            print(f"❌ Error en venta: {e}")
-
-    # 2. Agregar 'notas' a la tabla DETALLEVENTA (Para el mesero/cocina)
-    try:
-        print("--- Verificando columna 'notas' en tabla 'detalleventa' ---")
-        cursor.execute("ALTER TABLE detalleventa ADD COLUMN notas TEXT")
-        print("✅ Columna 'notas' agregada.")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name" in str(e):
-            print("ℹ️ La columna 'notas' ya existe.")
-        else:
-            print(f"❌ Error en detalleventa: {e}")
-
-    # 3. Agregar 'comensal' por si acaso (Para split de cuentas)
-    try:
-        cursor.execute("ALTER TABLE detalleventa ADD COLUMN comensal TEXT DEFAULT 'Mesa'")
-        print("✅ Columna 'comensal' agregada.")
+        print("--- Agregando 'stock_maximo' a INSUMO ---")
+        cursor.execute("ALTER TABLE insumo ADD COLUMN stock_maximo FLOAT DEFAULT 1000.0")
+        print("✅ Columna 'stock_maximo' agregada.")
     except sqlite3.OperationalError:
-        print("ℹ️ La columna 'comensal' ya existía.")
+        print("ℹ️ La columna 'stock_maximo' ya existe.")
+
+    # 2. Agregar 'receta_snapshot' a DETALLEVENTA (Para que Cocina vea la receta exacta)
+    try:
+        print("--- Agregando 'receta_snapshot' a DETALLEVENTA ---")
+        cursor.execute("ALTER TABLE detalleventa ADD COLUMN receta_snapshot TEXT")
+        print("✅ Columna 'receta_snapshot' agregada.")
+    except sqlite3.OperationalError:
+        print("ℹ️ La columna 'receta_snapshot' ya existe.")
 
     conn.commit()
     conn.close()
-    print("\n¡Base de datos actualizada! Ya puedes iniciar el servidor.")
+    print("\n🚀 ¡Base de datos actualizada a V2!")
 
 if __name__ == "__main__":
-    update_schema()
+    update_schema_v2()

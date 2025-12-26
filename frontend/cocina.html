@@ -164,17 +164,17 @@
                     pendientes.forEach(venta => {
                         const hora = new Date(venta.fecha).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         
-                        // AQUÍ ESTABA EL DETALLE: Ahora incluimos d.notas
                         let itemsHtml = venta.detalles.map(d => {
-                            // Si hay nota, la mostramos con estilo de alerta
                             const notaHtml = d.notas ? `<span class="nota-cocina">⚠️ ${d.notas}</span>` : '';
-                            
+                            const recetaHtml = d.receta_snapshot ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px; font-family:'Roboto Mono'">🧂 ${d.receta_snapshot}</div>` : '';
+
                             return `
                             <div class="item">
                                 <span class="cant">${d.cantidad}</span>
                                 <div style="flex:1">
-                                    <span>${d.producto_nombre}</span>
+                                    <span style="font-weight:600">${d.producto_nombre}</span>
                                     ${notaHtml}
+                                    ${recetaHtml}
                                 </div>
                              </div>`;
                         }).join('');
