@@ -39,6 +39,7 @@ def read_productos(
             nombre=prod.nombre,
             precio=prod.precio,
             descripcion=prod.descripcion,
+            categoria=prod.categoria,  # <--- ¡AGREGADO AQUÍ! (Para que el frontend lo reciba)
             recetas=recetas_fmt
         ))
 
@@ -56,7 +57,8 @@ def create_producto(
         nombre=producto_in.nombre,
         precio=producto_in.precio,
         descripcion=producto_in.descripcion,
-        imagen_url=producto_in.imagen_url
+        imagen_url=producto_in.imagen_url,
+        categoria=producto_in.categoria  # <--- ¡CORRECCIÓN AQUÍ! (Faltaba esta línea)
     )
     session.add(producto)
     session.commit()
@@ -91,6 +93,7 @@ def create_producto(
         nombre=producto.nombre,
         precio=producto.precio,
         descripcion=producto.descripcion,
+        categoria=producto.categoria, # <--- ¡AGREGADO AQUÍ TAMBIÉN!
         recetas=recetas_creadas
     )
 
