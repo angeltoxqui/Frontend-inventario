@@ -4,301 +4,276 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sala - GastroPOS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
     <style>
-        :root {
-            /* MODO OSCURO */
-            --bg-deep: #121212; --bg-sidebar: rgba(20, 20, 20, 0.95);
-            --glass-panel: rgba(255, 255, 255, 0.05); --glass-border: rgba(255, 255, 255, 0.1);
-            --text-main: #ffffff; --text-muted: #a0a0a0;
-            --mesa-bg: rgba(255, 255, 255, 0.05); --input-bg: rgba(0, 0, 0, 0.5);
-            --neon-primary: #ff7e5f; --selected-bg: rgba(255, 126, 95, 0.2);
-            /* Estados */
-            --status-free: #4b5563; --status-cooking: #ef4444;
-            --status-ready: #10b981; --status-eating: #3b82f6; --status-paying: #f59e0b;
-        }
-
-        body.light-mode {
-            /* MODO CLARO */
-            --bg-deep: #f3f4f6; --bg-sidebar: #ffffff;
-            --glass-panel: #ffffff; --glass-border: #d1d5db;
-            --text-main: #111827; --text-muted: #4b5563;
-            --mesa-bg: #ffffff; --input-bg: #f9fafb;
-            --neon-primary: #ea580c; --selected-bg: rgba(234, 88, 12, 0.1);
-        }
-
-        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
-
-        .sidebar { width: 80px; background: var(--bg-sidebar); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; padding: 30px 0; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
-        .nav-btn { width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); margin-bottom: 20px; transition: 0.3s; cursor: pointer; }
-        .nav-btn:hover { background: var(--glass-panel); color: var(--neon-primary); }
-
-        .content { flex: 1; padding: 40px; overflow-y: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 30px; }
-
-        .mesa-node {
-            aspect-ratio: 1; background: var(--mesa-bg); border: 2px solid var(--glass-border); border-radius: 50%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s; color: var(--text-main); position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        .mesa-node:hover { transform: scale(1.05); border-color: var(--neon-primary); }
-        .mesa-node.libre { border-color: var(--status-free); opacity: 0.8; }
-        .mesa-node.pendiente { border-color: var(--status-cooking); box-shadow: 0 0 15px var(--status-cooking); animation: breathe 3s infinite; }
-        .mesa-node.listo { border-color: var(--status-ready); box-shadow: 0 0 15px var(--status-ready); animation: pulse 1.5s infinite; }
-        .mesa-node.entregado { border-color: var(--status-eating); }
-        .mesa-node.por_cobrar { border-color: var(--status-paying); border-radius: 20px; }
+        :root { --bg-deep: #121212; --text-main: #ffffff; --neon-primary: #ff7e5f; --input-bg: rgba(0,0,0,0.5); --glass-border: rgba(255,255,255,0.1); }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } }
+        .sidebar { width: 80px; background: rgba(20,20,20,0.95); display: flex; flex-direction: column; align-items: center; padding: 20px 0; border-right: 1px solid var(--glass-border); }
+        .nav-btn { background: none; border: none; color: #aaa; font-size: 1.5rem; margin-bottom: 20px; cursor: pointer; padding: 10px; border-radius: 10px; transition: 0.2s; }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+
+        .mesa-node { aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #444; position: relative; transition: 0.2s; }
+        .mesa-node:hover { transform: scale(1.05); }
+        .mesa-badge { font-size: 0.75rem; font-weight: bold; padding: 2px 8px; border-radius: 10px; margin-top: 5px; }
+
+        /* COLORES CATEGORÍAS */
+        .cat-bebidas { border-left: 4px solid #06b6d4 !important; background: rgba(6, 182, 212, 0.05); }
+        .cat-fuertes { border-left: 4px solid #f97316 !important; background: rgba(249, 115, 22, 0.05); }
+        .cat-livianos { border-left: 4px solid #84cc16 !important; background: rgba(132, 204, 22, 0.05); }
+        .cat-entradas { border-left: 4px solid #eab308 !important; background: rgba(234, 179, 8, 0.05); }
+        .cat-postres { border-left: 4px solid #d946ef !important; background: rgba(217, 70, 239, 0.05); }
+
+        .prod-item { padding: 12px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .prod-item:hover { filter: brightness(1.2); background: rgba(255,255,255,0.05); }
+        .prod-item.selected { background: var(--neon-primary); color: black; font-weight: bold; }
+        
+        details { padding: 0 12px 10px 12px; font-size: 0.8rem; color: #aaa; }
+        summary { cursor: pointer; outline: none; list-style: none; color: var(--neon-primary); font-size: 0.75rem; margin-top: 5px; }
 
         /* MODALES */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 1000; }
-        .modal-box { background: var(--bg-deep); border: 1px solid var(--glass-border); border-radius: 24px; padding: 30px; width: 500px; max-width: 90%; max-height: 85vh; overflow-y: auto; color: var(--text-main); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
-
-        /* NUEVA LISTA DE PRODUCTOS (Reemplaza al Select) */
-        .prod-list-container {
-            max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--input-bg);
-        }
-        .prod-item-wrapper { border-bottom: 1px solid var(--glass-border); }
-        .prod-item {
-            padding: 10px 15px; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; transition: 0.2s;
-        }
-        .prod-item:hover { background: var(--glass-panel); }
-        .prod-item.selected { background: var(--selected-bg); border-left: 4px solid var(--neon-primary); font-weight: bold; }
-
-        input { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 12px; border-radius: 10px; width: 100%; outline: none; box-sizing: border-box; }
-        input:focus { border-color: var(--neon-primary); }
-
-        .btn-neon { background: var(--neon-primary); color: white; border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-ghost { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 12px; border-radius: 10px; width: 100%; cursor: pointer; margin-top: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(5px); }
+        .modal-box { background: #1a1a1a; padding: 25px; border-radius: 20px; width: 500px; max-width:90%; max-height:85vh; overflow-y:auto; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         
-        .cart-item { background: var(--glass-panel); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .theme-toggle { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: var(--bg-sidebar); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        input, select { background: #333; border: 1px solid #555; color: white; padding: 12px; width: 100%; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+        button { padding: 12px; border-radius: 8px; cursor: pointer; border: none; font-weight: bold; width: 100%; margin-top: 10px; font-size: 1rem; transition: 0.2s; }
+        .btn-neon { background: var(--neon-primary); color: white; }
+        .btn-ghost { background: transparent; border: 1px solid #555; color: #ccc; }
+        
+        /* Items en Modal Dividir */
+        .split-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px dashed #444; padding-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <span class="material-icons-round" style="font-size:32px;color:var(--neon-primary);margin-bottom:40px">restaurant</span>
-        <div class="nav-btn" onclick="location.reload()"><span class="material-icons-round">refresh</span></div>
-        <div class="nav-btn" style="margin-top:auto" onclick="logout()"><span class="material-icons-round">logout</span></div>
+        <span class="material-icons-round" style="font-size:32px; color:var(--neon-primary); margin-bottom:40px">restaurant</span>
+        <button class="nav-btn" onclick="location.reload()"><span class="material-icons-round">refresh</span></button>
+        <div style="flex:1"></div>
+        <button class="nav-btn" onclick="logout()" style="color:#ef4444"><span class="material-icons-round">logout</span></button>
     </div>
 
     <div class="content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-            <h1 style="margin:0; font-family:'Montserrat'; font-size:2rem">Sala</h1>
-            <div id="reloj" style="font-weight:600">--:--</div>
+        <div class="header">
+            <h1 style="margin:0">Sala Principal</h1>
+            <div id="reloj" style="font-weight:bold; opacity:0.7">--:--</div>
         </div>
-        <div id="grid" class="grid">Cargando...</div>
+        <div id="grid" class="grid"></div>
     </div>
-
-    <div class="theme-toggle" onclick="toggleThemeManual()"><span class="material-icons-round" id="theme-icon">light_mode</span></div>
 
     <div id="modal-order" class="modal">
         <div class="modal-box">
-            <h2 style="margin-top:0">Nuevo Pedido</h2>
-            <p id="modal-subtitle" style="color:var(--text-muted); margin-bottom:15px">Agrega productos</p>
-            
-            <input type="text" id="prod-search" placeholder="🔍 Buscar producto..." onkeyup="filtrarProductos()" style="margin-bottom: 10px;">
-            
-            <div id="prod-list" class="prod-list-container"></div>
-
-            <div style="background:var(--glass-panel); padding:15px; border-radius:12px; margin-bottom:15px">
+            <h2 style="margin-top:0">Pedido <span id="lbl-mesa" style="color:var(--neon-primary)"></span></h2>
+            <input id="prod-search" placeholder="🔍 Buscar producto..." onkeyup="filterProd()">
+            <div id="prod-list" style="height:250px; overflow-y:auto; border:1px solid #333; margin-bottom:15px; border-radius:8px"></div>
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:10px">
                 <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
-                    <span id="lbl-selected" style="flex:1; font-weight:bold; color:var(--neon-primary)">Selecciona un producto</span>
-                    <input type="number" id="inp-cant" value="1" min="1" style="width:70px; text-align:center; font-weight:bold">
+                    <span id="lbl-sel" style="flex:1; font-weight:bold; color:var(--neon-primary)">Selecciona un producto</span>
+                    <input type="number" id="cant" value="1" min="1" style="width:70px; text-align:center; font-weight:bold; margin:0">
                 </div>
-                <input type="text" id="inp-notas" placeholder="📝 Notas (Sin cebolla...)" style="font-size:0.9rem">
-                <button onclick="agregarAlCarrito()" class="btn-ghost" style="color:var(--neon-primary); border-color:var(--neon-primary)">+ AÑADIR</button>
+                <input id="notas" placeholder="📝 Notas (Sin cebolla...)" style="margin:0">
+                <button class="btn-ghost" onclick="addCart()" style="border-color:var(--neon-primary); color:var(--neon-primary); margin-top:10px">+ AÑADIR</button>
             </div>
-
-            <div id="cart-list" style="max-height:150px; overflow-y:auto; margin-bottom:15px"></div>
-            
-            <button class="btn-neon" onclick="enviarPedido()">ENVIAR A COCINA</button>
-            <button onclick="closeModal('modal-order')" class="btn-ghost" style="border:none">Cancelar</button>
+            <div id="cart-list" style="margin-top:15px; max-height:120px; overflow-y:auto; font-size:0.9rem; color:#ccc; border-top:1px dashed #444; padding-top:10px"></div>
+            <div style="display:flex; gap:10px; margin-top:15px">
+                <button onclick="sendOrder()" style="background:#10b981; color:white; flex:2">ENVIAR A COCINA</button>
+                <button onclick="closeModal('modal-order')" class="btn-ghost" style="flex:1">Cancelar</button>
+            </div>
         </div>
     </div>
 
     <div id="modal-actions" class="modal">
         <div class="modal-box" style="text-align:center">
-            <h2 id="act-title" style="margin-top:0">Mesa</h2>
-            <div id="act-info" style="font-size:1.5rem; font-weight:bold; color:var(--neon-primary); margin:15px 0"></div>
-            <div id="act-buttons" style="display:flex; flex-direction:column; gap:10px"></div>
-            <div id="div-cuenta" style="display:none; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:20px">
-                <div style="display:flex; gap:10px">
-                    <button class="btn-neon" style="background:#3b82f6" onclick="pedirCuenta('unica')">Única</button>
-                    <button class="btn-neon" style="background:#f59e0b" onclick="prepararDivision()">Separada</button>
-                </div>
+            <h2 id="act-title" style="margin-top:0">Mesa Ocupada</h2>
+            <div id="act-info" style="margin-bottom:20px; font-size:1.2rem; font-weight:bold; color:#aaa"></div>
+            
+            <div id="act-items" style="text-align:left; max-height:150px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; margin-bottom:20px; font-size:0.9rem"></div>
+
+            <div id="btn-servir-container" style="display:none; margin-bottom:15px">
+                <button onclick="accionMesa('entregar_mesa')" style="background:#10b981; color:white">🍽️ SERVIR TODO</button>
             </div>
-            <button onclick="closeModal('modal-actions')" class="btn-ghost" style="border:none; margin-top:15px">Cerrar</button>
+
+            <button onclick="abrirModalPedido(mesaSeleccionada)" class="btn-ghost" style="color:#3b82f6; border-color:#3b82f6; margin-bottom:15px">
+                + AGREGAR PRODUCTOS
+            </button>
+
+            <div style="display:flex; gap:10px; border-top:1px solid #444; padding-top:15px">
+                <button onclick="pedirCuenta('unica')" class="btn-ghost" style="border-color:#10b981; color:#10b981; flex:1">
+                    💰 ÚNICA
+                </button>
+                <button onclick="prepararDivision()" class="btn-ghost" style="border-color:#f59e0b; color:#f59e0b; flex:1">
+                    👥 SEPARADA
+                </button>
+            </div>
+            
+            <button onclick="closeModal('modal-actions')" class="btn-ghost" style="margin-top:20px; border:none">Cerrar</button>
         </div>
     </div>
 
     <div id="modal-split" class="modal">
         <div class="modal-box">
             <h2>Dividir Cuenta</h2>
-            <div id="split-list" style="max-height:300px; overflow-y:auto; margin-bottom:15px"></div>
-            <button class="btn-neon" onclick="confirmarDivision()">CONFIRMAR</button>
-            <button onclick="closeModal('modal-split')" class="btn-ghost">Volver</button>
+            <p style="font-size:0.8rem; color:#aaa">Asigna un nombre a cada item</p>
+            <div id="split-list" style="max-height:300px; overflow-y:auto; margin-bottom:15px; text-align:left"></div>
+            <button onclick="confirmarDivision()" style="background:#f59e0b; color:black">CONFIRMAR DIVISIÓN</button>
+            <button onclick="closeModal('modal-split')" class="btn-ghost">Cancelar</button>
         </div>
     </div>
 
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let MESAS=[], productos=[], allProductos=[], ventasActivas=[], carrito=[], mesaSeleccionada=null, ventaActual=null;
-        let selectedProdId = null;
+        let MESAS=[], allProds=[], cart=[], selId=null, mesaSeleccionada=null, ventaActual=null;
 
-        function toggleThemeManual() {
-            document.body.classList.toggle('light-mode');
-            const isLight = document.body.classList.contains('light-mode');
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            document.getElementById('theme-icon').innerText = isLight ? 'dark_mode' : 'light_mode';
-        }
-        if(localStorage.getItem('theme')==='light') toggleThemeManual();
         setInterval(() => document.getElementById('reloj').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), 1000);
 
-        async function init() {
+        async function init(){
             try {
-                await cargarProductos();
-                await cargarMesasReales();
-                await cargarVentas();
+                const rm=await apiFetch('/mesas/'); if(rm)MESAS=rm.data.map(m=>m.nombre);
+                const rp=await apiFetch('/productos/'); if(rp){allProds=rp.data; renderList(allProds);}
                 renderMesas();
-            } catch(e) { console.error("Error init:", e); }
+            } catch(e) { console.error(e); }
         }
 
-        async function cargarMesasReales(){ const r=await apiFetch('/mesas/'); if(r) MESAS=r.data.map(m=>m.nombre); }
-        async function cargarProductos(){ const r=await apiFetch('/productos/'); if(r){ allProductos=r.data; renderProdList(allProductos); } }
-        async function cargarVentas(){ const r=await apiFetch('/ventas/'); if(r) ventasActivas=(r.data||r).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split'); }
-
-        // --- LISTA VISUAL CON DETALLES ---
-        function renderProdList(lista) {
-            const container = document.getElementById('prod-list');
-            if(!container) return;
-            container.innerHTML = lista.map(p => {
-                const ingredientesStr = p.recetas.map(r => `${r.insumo_nombre} (${r.cantidad_requerida}${r.insumo_medida})`).join(', ');
+        function renderList(list){
+            document.getElementById('prod-list').innerHTML = list.map(p => {
+                let catClass = 'cat-general';
+                if(p.categoria === 'Bebidas') catClass = 'cat-bebidas';
+                if(p.categoria === 'Fuertes') catClass = 'cat-fuertes';
+                if(p.categoria === 'Livianos') catClass = 'cat-livianos';
+                if(p.categoria === 'Entradas') catClass = 'cat-entradas';
+                if(p.categoria === 'Postres') catClass = 'cat-postres';
+                
+                const ingStr = p.recetas.map(r => `${r.insumo_nombre}`).join(', ');
                 const tieneIng = p.recetas.length > 0;
+
                 return `
-                <div class="prod-item-wrapper">
-                    <div class="prod-item ${selectedProdId === p.id ? 'selected' : ''}" onclick="selectProduct('${p.id}', '${p.nombre}')">
-                        <span>${p.nombre}</span>
-                        <span style="font-weight:600">$${p.precio.toLocaleString('es-CO')}</span>
+                <div style="border-bottom:1px solid #333">
+                    <div class="prod-item ${catClass} ${selId===p.id?'selected':''}" onclick="sel('${p.id}','${p.nombre}')">
+                        <span>${p.nombre}</span><span style="font-weight:bold">$${p.precio.toLocaleString()}</span>
                     </div>
-                    ${tieneIng ? `<details style="padding:0 15px 10px 15px; font-size:0.8rem; color:var(--text-muted)"><summary style="cursor:pointer; outline:none; color:var(--neon-primary)">Ver Ingredientes</summary><p style="margin:5px 0 0 0; padding-left:10px; border-left:2px solid var(--glass-border)">${ingredientesStr}</p></details>` : ''}
+                    ${tieneIng ? `<details><summary>Ingredientes</summary>${ingStr}</details>` : ''}
                 </div>`;
             }).join('');
         }
 
-        function filtrarProductos() {
-            const term = document.getElementById('prod-search').value.toLowerCase();
-            const filtrados = allProductos.filter(p => p.nombre.toLowerCase().includes(term));
-            renderProdList(filtrados);
-        }
+        function filterProd(){ const t = document.getElementById('prod-search').value.toLowerCase(); renderList(allProds.filter(p=>p.nombre.toLowerCase().includes(t))); }
+        function sel(id, nom){ selId=id; document.getElementById('lbl-sel').innerText=nom; renderList(allProds); }
 
-        function selectProduct(id, nombre) {
-            selectedProdId = id;
-            document.getElementById('lbl-selected').innerText = nombre;
-            filtrarProductos(); 
-        }
-
-        // --- RESTO DEL CÓDIGO ---
-        function renderMesas() {
-            const grid=document.getElementById('grid'); if(MESAS.length)grid.innerHTML='';
-            MESAS.forEach(nom => {
-                const v = ventasActivas.find(x=>x.mesa===nom);
-                let st='libre', txt='DISPONIBLE', totalStr='';
+        async function renderMesas(){
+            const rv=await apiFetch('/ventas/'); 
+            const act=(rv.data||rv).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split');
+            document.getElementById('grid').innerHTML=MESAS.map(m=>{
+                const v=act.find(x=>x.mesa===m);
+                let color='#10b981', estado='LIBRE';
                 if(v){
-                    totalStr = `$${v.total.toLocaleString('es-CO')}`;
-                    if(v.estado==='pendiente'){st='pendiente';txt='COCINANDO';}
-                    else if(v.estado==='listo'){st='listo';txt='SERVIR';}
-                    else if(v.estado==='entregado'){st='entregado';txt='OCUPADA';}
-                    else if(v.estado==='por_cobrar'){st='por_cobrar';txt='PAGANDO';}
+                    if(v.estado==='pendiente'){ color='#ef4444'; estado='COCINANDO'; } 
+                    else if(v.estado==='listo'){ color='#f97316'; estado='SERVIR'; } 
+                    else if(v.estado==='entregado'){ color='#3b82f6'; estado='OCUPADA'; } 
+                    else if(v.estado==='por_cobrar'){ color='#a855f7'; estado='PAGANDO'; } 
                 }
-                const d=document.createElement('div'); d.className=`mesa-node ${st}`;
-                d.onclick=()=>clickMesa(nom,v);
-                d.innerHTML=`<div style="font-weight:700;font-size:1.1rem">${nom}</div><div style="font-size:0.75rem;opacity:0.8;margin-bottom:5px">${txt}</div><div style="font-weight:700">${totalStr}</div>`;
-                grid.appendChild(d);
-            });
+                const ventaString = v ? encodeURIComponent(JSON.stringify(v)) : 'null';
+                return `<div class="mesa-node" onclick="clickMesa('${m}', '${ventaString}')" style="border-color:${color}; box-shadow: 0 0 15px ${v?color:'transparent'}">
+                    <b style="font-size:1.2rem">${m}</b>
+                    <div class="mesa-badge" style="background:${color}; color:${v?'white':'#000'}">${estado}</div>
+                    ${v ? `<small style="margin-top:5px">$${v.total.toLocaleString()}</small>` : ''}
+                </div>`
+            }).join('');
         }
 
-        function clickMesa(nom, venta) {
-            mesaSeleccionada=nom; ventaActual=venta;
-            if(!venta) {
-                abrirModalPedido(nom);
+        function clickMesa(nombreMesa, ventaEncoded){
+            mesaSeleccionada = nombreMesa;
+            ventaActual = ventaEncoded !== 'null' ? JSON.parse(decodeURIComponent(ventaEncoded)) : null;
+
+            if(!ventaActual){
+                abrirModalPedido(nombreMesa);
             } else {
-                document.getElementById('act-title').innerText=nom;
-                const itemsList = (venta.detalles||[]).map(d=>`<div>${d.cantidad} ${d.producto_nombre} ${d.notas?`<small>(${d.notas})</small>`:''}</div>`).join('');
-                document.getElementById('act-info').innerHTML=`$${venta.total.toLocaleString('es-CO')}<div style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; max-height:100px; overflow-y:auto; font-weight:normal">${itemsList}</div>`;
-                const b=document.getElementById('act-buttons'); document.getElementById('div-cuenta').style.display='none'; b.innerHTML='';
-                
-                if(venta.estado==='pendiente') b.innerHTML=`<div style="color:var(--status-cooking);font-weight:bold;margin-bottom:10px">COCINANDO...</div><button class="btn-ghost" onclick="abrirModalPedido('${nom}')">AGREGAR PRODUCTO</button>`;
-                else if(venta.estado==='listo') b.innerHTML=`<button class="btn-neon" style="background:var(--status-ready)" onclick="accionMesa('entregar_mesa')">✅ SERVIR A MESA</button>`;
-                else if(venta.estado==='entregado') b.innerHTML=`<button class="btn-ghost" onclick="abrirModalPedido('${nom}')">AGREGAR PRODUCTO</button><button class="btn-neon" onclick="document.getElementById('div-cuenta').style.display='block'">💵 PEDIR CUENTA</button>`;
-                else if(venta.estado==='por_cobrar') b.innerHTML=`<div style="color:var(--status-paying);font-weight:bold">EN PROCESO DE COBRO...</div>`;
-                
-                document.getElementById('modal-actions').style.display='flex';
+                document.getElementById('act-title').innerText = `Mesa ${nombreMesa}`;
+                document.getElementById('act-info').innerText = `Total: $${ventaActual.total.toLocaleString()}`;
+                document.getElementById('act-items').innerHTML = ventaActual.detalles.map(d => `<div>${d.cantidad}x ${d.producto_nombre}</div>`).join('');
+                document.getElementById('btn-servir-container').style.display = (ventaActual.estado === 'listo') ? 'block' : 'none';
+                document.getElementById('modal-actions').style.display = 'flex';
             }
         }
 
-        function abrirModalPedido(nom) {
-            closeModal('modal-actions'); mesaSeleccionada=nom; carrito=[]; renderCarrito();
-            document.getElementById('modal-subtitle').innerText=`Mesa: ${nom}`;
+        function abrirModalPedido(nom){
+            closeModal('modal-actions');
+            mesaSeleccionada = nom;
+            document.getElementById('lbl-mesa').innerText = nom;
+            cart=[]; renderCart();
             document.getElementById('prod-search').value = '';
-            selectedProdId = null;
-            document.getElementById('lbl-selected').innerText = "Selecciona un producto";
-            renderProdList(allProductos);
-            document.getElementById('modal-order').style.display='flex';
-            setTimeout(() => document.getElementById('prod-search').focus(), 100);
+            selId = null; document.getElementById('lbl-sel').innerText = "Selecciona un producto";
+            renderList(allProds);
+            document.getElementById('modal-order').style.display = 'flex';
         }
 
-        function agregarAlCarrito() {
-            if(!selectedProdId) return alert("Selecciona un producto primero");
-            const cant = parseInt(document.getElementById('inp-cant').value);
-            const nota = document.getElementById('inp-notas').value.trim();
-            const p = allProductos.find(x => x.id === selectedProdId);
+        function addCart(){
+            if(!selId) return alert("Selecciona un producto");
+            const p = allProds.find(x=>x.id===selId);
+            cart.push({producto_id:p.id, nombre:p.nombre, cantidad:parseInt(document.getElementById('cant').value), notas:document.getElementById('notas').value});
+            renderCart();
+            document.getElementById('notas').value=''; document.getElementById('cant').value=1;
+        }
+        function renderCart(){ document.getElementById('cart-list').innerHTML=cart.map((c,i)=>`<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #333"><span><b>${c.cantidad}x</b> ${c.nombre} <small style="color:var(--neon-primary)">${c.notas}</small></span><span style="color:#ef4444; cursor:pointer" onclick="cart.splice(${i},1);renderCart()">✕</span></div>`).join(''); }
+        
+        async function sendOrder(){
+            if(cart.length===0) return alert("Carrito vacío");
+            await apiFetch('/ventas/','POST',{mesa:mesaSeleccionada, detalles:cart});
+            closeModal('modal-order'); init(); 
+        }
 
-            if (p && cant > 0) {
-                carrito.push({ producto_id: p.id, nombre: p.nombre, cantidad: cant, notas: nota });
-                renderCarrito();
-                document.getElementById('inp-notas').value = '';
-                document.getElementById('inp-cant').value = 1;
+        async function accionMesa(accion){
+            if(!ventaActual) return;
+            await apiFetch(`/ventas/${ventaActual.id}/${accion}`, 'POST', {});
+            closeModal('modal-actions'); init();
+        }
+
+        async function pedirCuenta(tipo){
+            if(!ventaActual) return;
+            if(confirm(`¿Pedir cuenta ${tipo.toUpperCase()}?`)) {
+                await apiFetch(`/ventas/${ventaActual.id}/solicitar_cuenta?tipo=${tipo}`, 'POST', {});
+                closeModal('modal-actions'); init();
             }
         }
 
-        function renderCarrito(){
-            const div=document.getElementById('cart-list');
-            if(!carrito.length) div.innerHTML='<p style="text-align:center;color:var(--text-muted);padding:20px">Carrito vacío</p>';
-            else div.innerHTML=carrito.map((c,i)=>`
-                <div class="cart-item">
-                    <div><b>${c.cantidad}x</b> ${c.nombre} ${c.notas?`<br><small style="color:var(--neon-primary)">📝 ${c.notas}</small>`:''}</div>
-                    <span class="material-icons-round" style="color:#ef4444;cursor:pointer" onclick="carrito.splice(${i},1);renderCarrito()">delete</span>
-                </div>`).join('');
-        }
-
-        async function enviarPedido(){
-            if(!carrito.length) return alert("Agrega productos");
-            await apiFetch('/ventas/','POST',{mesa:mesaSeleccionada,detalles:carrito});
-            closeModal('modal-order'); init();
-        }
-
+        // --- LÓGICA DE DIVIDIR CUENTA (RECUPERADA) ---
         function prepararDivision(){
-            closeModal('modal-actions'); const div=document.getElementById('split-list'); div.innerHTML='';
-            (ventaActual.detalles||[]).forEach(d=>{
-                div.innerHTML+=`<div class="cart-item"><span><b>${d.cantidad}x</b> ${d.producto_nombre}</span><input type="text" id="split-${d.id}" value="${d.comensal!=='Mesa'?d.comensal:''}" placeholder="Nombre" style="width:120px;padding:8px"></div>`;
+            if(!ventaActual) return;
+            closeModal('modal-actions');
+            const div = document.getElementById('split-list');
+            div.innerHTML = '';
+            
+            ventaActual.detalles.forEach(d => {
+                // Input pre-llenado con el nombre actual (o "Mesa")
+                const valorActual = d.comensal && d.comensal !== 'Mesa' ? d.comensal : '';
+                div.innerHTML += `
+                <div class="split-item">
+                    <span><b>${d.cantidad}x</b> ${d.producto_nombre}</span>
+                    <input type="text" id="split-${d.id}" value="${valorActual}" placeholder="Nombre Persona" style="width:150px; padding:8px; margin:0">
+                </div>`;
             });
-            document.getElementById('modal-split').style.display='flex';
+            document.getElementById('modal-split').style.display = 'flex';
         }
+
         async function confirmarDivision(){
-            const asignaciones = ventaActual.detalles.map(d=>({detalle_id:d.id, comensal:document.getElementById(`split-${d.id}`).value.trim()||"Mesa"}));
-            await apiFetch(`/ventas/${ventaActual.id}/dividir_por_nombres`,'POST',{asignaciones}); closeModal('modal-split'); init();
+            const asignaciones = ventaActual.detalles.map(d => ({
+                detalle_id: d.id,
+                comensal: document.getElementById(`split-${d.id}`).value.trim() || "Mesa"
+            }));
+            
+            await apiFetch(`/ventas/${ventaActual.id}/dividir_por_nombres`, 'POST', {asignaciones});
+            closeModal('modal-split');
+            init(); // Recargar para ver estado "PAGANDO"
         }
-        async function pedirCuenta(t){ await apiFetch(`/ventas/${ventaActual.id}/solicitar_cuenta?tipo=${t}`,'POST',{}); closeModal('modal-actions'); init(); }
-        async function accionMesa(a){ await apiFetch(`/ventas/${ventaActual.id}/${a}`,'POST',{}); closeModal('modal-actions'); init(); }
+
         function closeModal(id){document.getElementById(id).style.display='none';}
-        function logout(){localStorage.removeItem('token');window.location.href='login.html';}
-        setInterval(init, 5000); init();
+        function logout(){localStorage.removeItem('token'); window.location.href='login.html';}
+        setInterval(init,5000); init();
     </script>
 </body>
 </html>

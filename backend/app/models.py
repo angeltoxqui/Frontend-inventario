@@ -4,7 +4,7 @@ from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
 # ==========================================
-#           USUARIOS Y AUTENTICACIÓN
+#           USUARIOS (RRHH)
 # ==========================================
 
 class UserBase(SQLModel):
@@ -12,7 +12,8 @@ class UserBase(SQLModel):
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
-    rol: str = Field(default="admin") 
+    rol: str = Field(default="admin")
+    en_turno: bool = Field(default=True) # <--- NUEVO: Control de turno
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
@@ -26,6 +27,7 @@ class UserRegister(SQLModel):
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=40)
+    en_turno: bool | None = None # Permitir actualizar turno
 
 class UserUpdateMe(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
@@ -62,7 +64,7 @@ class Message(SQLModel):
     message: str
 
 # ==========================================
-#           INVENTARIO Y MENÚ
+#           INVENTARIO
 # ==========================================
 
 class InsumoBase(SQLModel):
@@ -70,7 +72,7 @@ class InsumoBase(SQLModel):
     unidad_medida: str
     costo: float = Field(default=0.0)
     stock_actual: float = Field(default=0.0)
-    stock_maximo: float = Field(default=1000.0) # Para calcular el % de alerta
+    stock_maximo: float = Field(default=1000.0) 
 
 class InsumoCreate(InsumoBase):
     pass
@@ -93,24 +95,26 @@ class InsumosPublic(SQLModel):
     data: list[InsumoPublic]
     count: int
 
-# 2. PRODUCTOS
+# ==========================================
+#           PRODUCTOS (MENÚ)
+# ==========================================
+
 class ProductoBase(SQLModel):
     nombre: str = Field(unique=True, index=True)
     precio: float
     descripcion: str | None = None
     imagen_url: str | None = None
     disponible: bool = Field(default=True)
+    categoria: str = Field(default="General") # <--- NUEVO: Categoría
 
 class Producto(ProductoBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     recetas: list["Receta"] = Relationship(back_populates="producto", cascade_delete=True)
 
-# 3. RECETAS
 class Receta(SQLModel, table=True):
     producto_id: uuid.UUID = Field(foreign_key="producto.id", primary_key=True)
     insumo_id: uuid.UUID = Field(foreign_key="insumo.id", primary_key=True)
     cantidad_requerida: float
-    
     producto: Producto = Relationship(back_populates="recetas")
     insumo: Insumo = Relationship(back_populates="recetas")
 
@@ -156,7 +160,7 @@ class MesasPublic(SQLModel):
     count: int
 
 # ==========================================
-#           VENTAS Y PEDIDOS
+#           VENTAS
 # ==========================================
 
 class VentaPago(SQLModel):
@@ -175,13 +179,12 @@ class DetalleVentaBase(SQLModel):
     subtotal: float
     comensal: str | None = Field(default="Mesa") 
     notas: str | None = Field(default=None)
-    receta_snapshot: str | None = Field(default=None) # Texto con la receta exacta
+    receta_snapshot: str | None = Field(default=None)
 
 class DetalleVenta(DetalleVentaBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     venta_id: uuid.UUID = Field(foreign_key="venta.id", ondelete="CASCADE")
     producto_id: uuid.UUID = Field(foreign_key="producto.id")
-    
     venta: "Venta" = Relationship(back_populates="detalles")
     producto: "Producto" = Relationship()
 
@@ -205,7 +208,6 @@ class VentaBase(SQLModel):
     total_final: float = Field(default=0.0)
     fecha: datetime = Field(default_factory=datetime.utcnow)
     metodo_pago: str | None = Field(default=None)
-    
     cliente_nombre: str | None = Field(default=None)
     cliente_nit: str | None = Field(default=None)
     cliente_email: str | None = Field(default=None)
@@ -218,6 +220,7 @@ class Venta(VentaBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     usuario_id: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     detalles: list["DetalleVenta"] = Relationship(back_populates="venta", cascade_delete=True)
+    usuario: User = Relationship() # Relación para saber quién atendió
 
 class VentaPublic(VentaBase):
     id: uuid.UUID

@@ -8,302 +8,342 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
     
     <style>
-        :root { --bg-deep: #09090b; --glass: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.1); --text: #e4e4e7; --primary: #8b5cf6; --input-bg: rgba(0,0,0,0.3); --danger: #ef4444; }
+        :root { --bg-deep: #09090b; --glass: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.1); --text: #e4e4e7; --primary: #8b5cf6; --input-bg: rgba(0,0,0,0.3); --danger: #ef4444; --success: #10b981; --warning: #f59e0b; }
         body.light-mode { --bg-deep: #f8fafc; --glass: #ffffff; --glass-border: #e2e8f0; --text: #1e293b; --primary: #7c3aed; --input-bg: #f1f5f9; }
         body { font-family: 'Montserrat', sans-serif; background: var(--bg-deep); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
         
         .sidebar { width: 250px; background: var(--glass); border-right: 1px solid var(--glass-border); padding: 20px; display: flex; flex-direction: column; }
-        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
-        .nav-btn { padding: 12px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; color: var(--text); opacity: 0.7; border:none; background:none; text-align:left; width:100%; display:flex; gap:10px; align-items:center; transition:0.2s; font-family:inherit; }
+        .nav-btn { padding: 12px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; color: var(--text); opacity: 0.7; border:none; background:none; text-align:left; width:100%; display:flex; gap:10px; align-items:center; }
         .nav-btn:hover, .nav-btn.active { background: rgba(139, 92, 246, 0.1); color: var(--primary); opacity: 1; font-weight: 600; }
         
         .content { flex: 1; padding: 40px; overflow-y: auto; }
         .section { display: none; animation: fadeIn 0.4s; } .section.active { display: block; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         
-        .glass-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { margin-top: 0; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 20px; color: var(--text); }
+        .glass-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; margin-bottom: 20px; }
         input, select { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text); padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 10px; box-sizing:border-box; outline:none; font-family:inherit; }
-        input:focus, select:focus { border-color: var(--primary); }
-        button.primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.3s; font-family:inherit; text-transform:uppercase; letter-spacing:1px; }
-        button.primary:hover { filter: brightness(1.1); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+        button.primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition:0.2s }
+        .btn-icon { background: none; border: none; cursor: pointer; color: var(--text); opacity: 0.7; padding: 5px; }
+        .btn-icon:hover { opacity: 1; color: var(--primary); }
+        .btn-icon.danger:hover { color: var(--danger); }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--primary); font-size: 0.85rem; text-transform: uppercase; }
+        th { text-align: left; padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--primary); font-size: 0.85rem; }
         td { padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text); font-size: 0.95rem; }
-        tr:hover td { background: rgba(139, 92, 246, 0.05); }
         
-        /* TOAST */
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
-        .toast { background: var(--glass); border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: slideIn 0.3s; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 10px; color: var(--text); }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: var(--glass); padding: 20px; border-radius: 16px; border: 1px solid var(--glass-border); }
+        .kpi-val { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-top:5px; }
+        .kpi-label { font-size: 0.85rem; opacity: 0.7; }
+
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(20px); }
         
-        /* MODALS */
+        .badge-desc { background: rgba(245, 158, 11, 0.2); color: var(--warning); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid var(--warning); }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(5px); }
-        .modal-box { background: var(--bg-deep); border: 1px solid var(--glass-border); padding: 30px; border-radius: 16px; text-align: center; color: var(--text); min-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .theme-float { position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.3s; }
-        .theme-float:hover { transform: scale(1.1); }
-        
+        .modal-box { background: #09090b; border: 1px solid var(--glass-border); padding: 30px; border-radius: 16px; text-align: center; color: var(--text); min-width: 350px; }
         .ing-item { display: flex; justify-content: space-between; background: rgba(139,92,246,0.1); padding: 8px; border-radius: 6px; margin-bottom: 5px; font-size: 0.9rem; }
-        #qr-hidden { position: absolute; left: -9999px; }
     </style>
 </head>
 <body>
-    <div id="toast-container" class="toast-container"></div>
-    
-    <div id="confirm-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3 style="margin-top:0">Confirmar Acción</h3>
-            <p id="confirm-msg" style="opacity:0.8; margin-bottom:20px">¿Estás seguro?</p>
-            <div style="display:flex; gap:10px; justify-content:center">
-                <button onclick="closeConfirm()" style="background:transparent; border:1px solid var(--glass-border); color:var(--text)">Cancelar</button>
-                <button id="btn-confirm-ok" style="background:var(--primary)">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
     <div class="sidebar">
-        <div class="logo"><span class="material-icons-round" style="color:var(--primary)">hub</span> ORACLE ADMIN</div>
+        <h2 style="color:var(--primary); margin-bottom:30px">ORACLE ADMIN</h2>
         <button class="nav-btn active" onclick="show('insumos')"><span class="material-icons-round">inventory</span> Inventario</button>
         <button class="nav-btn" onclick="show('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
         <button class="nav-btn" onclick="show('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
         <button class="nav-btn" onclick="show('mesas')"><span class="material-icons-round">table_bar</span> Mesas</button>
+        <button class="nav-btn" onclick="show('reportes')"><span class="material-icons-round">analytics</span> Reportes</button>
         <div style="flex:1"></div>
-        <a href="reportes.html" class="nav-btn" style="text-decoration:none"><span class="material-icons-round">analytics</span> Reportes</a>
-        <button class="nav-btn" onclick="logout()" style="color:var(--danger)"><span class="material-icons-round">logout</span> Salir</button>
+        <button class="nav-btn" onclick="logout()" style="color:var(--danger)">Salir</button>
     </div>
 
     <div class="content">
         <div id="sec-insumos" class="section active">
             <h1>Gestión de Inventario</h1>
-            <div class="glass-panel" style="max-width:800px">
-                <input id="i-nombre" placeholder="Nombre (ej: Esencia de Fresa)">
+            <div class="glass-panel" style="max-width:900px">
+                <input id="i-nombre" placeholder="Nombre (Ej: Leche Deslactosada)">
                 <div style="display:flex; gap:10px">
-                    <input id="i-unidad" placeholder="Unidad (ej: ml, g)">
-                    <input type="number" id="i-costo" placeholder="Costo">
-                    <input type="number" id="i-stock" placeholder="Stock (ej: 1000 para 1 Litro)">
-                    <input type="number" id="i-max" placeholder="Capacidad Máx (Para alerta %)">
+                    <input id="i-unidad" placeholder="Unidad (ml, g, und)">
+                    <input type="number" id="i-costo" placeholder="Costo Compra">
+                    <input type="number" id="i-stock" placeholder="Stock Actual">
+                    <input type="number" id="i-max" placeholder="Stock Máximo">
                 </div>
                 <button class="primary" id="btn-insumo" onclick="guardarInsumo()">GUARDAR INSUMO</button>
             </div>
-            <div class="glass-panel">
-                <table><thead><tr><th>Item</th><th>Stock</th><th>Costo</th><th>Acción</th></tr></thead><tbody id="tabla-insumos"></tbody></table>
-            </div>
+            <div class="glass-panel"><table><thead><tr><th>Insumo</th><th>Stock</th><th>Costo</th><th>Acción</th></tr></thead><tbody id="tabla-insumos"></tbody></table></div>
         </div>
         
         <div id="sec-productos" class="section">
-            <h1>Menú</h1>
-            <div class="glass-panel" style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
+            <h1>Gestión del Menú</h1>
+            <div class="glass-panel" style="display:grid; grid-template-columns:1fr 1fr; gap:30px">
                 <div>
-                    <h3>1. Info del Plato</h3>
-                    <input id="p-nombre" placeholder="Nombre (ej: Batido Fresa)">
+                    <h3>1. Información del Plato</h3>
+                    <input id="p-nombre" placeholder="Nombre del Plato">
                     <input type="number" id="p-precio" placeholder="Precio de Venta">
+                    <label style="font-size:0.8rem; opacity:0.7">Categoría Visual (Color):</label>
+                    <select id="p-categoria">
+                        <option value="General">General (Gris)</option>
+                        <option value="Bebidas">Bebidas (Cian)</option>
+                        <option value="Fuertes">Platos Fuertes (Naranja)</option>
+                        <option value="Livianos">Livianos (Verde)</option>
+                        <option value="Entradas">Entradas (Amarillo)</option>
+                        <option value="Postres">Postres (Rosa)</option>
+                    </select>
                 </div>
                 <div>
-                    <h3>2. Receta Exacta</h3>
+                    <h3>2. Receta (Escandallo)</h3>
                     <div style="display:flex; gap:10px; align-items:center">
                         <select id="receta-select" style="flex:1" onchange="actualizarUnidadLabel()"></select>
-                        <div style="position:relative; width:100px">
-                            <input type="number" id="receta-cant" placeholder="Cant" style="width:100%; padding-right:35px">
-                            <span id="lbl-unidad" style="position:absolute; right:8px; top:12px; font-size:0.75rem; color:var(--primary); font-weight:bold">und</span>
+                        <div style="position:relative; width:120px">
+                            <input type="number" id="receta-cant" placeholder="Cant." style="width:100%; padding-right:45px">
+                            <span id="lbl-unidad" style="position:absolute; right:10px; top:12px; font-size:0.75rem; color:var(--primary); font-weight:bold; pointer-events:none">...</span>
                         </div>
-                        <button onclick="addIng()" style="width:auto; padding:0 15px; font-size:1.2rem">+</button>
+                        <button onclick="addIng()" style="width:auto; padding:0 15px; height:46px; margin-top:0">+</button>
                     </div>
-                    <div id="lista-temp" style="margin-top:10px; max-height:150px; overflow-y:auto"></div>
+                    <div id="lista-temp" style="margin-top:15px; min-height:50px; border:1px dashed var(--glass-border); border-radius:8px; padding:10px">
+                        <small style="opacity:0.5; display:block; text-align:center">Ingredientes agregados aparecerán aquí</small>
+                    </div>
                 </div>
-                <button class="primary" onclick="crearProducto()" style="grid-column:1/-1">CREAR PLATO</button>
+                <button class="primary" onclick="crearProducto()" style="grid-column:1/-1">GUARDAR PLATO</button>
             </div>
-            <div class="glass-panel">
-                <table><thead><tr><th>Plato</th><th>Precio</th></tr></thead><tbody id="tabla-productos"></tbody></table>
-            </div>
+            <div class="glass-panel"><table><thead><tr><th>Plato</th><th>Precio</th><th>Acción</th></tr></thead><tbody id="tabla-productos"></tbody></table></div>
         </div>
 
         <div id="sec-usuarios" class="section">
             <h1>Recursos Humanos</h1>
-            <div class="glass-panel" style="max-width:400px">
-                <input id="u-email" placeholder="Email">
+            <div class="glass-panel" style="max-width:500px">
+                <input id="u-email" placeholder="Email (Usuario)">
                 <input type="password" id="u-pass" placeholder="Contraseña">
-                <input id="u-name" placeholder="Nombre">
-                <select id="u-rol"><option value="mesero">Mesero</option><option value="cocinero">Cocinero</option><option value="cajero">Cajero</option><option value="admin">Admin</option></select>
-                <button class="primary" onclick="crearUsuario()">REGISTRAR</button>
+                <input id="u-name" placeholder="Nombre Completo">
+                <div style="display:flex; gap:10px">
+                    <select id="u-rol"><option value="mesero">Mesero</option><option value="cocinero">Cocinero</option><option value="cajero">Cajero</option><option value="admin">Admin</option></select>
+                    <button class="primary" onclick="crearUsuario()" style="margin-top:0">REGISTRAR</button>
+                </div>
             </div>
-            <div class="glass-panel">
-                <table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="tabla-usuarios"></tbody></table>
-            </div>
+            <div class="glass-panel"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Turno Activo</th><th>Acción</th></tr></thead><tbody id="tabla-usuarios"></tbody></table></div>
         </div>
 
         <div id="sec-mesas" class="section">
-            <h1>Sala</h1>
-            <div class="glass-panel" style="display:flex; gap:10px; max-width:400px">
-                <input id="m-nombre" placeholder="Nombre Mesa">
-                <button class="primary" onclick="crearMesa()" style="width:auto; margin-top:0">CREAR</button>
+            <h1>Gestión de Mesas</h1>
+            <div class="glass-panel" style="display:flex; gap:10px; max-width:400px"><input id="m-nombre" placeholder="Nombre Mesa"><button class="primary" onclick="crearMesa()" style="width:auto; margin-top:0">CREAR</button></div>
+            <div class="glass-panel"><table><thead><tr><th>Mesa</th><th>Acción</th></tr></thead><tbody id="tabla-mesas"></tbody></table></div>
+        </div>
+
+        <div id="sec-reportes" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <h1>Reportes y Estadísticas</h1>
+                <button class="primary" onclick="descargarExcel()" style="width:auto; background:#10b981">📥 Descargar Historial Ventas</button>
             </div>
-            <div class="glass-panel">
-                <table><thead><tr><th>Mesa</th><th>Estado</th><th>Consumo</th><th>Acción</th></tr></thead><tbody id="tabla-mesas"></tbody></table>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-label">Ventas Hoy</div><div id="kpi-ventas-hoy" class="kpi-val">$0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Efectivo Caja</div><div id="kpi-caja" class="kpi-val" style="color:var(--success)">$0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Propinas</div><div id="kpi-propinas" class="kpi-val" style="color:var(--warning)">$0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Pedidos</div><div id="kpi-pedidos" class="kpi-val">0</div></div>
+            </div>
+
+            <div class="glass-panel" style="margin-top:30px">
+                <h3>Tendencia de Ventas (7 Días)</h3>
+                <canvas id="chart-ventas" style="max-height:300px"></canvas>
+            </div>
+
+            <div class="glass-panel" style="margin-top:20px; border:1px solid rgba(139,92,246,0.3)">
+                <h3>Estado de Resultados (Global)</h3>
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:20px; text-align:center">
+                    <div><div style="opacity:0.7">Ingresos Totales</div><div id="pnl-ingresos" style="font-size:1.2rem; font-weight:bold">$0</div></div>
+                    <div><div style="opacity:0.7">Descuentos Totales</div><div id="pnl-descuentos" style="font-size:1.2rem; font-weight:bold; color:var(--warning)">$0</div></div>
+                    <div><div style="opacity:0.7">Costos (Est)</div><div id="pnl-costos" style="font-size:1.2rem; font-weight:bold; color:var(--danger)">$0</div></div>
+                    <div><div style="opacity:0.7">Utilidad Neta</div><div id="pnl-utilidad" style="font-size:1.2rem; font-weight:bold; color:var(--success)">$0</div></div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr; gap:20px; margin-top:20px">
+                <div class="glass-panel">
+                    <h3>🛒 Detalle de Ventas (Hoy)</h3>
+                    <table>
+                        <thead><tr><th>Hora</th><th>Mesa</th><th>Cliente</th><th>Total Final</th><th>Descuento</th><th>Pago</th></tr></thead>
+                        <tbody id="tabla-ventas-detalle"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px">
+                <div class="glass-panel"><h3>🏆 Rendimiento Staff</h3><table id="tabla-staff"></table></div>
+                <div class="glass-panel"><h3>🔥 Productos Top</h3><table id="tabla-top"></table></div>
             </div>
         </div>
     </div>
 
     <div id="qr-modal" class="modal-overlay">
         <div class="modal-box">
-            <h3 style="color:var(--primary)">Credencial de Acceso</h3>
-            <div id="qrcode" style="display:flex; justify-content:center; margin:20px; background:white; padding:10px; border-radius:8px"></div>
-            <p id="qr-info" style="font-size:0.9rem; margin-bottom:5px"></p>
-            <p id="qr-pass-info" style="font-size:0.8rem; color:var(--text); opacity:0.7; margin-bottom:20px"></p>
-            <div style="display:flex; gap:10px; justify-content:center">
-                <button onclick="descargarCredencialPDF()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer">Descargar PDF</button>
-                <button onclick="document.getElementById('qr-modal').style.display='none'" style="background:transparent; border:1px solid var(--glass-border); color:var(--text)">Cerrar</button>
+            <h3 style="color:var(--primary)">Credencial</h3>
+            <div id="qrcode" style="background:white; padding:10px; display:inline-block; border-radius:8px"></div>
+            <div id="qr-info" style="margin:10px 0"></div>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px">
+                <button onclick="descargarCredencialPDF()" style="background:#10b981; border:none; padding:10px 20px; border-radius:8px; color:white; cursor:pointer">Descargar PDF</button>
+                <button onclick="document.getElementById('qr-modal').style.display='none'" style="background:transparent; border:1px solid var(--glass-border); color:var(--text); padding:10px 20px; border-radius:8px; cursor:pointer">Cerrar</button>
             </div>
         </div>
     </div>
 
-    <div class="theme-float" onclick="toggleThemeManual()"><span class="material-icons-round" id="theme-icon">light_mode</span></div>
-
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let insumos=[], recetaTemp=[], editId=null, currentQRUser={name:"",email:"",role:"",qrData:""};
+        let insumos=[], recetaTemp=[], editId=null, datosVentasExcel=[], currentQRUser={};
 
-        function initTheme(){if(localStorage.getItem('theme')==='light'){document.body.classList.add('light-mode');document.getElementById('theme-icon').innerText='dark_mode';}}
-        function toggleThemeManual(){document.body.classList.toggle('light-mode');const isLight=document.body.classList.contains('light-mode');localStorage.setItem('theme',isLight?'light':'dark');document.getElementById('theme-icon').innerText=isLight?'dark_mode':'light_mode';}
-        initTheme();
-
-        function showToast(msg){
-            const t=document.createElement('div'); t.className='toast'; t.innerHTML=`<span class="material-icons-round">check_circle</span>${msg}`;
-            document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3000);
-        }
-
-        let confirmCallback=null;
-        function openConfirm(msg,cb){document.getElementById('confirm-msg').innerText=msg;confirmCallback=cb;document.getElementById('confirm-modal').style.display='flex';}
-        function closeConfirm(){document.getElementById('confirm-modal').style.display='none';confirmCallback=null;}
-        document.getElementById('btn-confirm-ok').onclick=()=>{if(confirmCallback)confirmCallback();closeConfirm();}
-
+        // Función SHOW modularizada
         function show(id){
             document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-            document.getElementById('sec-'+id).classList.add('active'); event.currentTarget.classList.add('active');
-            if(id==='insumos')cargarInsumos(); if(id==='productos'){cargarInsumos();cargarProductos();} if(id==='usuarios')cargarUsuarios(); if(id==='mesas')cargarMesas();
+            document.getElementById('sec-'+id).classList.add('active'); 
+            event.currentTarget.classList.add('active');
+            
+            if(id==='insumos') cargarInsumos(); 
+            if(id==='productos') { cargarInsumos(); cargarProductos(); } 
+            if(id==='usuarios') cargarUsuarios();
+            if(id==='mesas') cargarMesas();
+            
+            // Aquí cargamos los reportes uno por uno para que si falla uno, los otros funcionen
+            if(id==='reportes') {
+                cargarListaVentas();
+                cargarPnL();
+                cargarKPIs();
+                cargarGraficos();
+            }
         }
 
         // --- INVENTARIO ---
         async function cargarInsumos(){
-            const r=await apiFetch('/insumos/');
-            if(r){
-                insumos=r.data;
-                // Render Tabla
-                document.getElementById('tabla-insumos').innerHTML=insumos.map(i=>{
-                    const stock=i.stock_actual||0, max=i.stock_maximo||1000, pct=(stock/max)*100, isLow=pct<10;
-                    return `<tr style="${isLow?'background:rgba(239,68,68,0.15);border-left:4px solid #ef4444':''}">
-                        <td><b>${isLow?'⚠️ ':''}${i.nombre}</b></td>
-                        <td>${stock} / ${max} ${i.unidad_medida}<div style="width:100%;height:4px;background:rgba(255,255,255,0.1);margin-top:5px;border-radius:2px"><div style="width:${Math.min(pct,100)}%;height:100%;background:${isLow?'#ef4444':'#10b981'};border-radius:2px"></div></div></td>
-                        <td>$${i.costo}</td>
-                        <td><button onclick="editIng('${i.id}')" style="background:none;color:var(--primary);border:none;cursor:pointer">Edit</button></td>
-                    </tr>`;
-                }).join('');
-                
-                // Render Select Receta (Con data-unidad para JS)
-                const select = document.getElementById('receta-select');
-                select.innerHTML=insumos.map(i=>`<option value="${i.id}" data-unidad="${i.unidad_medida}">${i.nombre}</option>`).join('');
-                actualizarUnidadLabel(); // Actualizar el label inicial
-            }
+            try {
+                const r=await apiFetch('/insumos/'); 
+                if(r){ 
+                    insumos=r.data; 
+                    document.getElementById('tabla-insumos').innerHTML=insumos.map(i=>`<tr><td><b>${i.nombre}</b></td><td>${i.stock_actual}/${i.stock_maximo} ${i.unidad_medida}</td><td>$${i.costo}</td><td><button class="btn-icon" onclick="editIng('${i.id}')"><span class="material-icons-round">edit</span></button></td></tr>`).join(''); 
+                    const s=document.getElementById('receta-select'); s.innerHTML=insumos.map(i=>`<option value="${i.id}" data-unidad="${i.unidad_medida}">${i.nombre}</option>`).join(''); 
+                    actualizarUnidadLabel(); 
+                }
+            } catch(e){console.error("Error insumos",e);}
         }
-        function editIng(id){const i=insumos.find(x=>x.id===id);editId=id;document.getElementById('i-nombre').value=i.nombre;document.getElementById('i-unidad').value=i.unidad_medida;document.getElementById('i-costo').value=i.costo;document.getElementById('i-stock').value=i.stock_actual;document.getElementById('i-max').value=i.stock_maximo;document.getElementById('btn-insumo').innerText="ACTUALIZAR";}
-        async function guardarInsumo(){
-            const p={nombre:document.getElementById('i-nombre').value,unidad_medida:document.getElementById('i-unidad').value,costo:document.getElementById('i-costo').value,stock_actual:document.getElementById('i-stock').value,stock_maximo:document.getElementById('i-max').value};
-            let r; if(editId)r=await apiFetch(`/insumos/${editId}`,'PUT',p); else r=await apiFetch('/insumos/','POST',p);
-            if(r){showToast("Guardado");cargarInsumos();editId=null;document.getElementById('btn-insumo').innerText="GUARDAR";document.getElementById('i-nombre').value='';}
-        }
-
-        // --- MENÚ CON UNIDADES ---
-        function actualizarUnidadLabel() {
-            const select = document.getElementById('receta-select');
-            const option = select.options[select.selectedIndex];
-            if (option) {
-                const unidad = option.getAttribute('data-unidad');
-                document.getElementById('lbl-unidad').innerText = unidad || 'und';
-            }
-        }
-
-        function addIng(){
-            const s=document.getElementById('receta-select'), c=document.getElementById('receta-cant').value;
-            const unidad = s.options[s.selectedIndex].getAttribute('data-unidad');
-            if(!c)return; 
-            recetaTemp.push({insumo_id:s.value,cantidad_requerida:c,nombre:s.options[s.selectedIndex].text, unidad: unidad});
-            document.getElementById('receta-cant').value=''; renderReceta();
-        }
-        function delIng(i){recetaTemp.splice(i,1);renderReceta();}
-        function renderReceta(){document.getElementById('lista-temp').innerHTML=recetaTemp.map((r,i)=>`<div class="ing-item"><span>${r.nombre} (${r.cantidad_requerida}${r.unidad})</span><span style="color:var(--danger);cursor:pointer" onclick="delIng(${i})">✕</span></div>`).join('');}
+        function editIng(id){ const i=insumos.find(x=>x.id===id); editId=id; document.getElementById('i-nombre').value=i.nombre; document.getElementById('i-unidad').value=i.unidad_medida; document.getElementById('i-costo').value=i.costo; document.getElementById('i-stock').value=i.stock_actual; document.getElementById('i-max').value=i.stock_maximo; document.getElementById('btn-insumo').innerText="ACTUALIZAR"; }
+        async function guardarInsumo(){ const p={nombre:document.getElementById('i-nombre').value, unidad_medida:document.getElementById('i-unidad').value, costo:document.getElementById('i-costo').value, stock_actual:document.getElementById('i-stock').value, stock_maximo:document.getElementById('i-max').value}; let r; if(editId) r=await apiFetch(`/insumos/${editId}`,'PUT',p); else r=await apiFetch('/insumos/','POST',p); document.getElementById('i-nombre').value=''; editId=null; document.getElementById('btn-insumo').innerText="GUARDAR INSUMO"; cargarInsumos(); }
+        
+        // --- PRODUCTOS ---
+        function actualizarUnidadLabel(){ const s=document.getElementById('receta-select'); if(s.selectedIndex>-1) document.getElementById('lbl-unidad').innerText=s.options[s.selectedIndex].getAttribute('data-unidad')||'und'; }
+        function addIng(){ const s=document.getElementById('receta-select'),c=document.getElementById('receta-cant').value; if(!c)return; recetaTemp.push({insumo_id:s.value,cantidad_requerida:c,nombre:s.options[s.selectedIndex].text,unidad:s.options[s.selectedIndex].getAttribute('data-unidad')}); document.getElementById('receta-cant').value=''; renderReceta(); }
+        function renderReceta(){ document.getElementById('lista-temp').innerHTML=recetaTemp.map((r,i)=>`<div class="ing-item"><span>${r.nombre} (${r.cantidad_requerida} ${r.unidad})</span><span onclick="recetaTemp.splice(${i},1);renderReceta()" style="cursor:pointer">✕</span></div>`).join(''); }
+        
         async function crearProducto(){
-            if(!document.getElementById('p-nombre').value)return;
-            const r=await apiFetch('/productos/','POST',{nombre:document.getElementById('p-nombre').value,precio:document.getElementById('p-precio').value,ingredientes:recetaTemp});
-            if(r){showToast("Plato Creado");cargarProductos();recetaTemp=[];renderReceta();document.getElementById('p-nombre').value='';}
+            const cat = document.getElementById('p-categoria').value;
+            await apiFetch('/productos/','POST',{ nombre:document.getElementById('p-nombre').value, precio:document.getElementById('p-precio').value, categoria: cat, ingredientes:recetaTemp }); 
+            recetaTemp=[]; renderReceta(); document.getElementById('p-nombre').value=''; cargarProductos(); 
         }
-        async function cargarProductos(){const r=await apiFetch('/productos/');if(r)document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`<tr><td>${p.nombre}</td><td>$${p.precio}</td></tr>`).join('');}
+        async function cargarProductos(){ const r=await apiFetch('/productos/'); if(r)document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`<tr><td>${p.nombre} <small style="color:var(--primary)">(${p.categoria})</small></td><td>$${p.precio}</td><td><button class="btn-icon danger" onclick="delProd('${p.id}')"><span class="material-icons-round">delete</span></button></td></tr>`).join(''); }
+        async function delProd(id){ if(confirm("¿Eliminar?")) await apiFetch(`/productos/${id}`,'DELETE'); cargarProductos(); }
 
         // --- USUARIOS ---
-        async function crearUsuario(){
-            const em=document.getElementById('u-email').value;
-            const pass=document.getElementById('u-pass').value;
-            const name=document.getElementById('u-name').value;
-            const rol=document.getElementById('u-rol').value;
-            const r=await apiFetch('/users/','POST',{email:em,password:pass,full_name:name,rol:rol});
-            if(r){showToast("Usuario Creado");mostrarModalQR(name,em,rol,pass);cargarUsuarios();document.getElementById('u-email').value='';document.getElementById('u-pass').value='';document.getElementById('u-name').value='';}
-        }
-        async function cargarUsuarios(){
-            const r=await apiFetch('/users/');
-            if(r){document.getElementById('tabla-usuarios').innerHTML=r.data.map(u=>`<tr><td>${u.full_name}</td><td>${u.email}</td><td><span style="color:var(--primary)">${u.rol||'admin'}</span></td><td style="display:flex;gap:10px"><button onclick="verQRExistente('${u.full_name}','${u.email}','${u.rol}')" style="background:none;border:1px solid var(--glass-border);padding:5px;border-radius:6px;cursor:pointer;color:var(--text)">🪪 QR</button><button onclick="borrarUsuario('${u.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer"><span class="material-icons-round">delete</span></button></td></tr>`).join('');}
-        }
-        async function borrarUsuario(id){openConfirm("¿Eliminar usuario?",async()=>{await apiFetch(`/users/${id}`,'DELETE');showToast("Eliminado");cargarUsuarios();});}
-        function verQRExistente(name,email,role){mostrarModalQR(name,email,role,null);}
-        function mostrarModalQR(name,email,role,pass){
-            const container=document.getElementById('qrcode');container.innerHTML='';
-            const urlLogin=`${window.location.origin}/frontend/login.html?user=${encodeURIComponent(email)}`;
-            new QRCode(container,{text:urlLogin,width:150,height:150});
-            document.getElementById('qr-info').innerHTML=`<b>${name}</b><br>${email} - ${role.toUpperCase()}`;
-            document.getElementById('qr-pass-info').innerText=pass?`Pass: ${pass}`:"Pass: (Oculta)";
-            currentQRUser={name,email,role,qrData:urlLogin};
-            document.getElementById('qr-modal').style.display='flex';
-        }
-        function descargarCredencialPDF(){
-            const {jsPDF}=window.jspdf;
-            const doc=new jsPDF({orientation:"portrait",unit:"mm",format:[55,85]});
-            const pageWidth=doc.internal.pageSize.getWidth(),centerX=pageWidth/2;
-            doc.setFillColor(30,41,59);doc.rect(0,0,pageWidth,85,"F");
-            doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("GASTRO POS",centerX,10,{align:"center"});
-            doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text("CREDENCIAL DE ACCESO",centerX,14,{align:"center"});
-            const qrSize=35,qrY=20;const tempDiv=document.createElement('div');
-            new QRCode(tempDiv,{text:currentQRUser.qrData,width:200,height:200,correctLevel:QRCode.CorrectLevel.H});
-            const qrCanvas=tempDiv.querySelector('canvas');
-            if(qrCanvas){
-                doc.setFillColor(255,255,255);doc.rect(centerX-(qrSize/2)-1,qrY-1,qrSize+2,qrSize+2,"F");
-                doc.addImage(qrCanvas.toDataURL("image/png"),'PNG',centerX-(qrSize/2),qrY,qrSize,qrSize);
+        async function crearUsuario(){ await apiFetch('/users/','POST',{email:document.getElementById('u-email').value,password:document.getElementById('u-pass').value,full_name:document.getElementById('u-name').value,rol:document.getElementById('u-rol').value}); cargarUsuarios(); }
+        
+        async function cargarUsuarios(){ 
+            const r=await apiFetch('/users/'); 
+            if(r) {
+                document.getElementById('tabla-usuarios').innerHTML = r.data.map(u => {
+                    let controlTurno = '', botonBorrar = '';
+                    if(u.rol === 'admin') {
+                        controlTurno = '<span style="color:#10b981; font-weight:bold; font-size:0.8rem">SIEMPRE ACTIVO</span>';
+                        botonBorrar = ''; 
+                    } else {
+                        controlTurno = `<label class="switch"><input type="checkbox" ${u.en_turno?'checked':''} onchange="toggleTurno('${u.id}')"><span class="slider"></span></label>`;
+                        botonBorrar = `<button class="btn-icon danger" onclick="delUser('${u.id}')"><span class="material-icons-round">delete</span></button>`;
+                    }
+                    return `<tr><td>${u.full_name}</td><td><span style="text-transform:uppercase; font-size:0.8rem">${u.rol}</span></td><td>${controlTurno}</td><td><button class="btn-icon" onclick="verQR('${u.full_name}','${u.email}')"><span class="material-icons-round">qr_code</span></button> ${botonBorrar}</td></tr>`;
+                }).join(''); 
             }
-            doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont("helvetica","bold");
-            const nm=doc.splitTextToSize(currentQRUser.name,pageWidth-10);doc.text(nm,centerX,65,{align:"center"});
-            doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(currentQRUser.role.toUpperCase(),centerX,72,{align:"center"});
-            doc.setFontSize(6);doc.setTextColor(200,200,200);
-            const em=doc.splitTextToSize(currentQRUser.email,pageWidth-6);doc.text(em,centerX,77,{align:"center"});
-            doc.save(`Credencial_${currentQRUser.name.replace(/\s+/g,'_')}.pdf`);
+        }
+        async function toggleTurno(id){ await apiFetch(`/users/${id}/toggle-turno`,'PATCH',{}); }
+        async function delUser(id){ if(confirm("¿Eliminar?")) await apiFetch(`/users/${id}`,'DELETE'); cargarUsuarios(); }
+        function verQR(n,e){ const q=document.getElementById('qrcode'); q.innerHTML=''; currentQRUser={name:n,email:e}; new QRCode(q,{text:`${window.location.origin}/frontend/login.html?user=${e}`,width:150,height:150}); document.getElementById('qr-info').innerHTML=`<b>${n}</b><br>${e}`; document.getElementById('qr-modal').style.display='flex'; }
+        function descargarCredencialPDF(){ const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"portrait",unit:"mm",format:[55,85]}); doc.setFillColor(30,41,59); doc.rect(0,0,55,85,"F"); doc.setTextColor(255,255,255); doc.setFontSize(10); doc.text("GASTRO POS",27.5,10,{align:"center"}); const c=document.querySelector('#qrcode canvas'); if(c) doc.addImage(c.toDataURL('image/png'),'PNG',10,20,35,35); doc.text(currentQRUser.name,27.5,65,{align:"center"}); doc.save(`Credencial.pdf`); }
+        async function crearMesa(){ await apiFetch('/mesas/','POST',{nombre:document.getElementById('m-nombre').value}); cargarMesas(); }
+        async function cargarMesas(){ const r=await apiFetch('/mesas/'); if(r)document.getElementById('tabla-mesas').innerHTML=r.data.map(m=>`<tr><td><b>${m.nombre}</b></td><td><button class="btn-icon danger" onclick="delMesa('${m.id}')"><span class="material-icons-round">delete</span></button></td></tr>`).join(''); }
+        async function delMesa(id){ if(confirm("¿Eliminar?")) await apiFetch(`/mesas/${id}`,'DELETE'); cargarMesas(); }
+
+        // --- REPORTES MODULARES (A PRUEBA DE FALLOS) ---
+        async function cargarListaVentas() {
+            try {
+                const resVentas = await apiFetch('/ventas/?limit=200');
+                const todasVentas = resVentas ? resVentas.data : [];
+                const hoyStr = new Date().toDateString();
+                const ventasHoy = todasVentas.filter(v => new Date(v.fecha).toDateString() === hoyStr);
+                const limite7dias = new Date(); limite7dias.setDate(limite7dias.getDate() - 7);
+                const ventas7dias = todasVentas.filter(v => new Date(v.fecha) >= limite7dias);
+                
+                datosVentasExcel = ventas7dias.map(v => ({ Fecha: new Date(v.fecha).toLocaleString(), Mesa: v.mesa, Cliente: v.cliente_nombre || 'General', Total: v.total_final, Descuento: v.descuento_porcentaje + '%', MetodoPago: v.metodo_pago }));
+
+                document.getElementById('tabla-ventas-detalle').innerHTML = ventasHoy.map(v => {
+                    const hora = new Date(v.fecha).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const descBadge = v.descuento_porcentaje > 0 ? `<span class="badge-desc">-${v.descuento_porcentaje}%</span>` : '<span style="opacity:0.3">-</span>';
+                    return `<tr><td>${hora}</td><td><b>${v.mesa}</b></td><td>${v.cliente_nombre || 'Consumidor Final'}</td><td>$${v.total_final.toLocaleString()}</td><td>${descBadge}</td><td><small>${v.metodo_pago || '?'}</small></td></tr>`;
+                }).join('');
+            } catch(e){ console.error("Fallo Cargar Ventas", e); }
         }
 
-        // --- MESAS ---
-        async function cargarMesas(){
-            const rm=await apiFetch('/mesas/'), rv=await apiFetch('/ventas/');
-            if(rm&&rv){
-                const act=(rv.data||rv).filter(v=>v.estado!=='pagado'&&v.estado!=='cerrado_split');
-                document.getElementById('tabla-mesas').innerHTML=rm.data.map(m=>{
-                    const v=act.find(x=>x.mesa===m.nombre);
-                    return `<tr><td><b>${m.nombre}</b></td><td>${v?'<span class="badge" style="background:rgba(239,68,68,0.2);color:#ef4444">OCUPADA</span>':'<span class="badge" style="background:rgba(16,185,129,0.2);color:#10b981">LIBRE</span>'}</td><td>${v?`$${v.total.toLocaleString()}`:'-'}</td><td><button onclick="delMesa('${m.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer">Eliminar</button></td></tr>`;
-                }).join('');
-            }
+        async function cargarPnL() {
+            try {
+                const rAdv = await apiFetch('/ventas/reporte/avanzado');
+                if(rAdv){
+                    document.getElementById('pnl-ingresos').innerText = `$${rAdv.pnl.ingresos_brutos.toLocaleString()}`;
+                    document.getElementById('pnl-descuentos').innerText = `-$${rAdv.pnl.descuentos_dados.toLocaleString()}`;
+                    document.getElementById('pnl-costos').innerText = `-$${rAdv.pnl.costos_insumos.toLocaleString()}`;
+                    document.getElementById('pnl-utilidad').innerText = `$${rAdv.pnl.utilidad_bruta.toLocaleString()}`;
+                    document.getElementById('pnl-margen').innerText = `${rAdv.pnl.margen_porcentaje}%`;
+                    document.getElementById('tabla-staff').innerHTML = `<tr><th>Nombre</th><th>#</th><th>$</th></tr>` + rAdv.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>${t.pedidos}</td><td>$${t.dinero.toLocaleString()}</td></tr>`).join('');
+                    document.getElementById('tabla-top').innerHTML = `<tr><th>Producto</th><th>Cant</th></tr>` + rAdv.top_productos.map(p=>`<tr><td>${p.nombre}</td><td>${p.cantidad}</td></tr>`).join('');
+                }
+            } catch(e){ console.error("Fallo PnL", e); }
         }
-        async function crearMesa(){const n=document.getElementById('m-nombre').value;if(!n)return;const r=await apiFetch('/mesas/','POST',{nombre:n});if(r){showToast("Mesa creada");document.getElementById('m-nombre').value='';cargarMesas();}}
-        async function delMesa(id){openConfirm("¿Eliminar mesa?",async()=>{await apiFetch(`/mesas/${id}`,'DELETE');cargarMesas();});}
+
+        async function cargarKPIs() {
+            try {
+                const rBasico = await apiFetch('/ventas/reporte/resumen');
+                if(rBasico) {
+                    document.getElementById('kpi-ventas-hoy').innerText = `$${rBasico.ventas_netas.toLocaleString()}`;
+                    document.getElementById('kpi-caja').innerText = `$${rBasico.total_caja.toLocaleString()}`;
+                    document.getElementById('kpi-propinas').innerText = `$${rBasico.propinas.toLocaleString()}`;
+                    document.getElementById('kpi-pedidos').innerText = rBasico.pedidos_hoy;
+                }
+            } catch(e){ console.error("Fallo KPIs", e); }
+        }
+
+        async function cargarGraficos() {
+            try {
+                const gData = await apiFetch('/ventas/reporte/graficos');
+                if(gData && gData.grafico_ventas){
+                    const ctx = document.getElementById('chart-ventas').getContext('2d');
+                    if(window.myChart) window.myChart.destroy();
+                    window.myChart = new Chart(ctx, { type: 'line', data: { labels: gData.grafico_ventas.categorias, datasets: [{ label: 'Ventas ($)', data: gData.grafico_ventas.data, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', tension: 0.4, fill: true }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } } } });
+                }
+            } catch(e){ console.error("Fallo Graficos", e); }
+        }
+
+        function descargarExcel(){
+            if(datosVentasExcel.length === 0) return alert("No hay historial reciente para descargar");
+            const ws = XLSX.utils.json_to_sheet(datosVentasExcel);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Historial_Ventas");
+            XLSX.writeFile(wb, "Reporte_Ventas_7Dias.xlsx");
+        }
 
         function logout(){localStorage.clear();window.location.href='login.html';}
-        show('insumos');
+         show('insumos'); 
     </script>
 </body>
 </html>

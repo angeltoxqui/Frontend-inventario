@@ -2,30 +2,30 @@ import sqlite3
 
 DB_NAME = "gastro_pro.db"
 
-def update_schema_v2():
+def update_schema_v3():
     print(f"🔧 Conectando a {DB_NAME}...")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # 1. Agregar 'stock_maximo' a INSUMO (Para calcular el 10%)
+    # 1. Agregar 'categoria' a PRODUCTO
     try:
-        print("--- Agregando 'stock_maximo' a INSUMO ---")
-        cursor.execute("ALTER TABLE insumo ADD COLUMN stock_maximo FLOAT DEFAULT 1000.0")
-        print("✅ Columna 'stock_maximo' agregada.")
+        print("--- Agregando 'categoria' a PRODUCTO ---")
+        cursor.execute("ALTER TABLE producto ADD COLUMN categoria TEXT DEFAULT 'General'")
+        print("✅ Columna 'categoria' agregada.")
     except sqlite3.OperationalError:
-        print("ℹ️ La columna 'stock_maximo' ya existe.")
+        print("ℹ️ La columna 'categoria' ya existe.")
 
-    # 2. Agregar 'receta_snapshot' a DETALLEVENTA (Para que Cocina vea la receta exacta)
+    # 2. Agregar 'en_turno' a USER (Control de asistencia)
     try:
-        print("--- Agregando 'receta_snapshot' a DETALLEVENTA ---")
-        cursor.execute("ALTER TABLE detalleventa ADD COLUMN receta_snapshot TEXT")
-        print("✅ Columna 'receta_snapshot' agregada.")
+        print("--- Agregando 'en_turno' a USER ---")
+        cursor.execute("ALTER TABLE user ADD COLUMN en_turno BOOLEAN DEFAULT 1")
+        print("✅ Columna 'en_turno' agregada.")
     except sqlite3.OperationalError:
-        print("ℹ️ La columna 'receta_snapshot' ya existe.")
+        print("ℹ️ La columna 'en_turno' ya existe.")
 
     conn.commit()
     conn.close()
-    print("\n🚀 ¡Base de datos actualizada a V2!")
+    print("\n🚀 ¡Base de datos actualizada a V3!")
 
 if __name__ == "__main__":
-    update_schema_v2()
+    update_schema_v3()
