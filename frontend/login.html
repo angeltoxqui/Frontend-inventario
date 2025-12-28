@@ -5,35 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acceso - GastroPOS</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
+        :root { 
+            --bg-deep: #09090b; 
+            --glass: rgba(255, 255, 255, 0.05); 
+            --text: #ffffff;
+            --primary: #8b5cf6;
+        }
+
+        /* MODO CLARO */
+        body.light-mode {
+            --bg-deep: #f3f4f6;
+            --glass: #ffffff;
+            --text: #1f2937;
+        }
+        body.light-mode .login-card {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #d1d5db;
+        }
+        body.light-mode input {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            color: #1f2937;
+        }
+
         body {
             margin: 0; padding: 0;
-            background: #09090b;
+            background: var(--bg-deep);
             font-family: 'Montserrat', sans-serif;
             display: flex; justify-content: center; align-items: center;
-            height: 100vh; color: white;
+            height: 100vh; color: var(--text);
             background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            transition: 0.3s;
         }
         .login-card {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--glass);
             padding: 40px; border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             width: 100%; max-width: 320px;
             text-align: center;
             backdrop-filter: blur(10px);
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transition: 0.3s;
         }
-        h1 { margin-bottom: 30px; letter-spacing: -1px; }
+        h1 { margin-bottom: 30px; letter-spacing: -1px; color: var(--primary); }
         input {
             width: 100%; padding: 15px; margin-bottom: 15px;
             background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
             border-radius: 10px; color: white; box-sizing: border-box;
             font-family: inherit; outline: none; transition: 0.3s;
         }
-        input:focus { border-color: #8b5cf6; }
+        input:focus { border-color: var(--primary); }
         button {
             width: 100%; padding: 15px;
-            background: #8b5cf6; color: white;
+            background: var(--primary); color: white;
             border: none; border-radius: 10px;
             font-weight: bold; cursor: pointer;
             font-family: inherit; transition: 0.3s;
@@ -47,6 +73,11 @@
     </style>
 </head>
 <body>
+    
+    <button onclick="toggleTheme()" style="position:fixed; top:20px; right:20px; z-index:1000; background:none; border:none; color:var(--text); cursor:pointer;">
+        <span class="material-icons-round" id="theme-icon" style="font-size:28px">light_mode</span>
+    </button>
+
     <div class="login-card">
         <h1>GASTRO POS</h1>
         <form onsubmit="handleLogin(event)">
@@ -83,7 +114,6 @@
             formData.append('password', password);
 
             try {
-                // 1. Obtener Token
                 const res = await fetch('http://127.0.0.1:8000/api/v1/login/access-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -93,30 +123,22 @@
                 if (!res.ok) throw new Error("Fallo login");
                 const data = await res.json();
                 
-                // Guardar Token Temporalmente para verificar usuario
                 localStorage.setItem('token', data.access_token);
 
-                // 2. VERIFICAR QUIÉN ES Y SI TIENE TURNO ACTIVO
                 const userRes = await apiFetch('/users/me');
                 
                 if (userRes) {
                     const rol = userRes.rol || 'admin';
-                    
-                    // --- SEGURIDAD DE TURNO ---
-                    // Si NO es admin y NO tiene turno activo -> Bloquear
                     if (rol !== 'admin' && !userRes.en_turno) {
-                        localStorage.removeItem('token'); // Borrar token
-                        alert("⛔ ACCESO DENEGADO\n\nTu turno no está activo en este momento.\nPor favor, contacta a tu supervisor.");
-                        location.reload(); // Recargar página
+                        localStorage.removeItem('token'); 
+                        alert("⛔ ACCESO DENEGADO\n\nTu turno no está activo en este momento.");
+                        location.reload(); 
                         return;
                     }
-                    // --------------------------
-
-                    // Redirección por Rol
                     if (rol === 'admin') window.location.href = 'admin.html';
                     else if (rol === 'cocinero') window.location.href = 'cocina.html';
                     else if (rol === 'cajero') window.location.href = 'caja.html';
-                    else window.location.href = 'pos.html'; // Mesero
+                    else window.location.href = 'pos.html';
                 }
 
             } catch (error) {

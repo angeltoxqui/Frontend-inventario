@@ -10,7 +10,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
     
     <style>
-        :root { --bg-deep: #09090b; --glass: rgba(255, 255, 255, 0.03); --glass-border: rgba(255, 255, 255, 0.1); --text: #e4e4e7; --primary: #8b5cf6; --input-bg: rgba(0,0,0,0.3); --danger: #ef4444; --success: #10b981; --warning: #f59e0b; }
+        :root { 
+            --bg-deep: #09090b; 
+            --glass: rgba(255, 255, 255, 0.03); 
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --text: #e4e4e7; 
+            --primary: #8b5cf6; 
+            --input-bg: rgba(0,0,0,0.3); 
+            --danger: #ef4444; 
+            --success: #10b981; 
+            --warning: #f59e0b; 
+        }
+
+        /* MODO CLARO */
+        body.light-mode {
+            --bg-deep: #f3f4f6;
+            --glass: #ffffff;
+            --glass-border: #d1d5db;
+            --text: #1f2937;
+            --input-bg: #e5e7eb;
+        }
+        body.light-mode .sidebar {
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+        }
+
         body { font-family: 'Montserrat', sans-serif; background: var(--bg-deep); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
         
         .sidebar { width: 250px; background: var(--glass); border-right: 1px solid var(--glass-border); padding: 20px; display: flex; flex-direction: column; }
@@ -19,7 +43,7 @@
         
         .content { flex: 1; padding: 40px; overflow-y: auto; }
         
-        .glass-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; margin-bottom: 20px; }
+        .glass-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         button.primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition:0.2s }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -64,7 +88,7 @@
         </div>
 
         <div class="glass-panel" style="margin-top:20px; border:1px solid rgba(139,92,246,0.3)">
-            <h3>Estado de Resultados (Global)</h3>
+            <h3>Estado de Finanzas (Global)</h3>
             <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:20px; text-align:center">
                 <div><div style="opacity:0.7">Ingresos Totales</div><div id="pnl-ingresos" style="font-size:1.2rem; font-weight:bold">$0</div></div>
                 <div><div style="opacity:0.7">Descuentos Totales</div><div id="pnl-descuentos" style="font-size:1.2rem; font-weight:bold; color:var(--warning)">$0</div></div>
@@ -89,6 +113,10 @@
             <div class="glass-panel"><h3>🔥 Productos Top</h3><table id="tabla-top"></table></div>
         </div>
     </div>
+    
+    <button onclick="toggleTheme()" style="position:fixed; top:20px; right:20px; z-index:1000; background:var(--glass); border:1px solid var(--glass-border); color:var(--text); padding:10px; border-radius:50%; cursor:pointer; width:45px; height:45px; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <span class="material-icons-round" id="theme-icon">light_mode</span>
+    </button>
 
     <script src="js/api.js"></script>
     <script>
