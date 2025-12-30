@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Admin - The Oracle</title>
+    <title>Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
@@ -61,6 +61,14 @@
         th { text-align: left; padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--primary); font-size: 0.85rem; }
         td { padding: 15px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text); font-size: 0.95rem; }
 
+        /* Estilos nuevos para badges de estado */
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-libre { background: var(--success); }
+        .badge-ocupada { background: #3b82f6; } /* Azul */
+        .badge-cocinando { background: var(--danger); } /* Rojo */
+        .badge-servir { background: var(--warning); } /* Naranja */
+        .badge-pagando { background: #a855f7; } /* Morado */
+
         .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
@@ -75,7 +83,7 @@
 </head>
 <body>
     <div class="sidebar">
-        <h2 style="color:var(--primary); margin-bottom:30px">ORACLE ADMIN</h2>
+        <h2 style="color:var(--primary); margin-bottom:30px">ADMIN</h2>
         <button class="nav-btn active" onclick="show('insumos')"><span class="material-icons-round">inventory</span> Inventario</button>
         <button class="nav-btn" onclick="show('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
         <button class="nav-btn" onclick="show('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
@@ -168,9 +176,24 @@
         </div>
 
         <div id="sec-mesas" class="section">
-            <h1>Gestión de Mesas</h1>
-            <div class="glass-panel" style="display:flex; gap:10px; max-width:400px"><input id="m-nombre" placeholder="Nombre Mesa"><button class="primary" onclick="crearMesa()" style="width:auto; margin-top:0">CREAR</button></div>
-            <div class="glass-panel"><table><thead><tr><th>Mesa</th><th>Acción</th></tr></thead><tbody id="tabla-mesas"></tbody></table></div>
+            <h1>Monitor de Sala</h1>
+            <div class="glass-panel" style="display:flex; gap:10px; max-width:400px; align-items:center">
+                <input id="m-nombre" placeholder="Nombre Mesa" style="margin:0">
+                <button class="primary" onclick="crearMesa()" style="width:auto; margin:0">CREAR</button>
+            </div>
+            <div class="glass-panel">
+                <table style="text-align: left;">
+                    <thead>
+                        <tr>
+                            <th>Mesa</th>
+                            <th>Estado Actual</th>
+                            <th>Tiempo Ocupación</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-mesas"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -193,8 +216,12 @@
     <script src="js/api.js"></script>
     <script>
         checkAuth();
+        // Inicializar tema al cargar
+        if(window.initTheme) initTheme();
+
         let insumos=[], recetaTemp=[], editInsumoId=null, editProductoId=null, currentQRUser={};
-        let productosCache = []; // Para buscar datos al editar
+        let productosCache = []; 
+        let intervalMesas = null; // Para el auto-refresh
 
         function show(id){
             document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -203,10 +230,18 @@
             if(btn) btn.classList.add('active');
             const sec = document.getElementById('sec-'+id);
             if(sec) sec.classList.add('active'); 
+            
+            // Limpiar intervalo anterior si existe (ahorro de recursos)
+            if(intervalMesas) { clearInterval(intervalMesas); intervalMesas = null; }
+
             if(id==='insumos') cargarInsumos(); 
             if(id==='productos') { cargarInsumos(); cargarProductos(); } 
             if(id==='usuarios') cargarUsuarios();
-            if(id==='mesas') cargarMesas();
+            
+            if(id==='mesas') { 
+                cargarMesas(); // Cargar inmediatamente
+                intervalMesas = setInterval(cargarMesas, 30000); // Actualizar cada 30 seg
+            }
         }
 
         // --- INVENTARIO (INSUMOS) ---
@@ -295,7 +330,7 @@
         async function cargarProductos(){ 
             const r=await apiFetch('/productos/'); 
             if(r) {
-                productosCache = r.data; // Guardamos para poder editar
+                productosCache = r.data; 
                 document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`
                 <tr>
                     <td>${p.nombre} <small style="color:var(--primary)">(${p.categoria})</small></td>
@@ -317,10 +352,8 @@
             document.getElementById('p-precio').value = p.precio;
             document.getElementById('p-categoria').value = p.categoria || "General";
             
-            // Reconstruir la receta temp
-            // La API debe devolver insumo_id en las recetas para que esto funcione
             recetaTemp = p.recetas.map(r => ({
-                insumo_id: r.insumo_id, // Asegúrate que el backend devuelva esto
+                insumo_id: r.insumo_id, 
                 cantidad_requerida: r.cantidad_requerida,
                 nombre: r.insumo_nombre,
                 unidad: r.insumo_medida
@@ -352,10 +385,8 @@
             };
 
             if(editProductoId) {
-                // Modo Edición
                 await apiFetch(`/productos/${editProductoId}`, 'PUT', payload);
             } else {
-                // Modo Creación
                 await apiFetch('/productos/', 'POST', payload);
             }
             
@@ -388,9 +419,64 @@
         async function delUser(id){ if(confirm("¿Eliminar?")) await apiFetch(`/users/${id}`,'DELETE'); cargarUsuarios(); }
         function verQR(n,e){ const q=document.getElementById('qrcode'); q.innerHTML=''; currentQRUser={name:n,email:e}; new QRCode(q,{text:`${window.location.origin}/frontend/login.html?user=${e}`,width:150,height:150}); document.getElementById('qr-info').innerHTML=`<b>${n}</b><br>${e}`; document.getElementById('qr-modal').style.display='flex'; }
         function descargarCredencialPDF(){ const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"portrait",unit:"mm",format:[55,85]}); doc.setFillColor(30,41,59); doc.rect(0,0,55,85,"F"); doc.setTextColor(255,255,255); doc.setFontSize(10); doc.text("GASTRO POS",27.5,10,{align:"center"}); const c=document.querySelector('#qrcode canvas'); if(c) doc.addImage(c.toDataURL('image/png'),'PNG',10,20,35,35); doc.text(currentQRUser.name,27.5,65,{align:"center"}); doc.save(`Credencial.pdf`); }
+        
+        // --- MESAS (NUEVA LÓGICA) ---
         async function crearMesa(){ await apiFetch('/mesas/','POST',{nombre:document.getElementById('m-nombre').value}); cargarMesas(); }
-        async function cargarMesas(){ const r=await apiFetch('/mesas/'); if(r)document.getElementById('tabla-mesas').innerHTML=r.data.map(m=>`<tr><td><b>${m.nombre}</b></td><td><button class="btn-icon danger" onclick="delMesa('${m.id}')"><span class="material-icons-round">delete</span></button></td></tr>`).join(''); }
-        async function delMesa(id){ if(confirm("¿Eliminar?")) await apiFetch(`/mesas/${id}`,'DELETE'); cargarMesas(); }
+        
+        async function cargarMesas(){ 
+            try {
+                // Hacemos 2 peticiones paralelas para mayor velocidad
+                const [resMesas, resVentas] = await Promise.all([
+                    apiFetch('/mesas/'),
+                    apiFetch('/ventas/')
+                ]);
+
+                if(resMesas && resVentas) {
+                    const mesas = resMesas.data;
+                    // Filtrar ventas activas (no pagadas)
+                    const ventasActivas = (resVentas.data || resVentas).filter(v => v.estado !== 'pagado' && v.estado !== 'cerrado_split');
+
+                    document.getElementById('tabla-mesas').innerHTML = mesas.map(m => {
+                        // Buscar si la mesa tiene una venta activa
+                        const venta = ventasActivas.find(v => v.mesa === m.nombre);
+                        
+                        let estadoHtml = '<span class="badge badge-libre">LIBRE</span>';
+                        let tiempo = '--';
+                        let rowStyle = '';
+
+                        if(venta) {
+                            // Calcular tiempo transcurrido
+                            const inicio = new Date(venta.fecha);
+                            const ahora = new Date();
+                            const diffMs = ahora - inicio;
+                            const diffMins = Math.floor(diffMs / 60000);
+                            const hrs = Math.floor(diffMins / 60);
+                            const mins = diffMins % 60;
+                            tiempo = `<span style="font-family:monospace; font-weight:bold">${hrs > 0 ? hrs + 'h ' : ''}${mins}m</span>`;
+
+                            // Definir estilo del badge según estado de la venta
+                            let claseBadge = 'badge-ocupada';
+                            if(venta.estado === 'pendiente') claseBadge = 'badge-cocinando';
+                            if(venta.estado === 'listo') claseBadge = 'badge-servir';
+                            if(venta.estado === 'por_cobrar') claseBadge = 'badge-pagando';
+                            
+                            estadoHtml = `<span class="badge ${claseBadge}">${venta.estado.toUpperCase()}</span>`;
+                            rowStyle = 'background: rgba(139, 92, 246, 0.05);'; // Resaltar fila ocupada
+                        }
+
+                        return `
+                        <tr style="${rowStyle}">
+                            <td><b>${m.nombre}</b></td>
+                            <td>${estadoHtml}</td>
+                            <td>${tiempo}</td>
+                            <td><button class="btn-icon danger" onclick="delMesa('${m.id}')"><span class="material-icons-round">delete</span></button></td>
+                        </tr>`;
+                    }).join(''); 
+                }
+            } catch(e) { console.error("Error cargando monitor de mesas", e); }
+        }
+        
+        async function delMesa(id){ if(confirm("¿Eliminar Mesa?")) await apiFetch(`/mesas/${id}`,'DELETE'); cargarMesas(); }
 
         function logout(){localStorage.clear();window.location.href='login.html';}
         show('insumos'); 
