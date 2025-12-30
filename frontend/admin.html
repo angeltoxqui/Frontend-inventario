@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Admin </title>
+    <title>Admin - The Oracle</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
@@ -75,7 +75,7 @@
 </head>
 <body>
     <div class="sidebar">
-        <h2 style="color:var(--primary); margin-bottom:30px"> ADMIN</h2>
+        <h2 style="color:var(--primary); margin-bottom:30px">ORACLE ADMIN</h2>
         <button class="nav-btn active" onclick="show('insumos')"><span class="material-icons-round">inventory</span> Inventario</button>
         <button class="nav-btn" onclick="show('productos')"><span class="material-icons-round">restaurant_menu</span> Menú</button>
         <button class="nav-btn" onclick="show('usuarios')"><span class="material-icons-round">people</span> RRHH</button>
@@ -96,9 +96,17 @@
                     <input type="number" id="i-stock" placeholder="Stock Actual">
                     <input type="number" id="i-max" placeholder="Stock Máximo">
                 </div>
-                <button class="primary" id="btn-insumo" onclick="guardarInsumo()">GUARDAR INSUMO</button>
+                <div style="display:flex; gap:10px">
+                    <button class="primary" id="btn-insumo" onclick="guardarInsumo()">GUARDAR INSUMO</button>
+                    <button class="primary" id="btn-cancel-insumo" onclick="cancelarEdicionInsumo()" style="background:#666; display:none;">CANCELAR</button>
+                </div>
             </div>
-            <div class="glass-panel"><table><thead><tr><th>Insumo</th><th>Stock</th><th>Costo</th><th>Acción</th></tr></thead><tbody id="tabla-insumos"></tbody></table></div>
+            <div class="glass-panel">
+                <table>
+                    <thead><tr><th>Insumo</th><th>Stock</th><th>Costo</th><th>Acción</th></tr></thead>
+                    <tbody id="tabla-insumos"></tbody>
+                </table>
+            </div>
         </div>
         
         <div id="sec-productos" class="section">
@@ -132,9 +140,17 @@
                         <small style="opacity:0.5; display:block; text-align:center">Ingredientes agregados aparecerán aquí</small>
                     </div>
                 </div>
-                <button class="primary" onclick="crearProducto()" style="grid-column:1/-1">GUARDAR PLATO</button>
+                <div style="grid-column:1/-1; display:flex; gap:10px">
+                    <button class="primary" id="btn-prod" onclick="guardarProducto()">GUARDAR PLATO</button>
+                    <button class="primary" id="btn-cancel-prod" onclick="cancelarEdicionProducto()" style="background:#666; display:none;">CANCELAR</button>
+                </div>
             </div>
-            <div class="glass-panel"><table><thead><tr><th>Plato</th><th>Precio</th><th>Acción</th></tr></thead><tbody id="tabla-productos"></tbody></table></div>
+            <div class="glass-panel">
+                <table>
+                    <thead><tr><th>Plato</th><th>Precio</th><th>Acción</th></tr></thead>
+                    <tbody id="tabla-productos"></tbody>
+                </table>
+            </div>
         </div>
 
         <div id="sec-usuarios" class="section">
@@ -177,9 +193,9 @@
     <script src="js/api.js"></script>
     <script>
         checkAuth();
-        let insumos=[], recetaTemp=[], editId=null, currentQRUser={};
+        let insumos=[], recetaTemp=[], editInsumoId=null, editProductoId=null, currentQRUser={};
+        let productosCache = []; // Para buscar datos al editar
 
-        // Función SHOW (Simplificada)
         function show(id){
             document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -193,32 +209,160 @@
             if(id==='mesas') cargarMesas();
         }
 
-        // --- INVENTARIO ---
+        // --- INVENTARIO (INSUMOS) ---
         async function cargarInsumos(){
             try {
                 const r=await apiFetch('/insumos/'); 
                 if(r){ 
                     insumos=r.data; 
-                    document.getElementById('tabla-insumos').innerHTML=insumos.map(i=>`<tr><td><b>${i.nombre}</b></td><td>${i.stock_actual}/${i.stock_maximo} ${i.unidad_medida}</td><td>$${i.costo}</td><td><button class="btn-icon" onclick="editIng('${i.id}')"><span class="material-icons-round">edit</span></button></td></tr>`).join(''); 
+                    document.getElementById('tabla-insumos').innerHTML=insumos.map(i=>`
+                    <tr>
+                        <td><b>${i.nombre}</b></td>
+                        <td>${i.stock_actual}/${i.stock_maximo} ${i.unidad_medida}</td>
+                        <td>$${i.costo}</td>
+                        <td>
+                            <button class="btn-icon" onclick="editIng('${i.id}')" title="Editar"><span class="material-icons-round">edit</span></button>
+                            <button class="btn-icon danger" onclick="deleteIng('${i.id}')" title="Eliminar"><span class="material-icons-round">delete</span></button>
+                        </td>
+                    </tr>`).join(''); 
                     const s=document.getElementById('receta-select'); s.innerHTML=insumos.map(i=>`<option value="${i.id}" data-unidad="${i.unidad_medida}">${i.nombre}</option>`).join(''); 
                     actualizarUnidadLabel(); 
                 }
             } catch(e){console.error("Error insumos",e);}
         }
-        function editIng(id){ const i=insumos.find(x=>x.id===id); editId=id; document.getElementById('i-nombre').value=i.nombre; document.getElementById('i-unidad').value=i.unidad_medida; document.getElementById('i-costo').value=i.costo; document.getElementById('i-stock').value=i.stock_actual; document.getElementById('i-max').value=i.stock_maximo; document.getElementById('btn-insumo').innerText="ACTUALIZAR"; }
-        async function guardarInsumo(){ const p={nombre:document.getElementById('i-nombre').value, unidad_medida:document.getElementById('i-unidad').value, costo:document.getElementById('i-costo').value, stock_actual:document.getElementById('i-stock').value, stock_maximo:document.getElementById('i-max').value}; let r; if(editId) r=await apiFetch(`/insumos/${editId}`,'PUT',p); else r=await apiFetch('/insumos/','POST',p); document.getElementById('i-nombre').value=''; editId=null; document.getElementById('btn-insumo').innerText="GUARDAR INSUMO"; cargarInsumos(); }
+
+        function editIng(id){ 
+            const i=insumos.find(x=>x.id===id); 
+            editInsumoId=id; 
+            document.getElementById('i-nombre').value=i.nombre; 
+            document.getElementById('i-unidad').value=i.unidad_medida; 
+            document.getElementById('i-costo').value=i.costo; 
+            document.getElementById('i-stock').value=i.stock_actual; 
+            document.getElementById('i-max').value=i.stock_maximo; 
+            
+            document.getElementById('btn-insumo').innerText="ACTUALIZAR"; 
+            document.getElementById('btn-cancel-insumo').style.display='inline-block';
+        }
+
+        function cancelarEdicionInsumo() {
+            editInsumoId = null;
+            document.getElementById('i-nombre').value=''; 
+            document.getElementById('i-unidad').value=''; 
+            document.getElementById('i-costo').value=''; 
+            document.getElementById('i-stock').value=''; 
+            document.getElementById('i-max').value='';
+            document.getElementById('btn-insumo').innerText="GUARDAR INSUMO";
+            document.getElementById('btn-cancel-insumo').style.display='none';
+        }
+
+        async function guardarInsumo(){ 
+            const p={nombre:document.getElementById('i-nombre').value, unidad_medida:document.getElementById('i-unidad').value, costo:document.getElementById('i-costo').value, stock_actual:document.getElementById('i-stock').value, stock_maximo:document.getElementById('i-max').value}; 
+            let r; 
+            if(editInsumoId) r=await apiFetch(`/insumos/${editInsumoId}`,'PUT',p); 
+            else r=await apiFetch('/insumos/','POST',p); 
+            
+            cancelarEdicionInsumo();
+            cargarInsumos(); 
+        }
+
+        async function deleteIng(id) {
+            if(confirm("¿Estás seguro de ELIMINAR este insumo?\nEsto podría afectar recetas existentes.")) {
+                await apiFetch(`/insumos/${id}`, 'DELETE');
+                cargarInsumos();
+            }
+        }
         
         // --- PRODUCTOS ---
         function actualizarUnidadLabel(){ const s=document.getElementById('receta-select'); if(s.selectedIndex>-1) document.getElementById('lbl-unidad').innerText=s.options[s.selectedIndex].getAttribute('data-unidad')||'und'; }
-        function addIng(){ const s=document.getElementById('receta-select'),c=document.getElementById('receta-cant').value; if(!c)return; recetaTemp.push({insumo_id:s.value,cantidad_requerida:c,nombre:s.options[s.selectedIndex].text,unidad:s.options[s.selectedIndex].getAttribute('data-unidad')}); document.getElementById('receta-cant').value=''; renderReceta(); }
-        function renderReceta(){ document.getElementById('lista-temp').innerHTML=recetaTemp.map((r,i)=>`<div class="ing-item"><span>${r.nombre} (${r.cantidad_requerida} ${r.unidad})</span><span onclick="recetaTemp.splice(${i},1);renderReceta()" style="cursor:pointer">✕</span></div>`).join(''); }
         
-        async function crearProducto(){
-            const cat = document.getElementById('p-categoria').value;
-            await apiFetch('/productos/','POST',{ nombre:document.getElementById('p-nombre').value, precio:document.getElementById('p-precio').value, categoria: cat, ingredientes:recetaTemp }); 
-            recetaTemp=[]; renderReceta(); document.getElementById('p-nombre').value=''; cargarProductos(); 
+        function addIng(){ 
+            const s=document.getElementById('receta-select'),c=document.getElementById('receta-cant').value; 
+            if(!c)return; 
+            recetaTemp.push({
+                insumo_id:s.value,
+                cantidad_requerida:c,
+                nombre:s.options[s.selectedIndex].text,
+                unidad:s.options[s.selectedIndex].getAttribute('data-unidad')
+            }); 
+            document.getElementById('receta-cant').value=''; 
+            renderReceta(); 
         }
-        async function cargarProductos(){ const r=await apiFetch('/productos/'); if(r)document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`<tr><td>${p.nombre} <small style="color:var(--primary)">(${p.categoria})</small></td><td>$${p.precio}</td><td><button class="btn-icon danger" onclick="delProd('${p.id}')"><span class="material-icons-round">delete</span></button></td></tr>`).join(''); }
+        
+        function renderReceta(){ 
+            document.getElementById('lista-temp').innerHTML=recetaTemp.map((r,i)=>`<div class="ing-item"><span>${r.nombre} (${r.cantidad_requerida} ${r.unidad})</span><span onclick="recetaTemp.splice(${i},1);renderReceta()" style="cursor:pointer">✕</span></div>`).join(''); 
+        }
+        
+        async function cargarProductos(){ 
+            const r=await apiFetch('/productos/'); 
+            if(r) {
+                productosCache = r.data; // Guardamos para poder editar
+                document.getElementById('tabla-productos').innerHTML=r.data.map(p=>`
+                <tr>
+                    <td>${p.nombre} <small style="color:var(--primary)">(${p.categoria})</small></td>
+                    <td>$${p.precio}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editProd('${p.id}')"><span class="material-icons-round">edit</span></button>
+                        <button class="btn-icon danger" onclick="delProd('${p.id}')"><span class="material-icons-round">delete</span></button>
+                    </td>
+                </tr>`).join(''); 
+            }
+        }
+
+        function editProd(id) {
+            const p = productosCache.find(x => x.id === id);
+            if(!p) return;
+            
+            editProductoId = id;
+            document.getElementById('p-nombre').value = p.nombre;
+            document.getElementById('p-precio').value = p.precio;
+            document.getElementById('p-categoria').value = p.categoria || "General";
+            
+            // Reconstruir la receta temp
+            // La API debe devolver insumo_id en las recetas para que esto funcione
+            recetaTemp = p.recetas.map(r => ({
+                insumo_id: r.insumo_id, // Asegúrate que el backend devuelva esto
+                cantidad_requerida: r.cantidad_requerida,
+                nombre: r.insumo_nombre,
+                unidad: r.insumo_medida
+            }));
+            renderReceta();
+
+            document.getElementById('btn-prod').innerText = "ACTUALIZAR PLATO";
+            document.getElementById('btn-cancel-prod').style.display = 'inline-block';
+        }
+
+        function cancelarEdicionProducto() {
+            editProductoId = null;
+            document.getElementById('p-nombre').value = '';
+            document.getElementById('p-precio').value = '';
+            document.getElementById('p-categoria').value = 'General';
+            recetaTemp = [];
+            renderReceta();
+            document.getElementById('btn-prod').innerText = "GUARDAR PLATO";
+            document.getElementById('btn-cancel-prod').style.display = 'none';
+        }
+
+        async function guardarProducto(){
+            const cat = document.getElementById('p-categoria').value;
+            const payload = { 
+                nombre:document.getElementById('p-nombre').value, 
+                precio:document.getElementById('p-precio').value, 
+                categoria: cat, 
+                ingredientes:recetaTemp 
+            };
+
+            if(editProductoId) {
+                // Modo Edición
+                await apiFetch(`/productos/${editProductoId}`, 'PUT', payload);
+            } else {
+                // Modo Creación
+                await apiFetch('/productos/', 'POST', payload);
+            }
+            
+            cancelarEdicionProducto();
+            cargarProductos(); 
+        }
+
         async function delProd(id){ if(confirm("¿Eliminar?")) await apiFetch(`/productos/${id}`,'DELETE'); cargarProductos(); }
 
         // --- USUARIOS ---
