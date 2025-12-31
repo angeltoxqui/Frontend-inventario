@@ -1,143 +1,163 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import {
-  createFileRoute,
-  Link as RouterLink,
-  redirect,
-} from "@tanstack/react-router"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 
-import type { Body_login_login_access_token as AccessToken } from "@/client"
-import { AuthLayout } from "@/components/Common/AuthLayout"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { LoadingButton } from "@/components/ui/loading-button"
-import { PasswordInput } from "@/components/ui/password-input"
-import useAuth, { isLoggedIn } from "@/hooks/useAuth"
+// Componentes UI
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, LayoutDashboard } from "lucide-react"; // Usamos un icono genérico si no tienes logo
 
-const formSchema = z.object({
-  username: z.email(),
-  password: z
-    .string()
-    .min(1, { message: "Password is required" })
-    .min(8, { message: "Password must be at least 8 characters" }),
-}) satisfies z.ZodType<AccessToken>
+// Esquema de validación
+const loginSchema = z.object({
+  email: z.string().email("Correo inválido"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+});
 
-type FormData = z.infer<typeof formSchema>
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+// Define el tipo del contexto para incluir 'auth'
+type AuthContext = {
+  auth?: {
+    isAuthenticated: boolean;
+    // Puedes agregar más propiedades si las necesitas
+  };
+};
 
 export const Route = createFileRoute("/login")({
-  component: Login,
-  beforeLoad: async () => {
-    if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
+  component: LoginPage,
+  // Si ya está logueado, redirigir al dashboard (lógica simulada)
+  beforeLoad: async ({ context }: { context: AuthContext }) => {
+    if (context.auth?.isAuthenticated) {
+      throw redirect({ to: "/" });
     }
   },
-  head: () => ({
-    meta: [
-      {
-        title: "Log In - FastAPI Cloud",
-      },
-    ],
-  }),
-})
+});
 
-function Login() {
-  const { loginMutation } = useAuth()
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    mode: "onBlur",
-    criteriaMode: "all",
+function LoginPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Hook del formulario
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
-      password: "",
+      email: "admin@example.com", // Valor por defecto para probar rápido
+      password: "password123",
     },
-  })
+  });
 
-  const onSubmit = (data: FormData) => {
-    if (loginMutation.isPending) return
-    loginMutation.mutate(data)
-  }
-
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsLoading(true);
+    setError("");
+    
+    // SIMULACIÓN DE LOGIN (Aquí el backend dev conectará la API real)
+    console.log("Datos enviados:", data);
+    
+    setTimeout(() => {
+      setIsLoading(false);
+      // Simulamos éxito guardando un token falso
+      localStorage.setItem("access_token", "fake-token"); 
+      // Redirigir al inicio
+      router.navigate({ to: "/" });
+    }, 1500);
+  };
 
   return (
-    <AuthLayout>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-6"
-        >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Login to your account</h1>
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="bg-primary/10 p-3 rounded-full">
+              <LayoutDashboard className="h-8 w-8 text-primary" />
+            </div>
           </div>
-
-          <div className="grid gap-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      data-testid="email-input"
-                      placeholder="user@example.com"
-                      type="email"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Bienvenido de nuevo
+          </CardTitle>
+          <CardDescription>
+            Ingresa tus credenciales para acceder al sistema
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            
+            {/* Campo Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo Electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="nombre@empresa.com"
+                {...register("email")}
+                className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
-            />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center">
-                    <FormLabel>Password</FormLabel>
-                    <RouterLink
-                      to="/recover-password"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </RouterLink>
-                  </div>
-                  <FormControl>
-                    <PasswordInput
-                      data-testid="password-input"
-                      placeholder="Password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
+            {/* Campo Password */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <a href="#" className="text-xs text-primary hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </a>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                {...register("password")}
+                className={errors.password ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
-            />
+            </div>
 
-            <LoadingButton type="submit" loading={loginMutation.isPending}>
-              Log In
-            </LoadingButton>
-          </div>
+            {/* Recordarme */}
+            <div className="flex items-center space-x-2">
+              <Checkbox id="remember" />
+              <label
+                htmlFor="remember"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground"
+              >
+                Recordar dispositivo
+              </label>
+            </div>
 
-          <div className="text-center text-sm">
-            Don't have an account yet?{" "}
-            <RouterLink to="/signup" className="underline underline-offset-4">
-              Sign up
-            </RouterLink>
-          </div>
-        </form>
-      </Form>
-    </AuthLayout>
-  )
+            {error && <div className="text-sm text-destructive text-center">{error}</div>}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ingresando...
+                </>
+              ) : (
+                "Iniciar Sesión"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        
+        <CardFooter className="flex flex-col gap-2 border-t px-6 py-4 bg-muted/20">
+          <p className="text-xs text-center text-muted-foreground w-full">
+            Sistema de Inventario V2 &copy; 2024
+          </p>
+        </CardFooter>
+      </Card>
+    </div>
+  );
 }

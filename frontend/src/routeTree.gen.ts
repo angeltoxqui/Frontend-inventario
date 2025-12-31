@@ -16,7 +16,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutPosRouteImport } from './routes/_layout/pos'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
+import { Route as LayoutCocinaRouteImport } from './routes/_layout/cocina'
+import { Route as LayoutCajaRouteImport } from './routes/_layout/caja'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 
 const SignupRoute = SignupRouteImport.update({
@@ -53,9 +56,24 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutPosRoute = LayoutPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutItemsRoute = LayoutItemsRouteImport.update({
   id: '/items',
   path: '/items',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutCocinaRoute = LayoutCocinaRouteImport.update({
+  id: '/cocina',
+  path: '/cocina',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutCajaRoute = LayoutCajaRouteImport.update({
+  id: '/caja',
+  path: '/caja',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutAdminRoute = LayoutAdminRouteImport.update({
@@ -70,7 +88,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/caja': typeof LayoutCajaRoute
+  '/cocina': typeof LayoutCocinaRoute
   '/items': typeof LayoutItemsRoute
+  '/pos': typeof LayoutPosRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -80,7 +101,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/caja': typeof LayoutCajaRoute
+  '/cocina': typeof LayoutCocinaRoute
   '/items': typeof LayoutItemsRoute
+  '/pos': typeof LayoutPosRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -92,7 +116,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/caja': typeof LayoutCajaRoute
+  '/_layout/cocina': typeof LayoutCocinaRoute
   '/_layout/items': typeof LayoutItemsRoute
+  '/_layout/pos': typeof LayoutPosRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
 }
@@ -104,7 +131,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/caja'
+    | '/cocina'
     | '/items'
+    | '/pos'
     | '/settings'
     | '/'
   fileRoutesByTo: FileRoutesByTo
@@ -114,7 +144,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/caja'
+    | '/cocina'
     | '/items'
+    | '/pos'
     | '/settings'
     | '/'
   id:
@@ -125,7 +158,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/_layout/admin'
+    | '/_layout/caja'
+    | '/_layout/cocina'
     | '/_layout/items'
+    | '/_layout/pos'
     | '/_layout/settings'
     | '/_layout/'
   fileRoutesById: FileRoutesById
@@ -189,11 +225,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSettingsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/pos': {
+      id: '/_layout/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof LayoutPosRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/items': {
       id: '/_layout/items'
       path: '/items'
       fullPath: '/items'
       preLoaderRoute: typeof LayoutItemsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/cocina': {
+      id: '/_layout/cocina'
+      path: '/cocina'
+      fullPath: '/cocina'
+      preLoaderRoute: typeof LayoutCocinaRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/caja': {
+      id: '/_layout/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof LayoutCajaRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/admin': {
@@ -208,14 +265,20 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
+  LayoutCajaRoute: typeof LayoutCajaRoute
+  LayoutCocinaRoute: typeof LayoutCocinaRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
+  LayoutPosRoute: typeof LayoutPosRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
+  LayoutCajaRoute: LayoutCajaRoute,
+  LayoutCocinaRoute: LayoutCocinaRoute,
   LayoutItemsRoute: LayoutItemsRoute,
+  LayoutPosRoute: LayoutPosRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
