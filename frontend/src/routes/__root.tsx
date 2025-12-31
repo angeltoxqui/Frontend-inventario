@@ -1,18 +1,17 @@
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { createRootRoute, HeadContent, Outlet } from "@tanstack/react-router"
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
-import ErrorComponent from "@/components/Common/ErrorComponent"
-import NotFound from "@/components/Common/NotFound"
+import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { TanStackRouterDevtools } from '@tanstack/router-devtools'
+import { ThemeProvider } from "@/components/theme-provider"
+import { AppSidebar } from "@/components/Sidebar/AppSidebar" // Si usas el sidebar nuevo
+// O los componentes que estés usando para el layout base
 
 export const Route = createRootRoute({
   component: () => (
-    <>
-      <HeadContent />
-      <Outlet />
-      <TanStackRouterDevtools position="bottom-right" />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      {/* El ThemeProvider debe envolver TODO */}
+      <div className="min-h-screen bg-background text-foreground font-sans antialiased">
+        <Outlet />
+      </div>
+      <TanStackRouterDevtools />
+    </ThemeProvider>
   ),
-  notFoundComponent: () => <NotFound />,
-  errorComponent: () => <ErrorComponent />,
 })
