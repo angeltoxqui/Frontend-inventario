@@ -2,14 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import path from "path"
-import tailwindcss from '@tailwindcss/vite'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    tailwindcss(), // <--- Esto es lo que procesa los estilos
-    TanStackRouterVite(),
     react(),
+    TanStackRouterVite(),
+    // ¡Asegúrate de que NO esté tailwindcss() aquí!
   ],
   resolve: {
     alias: {
