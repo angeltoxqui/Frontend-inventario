@@ -1,43 +1,64 @@
-import { Briefcase, Home, Users } from "lucide-react"
+// Asegúrate de importar los iconos que uses
+import { 
+  LayoutDashboard, 
+  Users, 
+  Settings, 
+  UtensilsCrossed, // Para Cocina
+  Store,           // Para POS/Mesero
+  Wallet           // Para Caja
+} from "lucide-react"
 
-import { SidebarAppearance } from "@/components/Common/Appearance"
-import { Logo } from "@/components/Common/Logo"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-} from "@/components/ui/sidebar"
-import useAuth from "@/hooks/useAuth"
-import { type Item, Main } from "./Main"
-import { User } from "./User"
+// ... dentro de tu componente o lista de items:
 
-const baseItems: Item[] = [
-  { icon: Home, title: "Dashboard", path: "/" },
-  { icon: Briefcase, title: "Items", path: "/items" },
+const items = [
+  {
+    title: "Dashboard",
+    url: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Admin Usuarios",
+    url: "/admin",
+    icon: Users,
+  },
+  // --- NUEVOS ---
+  {
+    title: "Mesero (POS)",
+    url: "/pos",
+    icon: Store,
+  },
+  {
+    title: "Cocina",
+    url: "/cocina",
+    icon: UtensilsCrossed,
+  },
+  {
+    title: "Caja",
+    url: "/caja",
+    icon: Wallet,
+  },
+  // ----------------
+  {
+    title: "Configuración",
+    url: "/settings",
+    icon: Settings,
+  },
 ]
 
-export function AppSidebar() {
-  const { user: currentUser } = useAuth()
-
-  const items = currentUser?.is_superuser
-    ? [...baseItems, { icon: Users, title: "Admin", path: "/admin" }]
-    : baseItems
-
+// Ejemplo de uso de 'items' en el JSX del componente
+export default function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center">
-        <Logo variant="responsive" />
-      </SidebarHeader>
-      <SidebarContent>
-        <Main items={items} />
-      </SidebarContent>
-      <SidebarFooter>
-        <SidebarAppearance />
-        <User user={currentUser} />
-      </SidebarFooter>
-    </Sidebar>
+    <nav>
+      <ul>
+        {items.map((item) => (
+          <li key={item.url}>
+            <a href={item.url} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <item.icon size={18} />
+              {item.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )
 }
-
-export default AppSidebar
