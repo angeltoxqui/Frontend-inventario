@@ -1,15 +1,30 @@
-// Asegúrate de importar los iconos que uses
 import { 
   LayoutDashboard, 
-  Users, 
+  ShieldCheck, 
+  Store, 
+  UtensilsCrossed, 
+  Wallet, 
   Settings, 
-  UtensilsCrossed, // Para Cocina
-  Store,           // Para POS/Mesero
-  Wallet           // Para Caja
+  LogOut 
 } from "lucide-react"
+import { Link, useRouterState } from "@tanstack/react-router"
 
-// ... dentro de tu componente o lista de items:
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import useAuth from "@/hooks/useAuth"
 
+// Menú de navegación principal
 const items = [
   {
     title: "Dashboard",
@@ -17,11 +32,10 @@ const items = [
     icon: LayoutDashboard,
   },
   {
-    title: "Admin Usuarios",
+    title: "Administración", // Panel Unificado (RRHH, Inventario, Mesas)
     url: "/admin",
-    icon: Users,
+    icon: ShieldCheck,
   },
-  // --- NUEVOS ---
   {
     title: "Mesero (POS)",
     url: "/pos",
@@ -37,7 +51,6 @@ const items = [
     url: "/caja",
     icon: Wallet,
   },
-  // ----------------
   {
     title: "Configuración",
     url: "/settings",
@@ -45,20 +58,67 @@ const items = [
   },
 ]
 
-// Ejemplo de uso de 'items' en el JSX del componente
 export default function AppSidebar() {
+  const { logout, user } = useAuth()
+  const router = useRouterState() // Para detectar ruta activa si es necesario
+
   return (
-    <nav>
-      <ul>
-        {items.map((item) => (
-          <li key={item.url}>
-            <a href={item.url} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <item.icon size={18} />
-              {item.title}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-4 border-b">
+        <div className="flex items-center gap-2 font-bold text-xl px-2">
+          <span className="text-primary">Gastro</span>Pro
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild 
+                    tooltip={item.title}
+                    // Resaltar activo si la URL actual empieza con la url del item (excepto dashboard que es exacta)
+                    isActive={
+                      item.url === "/" 
+                        ? router.location.pathname === "/" 
+                        : router.location.pathname.startsWith(item.url)
+                    }
+                  >
+                    <Link to={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="p-4 border-t">
+        <SidebarMenu>
+          <SidebarMenuItem>
+             <div className="flex flex-col gap-2 px-2 mb-2">
+                <span className="text-sm font-medium truncate">{user?.full_name || "Usuario"}</span>
+                <span className="text-xs text-muted-foreground truncate capitalize">{user?.role || "Sin Rol"}</span>
+             </div>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <Button 
+              variant="destructive" 
+              className="w-full justify-start gap-2" 
+              onClick={logout}
+            >
+              <LogOut size={16} />
+              <span className="group-data-[collapsible=icon]:hidden">Cerrar Sesión</span>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   )
 }

@@ -1,76 +1,59 @@
-import type { ColumnDef } from "@tanstack/react-table"
-
-import type { UserPublic } from "@/client"
+import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { UserActionsMenu } from "./UserActionsMenu"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { UserPublic } from "../../client"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { UsersService } from "../../client"
+import { toast } from "sonner"
+import { UserActionsMenu } from "./UserActionsMenu" // <--- ¡AQUÍ ESTABA EL ERROR, AHORA LLEVA LLAVES!
 
-export type UserTableData = UserPublic & {
-  isCurrentUser: boolean
+// Componente auxiliar para el Switch dentro de la celda
+const TurnoSwitch = ({ user }: { user: UserPublic }) => {
+  const queryClient = useQueryClient()
+  
+  const mutation = useMutation({
+    mutationFn: (checked: boolean) => 
+      UsersService.updateUser({ userId: user.id, requestBody: { ...user, is_active: checked } }), 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast.success("Estado de turno actualizado")
+    },
+    onError: () => toast.error("Error al actualizar turno")
+  })
+
+  return (
+    <div className="flex items-center space-x-2">
+      <Switch 
+        checked={user.is_active} 
+        onCheckedChange={(checked) => mutation.mutate(checked)}
+      />
+      <span className="text-xs text-muted-foreground">{user.is_active ? "Activo" : "Fuera"}</span>
+    </div>
+  )
 }
 
-export const columns: ColumnDef<UserTableData>[] = [
+export const columns: ColumnDef<UserPublic>[] = [
   {
     accessorKey: "full_name",
-    header: "Full Name",
-    cell: ({ row }) => {
-      const fullName = row.original.full_name
-      return (
-        <div className="flex items-center gap-2">
-          <span
-            className={cn("font-medium", !fullName && "text-muted-foreground")}
-          >
-            {fullName || "N/A"}
-          </span>
-          {row.original.isCurrentUser && (
-            <Badge variant="outline" className="text-xs">
-              You
-            </Badge>
-          )}
-        </div>
-      )
-    },
+    header: "Nombre",
   },
   {
     accessorKey: "email",
     header: "Email",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.email}</span>
-    ),
   },
   {
-    accessorKey: "is_superuser",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={row.original.is_superuser ? "default" : "secondary"}>
-        {row.original.is_superuser ? "Superuser" : "User"}
-      </Badge>
-    ),
+    accessorKey: "role",
+    header: "Rol",
+    cell: ({ row }) => <Badge>{row.original.role || "N/A"}</Badge>,
   },
   {
-    accessorKey: "is_active",
-    header: "Status",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "size-2 rounded-full",
-            row.original.is_active ? "bg-green-500" : "bg-gray-400",
-          )}
-        />
-        <span className={row.original.is_active ? "" : "text-muted-foreground"}>
-          {row.original.is_active ? "Active" : "Inactive"}
-        </span>
-      </div>
-    ),
+    id: "en_turno", 
+    header: "Turno Activo",
+    cell: ({ row }) => <TurnoSwitch user={row.original} />,
   },
   {
     id: "actions",
-    header: () => <span className="sr-only">Actions</span>,
-    cell: ({ row }) => (
-      <div className="flex justify-end">
-        <UserActionsMenu user={row.original} />
-      </div>
-    ),
+    cell: ({ row }) => <div className="flex justify-end"><UserActionsMenu user={row.original} /></div>,
   },
 ]
