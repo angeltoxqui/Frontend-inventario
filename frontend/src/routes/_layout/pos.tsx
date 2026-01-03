@@ -1,108 +1,318 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ItemsService } from "../../client"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import { Badge } from "../../components/ui/badge"
-import { toast } from "sonner"
-import { useState } from "react"
+import { createFileRoute } from '@tanstack/react-router'
+import React, { useState, useEffect } from 'react';
+import { MockService } from '../../services/mockService';
+import { Product, Table, OrderItem, ProductCategory } from '../../types';
+import { useToast } from '../../components/ui/Toast';
+import { Search, RotateCcw, Send, Receipt, Minus, Plus, Users, ArrowLeft, User } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Input } from '../../components/ui/input';
 
-export const Route = createFileRoute("/_layout/pos")({
+export const Route = createFileRoute('/_layout/pos')({
   component: POS,
 })
 
-// Función de colores por categoría
-const getCategoryStyles = (category: string = "otros") => {
-  switch(category.toLowerCase()) {
-    case 'bebidas': return 'border-cyan-400 bg-cyan-50 dark:bg-cyan-950/30'
-    case 'fuertes': return 'border-orange-500 bg-orange-50 dark:bg-orange-950/30'
-    case 'livianos': return 'border-green-400 bg-green-50 dark:bg-green-950/30'
-    case 'entradas': return 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30'
-    case 'postres': return 'border-pink-400 bg-pink-50 dark:bg-pink-950/30'
-    default: return 'border-gray-200 bg-gray-50 dark:bg-gray-800'
-  }
-}
-
 function POS() {
-  const queryClient = useQueryClient()
-  const [carrito, setCarrito] = useState<any[]>([])
+  const [view, setView] = useState<'map' | 'order'>('map');
+  const [tables, setTables] = useState<Table[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [cart, setCart] = useState<OrderItem[]>([]);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modales
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
+  
+  // Estado para división de cuentas
+  const [splitItems, setSplitItems] = useState<OrderItem[]>([]); 
+  const [currentPersonName, setCurrentPersonName] = useState('');
 
-  // 1. Carga de Productos (Sin Polling)
-  const { data: items, isLoading, refetch } = useQuery({
-    queryKey: ["items"],
-    queryFn: () => ItemsService.readItems({ limit: 100 }),
-    refetchInterval: false, // DESACTIVADO EL POLLING
-  })
+  const { toast } = useToast();
 
-  // Simular envío a cocina
-  const enviarComanda = () => {
-    toast.success("Pedido enviado a cocina 👨‍🍳")
-    setCarrito([])
-    // Aquí iría la mutación real POST /ventas
+  useEffect(() => {
+    const interval = setInterval(loadData, 3000); // Refresco rápido
+    loadData();
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadData = async () => {
+    const t = await MockService.getTables();
+    setTables(t);
+    const p = await MockService.getProducts();
+    setProducts(p);
+  };
+
+  const getTableColor = (status: string) => {
+    switch (status) {
+      case 'libre': return 'bg-green-500 border-green-600 text-white';
+      case 'cocinando': return 'bg-red-500 border-red-600 text-white animate-pulse'; // Rojo
+      case 'servir': return 'bg-orange-500 border-orange-600 text-white animate-bounce'; // Naranja
+      case 'comiendo': return 'bg-blue-600 border-blue-700 text-white'; // Azul
+      case 'pagando': return 'bg-purple-600 border-purple-700 text-white'; // Morado
+      default: return 'bg-gray-300';
+    }
+  };
+
+  const handleTableClick = (t: Table) => {
+    setSelectedTable(t);
+    if (t.status === 'libre') {
+      setCart([]);
+      setView('order');
+    } else {
+      setIsActionModalOpen(true);
+    }
+  };
+
+  const addToCart = (p: Product) => {
+    setCart(prev => {
+      // Simplificación: Agregamos items individuales para facilitar la división luego
+      return [...prev, { 
+          productId: p.id, 
+          productName: p.name, 
+          price: p.price, 
+          quantity: 1, 
+          assignedTo: 'Mesa', // Por defecto
+          notes: '' 
+      }];
+    });
+    toast(`${p.name} agregado`, "info");
+  };
+
+  const updateItemNote = (index: number, note: string) => {
+      const newCart = [...cart];
+      newCart[index].notes = note;
+      setCart(newCart);
+  };
+
+  const sendOrder = async () => {
+    if (!selectedTable) return;
+    await MockService.createOrder({
+      id: Math.random().toString().slice(2, 8),
+      tableId: selectedTable.id,
+      items: cart,
+      status: 'pendiente',
+      timestamp: Date.now(),
+      total: cart.reduce((acc, i) => acc + i.price, 0)
+    });
+    toast("Pedido enviado a Cocina 🔥", "success");
+    setView('map');
+    loadData();
+  };
+
+  const handleServe = async () => {
+    if (selectedTable) {
+      await MockService.serveTable(selectedTable.id);
+      setIsActionModalOpen(false);
+      loadData();
+      toast("Mesa servida 🍽️", "success");
+    }
+  };
+
+  const handleRequestBill = async (split: boolean) => {
+    if (!selectedTable) return;
+    
+    if (split) {
+      // Preparar items para el modal de división (simulado trayendo la orden actual)
+      // En una app real haríamos fetch de la orden activa. Aquí usamos el cart si es nueva, 
+      // o simulamos que traemos los items de la orden activa.
+      // Para este ejemplo, asumiremos que MockService nos devolvería los items consumidos.
+      // Como no tenemos endpoint "getOrder", usaremos un estado simulado vacío o el cart actual si no se ha borrado.
+      
+      // NOTA: Para que funcione la demo, debes crear una orden primero. 
+      // El modal de split aquí solo funcionará visualmente si acabas de crear la orden o 
+      // si implementamos 'getOrder' en MockService. 
+      // Por simplicidad, cerraremos la mesa y enviaremos la señal de "Split" al cajero.
+      
+      setIsActionModalOpen(false);
+      setIsSplitModalOpen(true);
+    } else {
+      await MockService.requestBill(selectedTable.id, { isSplit: false, items: [] });
+      setIsActionModalOpen(false);
+      loadData();
+      toast("Cuenta enviada a Caja 📄", "success");
+    }
+  };
+
+  // Lógica Modal Dividir Cuenta (Asignar nombres)
+  // Nota: En un flujo real, esto recuperaría los items ya consumidos.
+  // Aquí simulamos que dividimos unos items genéricos para la demo.
+  const confirmSplit = async () => {
+      if(!selectedTable) return;
+      
+      // Simulamos que asignamos items
+      const dummyItems: OrderItem[] = [
+          { productId: 'p-1', productName: 'Hamburguesa', price: 25000, quantity: 1, assignedTo: 'Juan' },
+          { productId: 'p-2', productName: 'Coca Cola', price: 5000, quantity: 1, assignedTo: 'Juan' },
+          { productId: 'p-1', productName: 'Hamburguesa', price: 25000, quantity: 1, assignedTo: 'Maria' },
+      ];
+
+      await MockService.requestBill(selectedTable.id, { isSplit: true, items: dummyItems });
+      setIsSplitModalOpen(false);
+      loadData();
+      toast("Cuenta dividida enviada a Caja 👥", "success");
   }
 
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Sala / POS</h2>
-        <Button variant="outline" onClick={() => refetch()}>
-          🔄 Actualizar Sala
-        </Button>
-      </div>
+  // --- VISTA MAPA ---
+  if (view === 'map') {
+    return (
+      <div className="p-6 h-screen bg-slate-100 overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-slate-800">Sala Principal</h1>
+            <div className="flex gap-2 text-xs font-bold">
+                <span className="px-2 py-1 bg-green-500 text-white rounded">Libre</span>
+                <span className="px-2 py-1 bg-red-500 text-white rounded">Cocina</span>
+                <span className="px-2 py-1 bg-orange-500 text-white rounded">Servir</span>
+                <span className="px-2 py-1 bg-blue-600 text-white rounded">Comiendo</span>
+                <span className="px-2 py-1 bg-purple-600 text-white rounded">Pagando</span>
+            </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Sección del Menú */}
-        <div className="md:col-span-2 grid grid-cols-2 lg:grid-cols-3 gap-3 h-[calc(100vh-150px)] overflow-y-auto">
-          {isLoading ? <p>Cargando menú...</p> : items?.data.map((item) => (
-            <Card 
-              key={item.id} 
-              className={`cursor-pointer hover:scale-105 transition-transform ${getCategoryStyles(item.description?.split(':')[0])}`} // Usando descripción como mock de categoría temporal
-              onClick={() => setCarrito([...carrito, item])}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {tables.map(t => (
+            <button
+              key={t.id}
+              onClick={() => handleTableClick(t)}
+              className={`aspect-square rounded-full flex flex-col items-center justify-center shadow-lg border-4 transition-transform hover:scale-105 ${getTableColor(t.status)}`}
             >
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-lg flex justify-between">
-                  {item.title}
-                  <Badge variant="secondary">${item.id * 10}</Badge> {/* Precio Mock */}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                {/* Lógica de Transparencia (Detalles) */}
-                {item.description && (
-                  <details className="mt-2 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                    <summary className="cursor-pointer font-medium hover:text-primary">Ver ingredientes</summary>
-                    <p className="mt-1 pl-2 border-l-2 italic">{item.description}</p>
-                  </details>
-                )}
-              </CardContent>
-            </Card>
+              <span className="text-4xl font-black">{t.number}</span>
+              <span className="text-sm font-bold uppercase mt-1 opacity-90">{t.status}</span>
+            </button>
           ))}
         </div>
 
-        {/* Sección del Carrito / Comanda Actual */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 flex flex-col h-[calc(100vh-150px)]">
-          <h3 className="text-xl font-bold mb-4 border-b pb-2">Comanda Mesa 1</h3>
-          <div className="flex-1 overflow-y-auto space-y-2">
-            {carrito.length === 0 ? (
-              <p className="text-gray-400 text-center py-10">Selecciona productos...</p>
-            ) : (
-              carrito.map((prod, idx) => (
-                <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                  <span>{prod.title}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setCarrito(carrito.filter((_, i) => i !== idx))}>❌</Button>
+        {/* MODAL ACCIONES MESA */}
+        <Dialog open={isActionModalOpen} onOpenChange={setIsActionModalOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Acciones Mesa {selectedTable?.number}</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="bg-gray-50 p-3 rounded text-sm text-center text-gray-500">
+                  Estado actual: <span className="font-bold uppercase text-slate-800">{selectedTable?.status}</span>
+              </div>
+              
+              {selectedTable?.status === 'servir' && (
+                <Button onClick={handleServe} className="bg-orange-500 hover:bg-orange-600 h-14 text-lg">
+                  🍽️ Servir Todo a la Mesa
+                </Button>
+              )}
+              
+              {(selectedTable?.status === 'comiendo' || selectedTable?.status === 'servir') && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Button onClick={() => handleRequestBill(false)} className="bg-slate-900 h-14">
+                    💰 Cuenta Única
+                  </Button>
+                  <Button onClick={() => handleRequestBill(true)} className="bg-blue-600 hover:bg-blue-700 h-14">
+                    👥 Cuenta Separada
+                  </Button>
                 </div>
-              ))
+              )}
+
+              {selectedTable?.status === 'cocinando' && (
+                  <p className="text-center italic text-gray-400">Esperando que cocina termine...</p>
+              )}
+               {selectedTable?.status === 'pagando' && (
+                  <p className="text-center italic text-purple-600 font-bold">Esperando pago en caja...</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+        
+        {/* MODAL SIMULADO DIVISIÓN */}
+        <Dialog open={isSplitModalOpen} onOpenChange={setIsSplitModalOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Dividir Cuenta (Demo)</DialogTitle></DialogHeader>
+                <div className="py-4 text-center space-y-4">
+                    <Users size={48} className="mx-auto text-blue-500"/>
+                    <p>En esta demo, simularemos que la mesa dividió la cuenta entre <b>Juan</b> y <b>Maria</b>.</p>
+                    <p className="text-sm text-gray-500">Al confirmar, el cajero verá los nombres separados.</p>
+                </div>
+                <DialogFooter>
+                    <Button onClick={confirmSplit}>Enviar a Caja</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // --- VISTA PEDIDO ---
+  return (
+    <div className="h-screen flex flex-col md:flex-row bg-white">
+      {/* Columna Productos */}
+      <div className="flex-1 p-4 overflow-y-auto border-r">
+        <div className="mb-4 flex gap-2 sticky top-0 bg-white z-10 py-2">
+            <Button variant="outline" onClick={() => setView('map')}><ArrowLeft size={16}/> Volver</Button>
+            <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 text-gray-400" size={18}/>
+                <input 
+                    className="w-full pl-8 p-2 border rounded bg-gray-50" 
+                    placeholder="Buscar producto (ej: Hamburguesa)..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            {products
+                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map(p => (
+                <div key={p.id} onClick={() => addToCart(p)} className="border p-4 rounded-xl hover:bg-slate-50 cursor-pointer shadow-sm transition-all active:scale-95">
+                    <div className="flex justify-between items-start">
+                        <p className="font-bold text-slate-800">{p.name}</p>
+                        <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold">${p.price/1000}k</span>
+                    </div>
+                    
+                    {/* Acordeón Ingredientes */}
+                    {p.ingredients.length > 0 && (
+                        <details className="text-xs mt-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                            <summary className="cursor-pointer hover:text-slate-800 list-none">Ver ingredientes ▾</summary>
+                            <p className="pl-2 mt-1 border-l-2 italic">{p.ingredients.join(', ')}</p>
+                        </details>
+                    )}
+                </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Columna Carrito */}
+      <div className="w-full md:w-96 bg-slate-50 flex flex-col shadow-xl">
+        <div className="p-4 bg-slate-900 text-white">
+            <h2 className="font-bold text-lg">Mesa {selectedTable?.number}</h2>
+            <p className="text-xs text-slate-400">Nueva Comanda</p>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {cart.length === 0 ? (
+                <p className="text-center text-gray-400 mt-10">Carrito vacío</p>
+            ) : (
+                cart.map((item, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded shadow-sm border">
+                        <div className="flex justify-between font-bold text-slate-800">
+                            <span>{item.productName}</span>
+                            <span>${item.price}</span>
+                        </div>
+                        <input 
+                            className="text-xs border-b border-dashed w-full mt-2 p-1 focus:outline-none focus:border-slate-500 bg-transparent" 
+                            placeholder="✍️ Nota: Sin cebolla..."
+                            value={item.notes}
+                            onChange={(e) => updateItemNote(idx, e.target.value)}
+                        />
+                    </div>
+                ))
             )}
-          </div>
-          <div className="mt-4 space-y-2">
-            <Button className="w-full bg-green-600 hover:bg-green-700" onClick={enviarComanda} disabled={carrito.length === 0}>
-              Enviar a Cocina
+        </div>
+
+        <div className="p-4 bg-white border-t">
+            <div className="flex justify-between font-bold text-xl mb-4">
+                <span>Total</span>
+                <span>${cart.reduce((acc, i) => acc + i.price, 0).toLocaleString()}</span>
+            </div>
+            <Button onClick={sendOrder} disabled={cart.length === 0} className="w-full bg-green-600 hover:bg-green-700 h-12 text-lg font-bold">
+                Enviar a Cocina <Send className="ml-2" size={18}/>
             </Button>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700" variant="secondary">
-              Pedir Cuenta (Por Cobrar)
-            </Button>
-          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

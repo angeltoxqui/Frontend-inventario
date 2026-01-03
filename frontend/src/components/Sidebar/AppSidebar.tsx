@@ -5,7 +5,8 @@ import {
   UtensilsCrossed, 
   Wallet, 
   Settings, 
-  LogOut 
+  LogOut,
+  BarChart3 
 } from "lucide-react"
 import { Link, useRouterState } from "@tanstack/react-router"
 
@@ -22,7 +23,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import useAuth from "@/hooks/useAuth"
+
+// --- AQUÍ ESTABA EL ERROR, ESTA ES LA LÍNEA CORREGIDA: ---
+import { useAuth } from "@/context/AuthContext" 
+// ---------------------------------------------------------
 
 // Menú de navegación principal
 const items = [
@@ -32,7 +36,12 @@ const items = [
     icon: LayoutDashboard,
   },
   {
-    title: "Administración", // Panel Unificado (RRHH, Inventario, Mesas)
+    title: "Reportes", 
+    url: "/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Administración",
     url: "/admin",
     icon: ShieldCheck,
   },
@@ -60,7 +69,7 @@ const items = [
 
 export default function AppSidebar() {
   const { logout, user } = useAuth()
-  const router = useRouterState() // Para detectar ruta activa si es necesario
+  const router = useRouterState() // Para detectar ruta activa
 
   return (
     <Sidebar collapsible="icon">
@@ -80,7 +89,7 @@ export default function AppSidebar() {
                   <SidebarMenuButton 
                     asChild 
                     tooltip={item.title}
-                    // Resaltar activo si la URL actual empieza con la url del item (excepto dashboard que es exacta)
+                    // Resaltar activo si la URL actual empieza con la url del item
                     isActive={
                       item.url === "/" 
                         ? router.location.pathname === "/" 
@@ -102,9 +111,10 @@ export default function AppSidebar() {
       <SidebarFooter className="p-4 border-t">
         <SidebarMenu>
           <SidebarMenuItem>
-             <div className="flex flex-col gap-2 px-2 mb-2">
-                <span className="text-sm font-medium truncate">{user?.full_name || "Usuario"}</span>
-                <span className="text-xs text-muted-foreground truncate capitalize">{user?.role || "Sin Rol"}</span>
+             <div className="flex flex-col gap-2 px-2 mb-2 group-data-[collapsible=icon]:hidden">
+                {/* Mostramos el nombre del usuario o 'Usuario' si es null */}
+                <span className="text-sm font-medium truncate">{user || "Usuario"}</span>
+                <span className="text-xs text-muted-foreground truncate capitalize">Sesión Activa</span>
              </div>
           </SidebarMenuItem>
           <SidebarMenuItem>

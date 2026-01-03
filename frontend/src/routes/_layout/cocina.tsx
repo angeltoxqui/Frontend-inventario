@@ -1,72 +1,113 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import { toast } from "sonner"
+import { createFileRoute } from '@tanstack/react-router'
+import React, { useState, useEffect } from 'react';
+import { MockService } from '../../services/mockService';
+import { Order } from '../../types';
+import { useToast } from '../../components/ui/Toast';
+import { Clock, CheckCircle2, ChefHat } from 'lucide-react';
 
-export const Route = createFileRoute("/_layout/cocina")({
+export const Route = createFileRoute('/_layout/cocina')({
   component: Cocina,
 })
 
-// Mock de datos de comandas (Reemplazar con ItemsService o VentasService)
-const mockComandas = [
-  { id: 101, mesa: "Mesa 4", estado: "pendiente", items: ["Hamburguesa Doble", "Papas Fritas"], hora: "14:30" },
-  { id: 102, mesa: "Mesa 2", estado: "listo", items: ["Coca Cola"], hora: "14:32" },
-]
-
 function Cocina() {
-  const queryClient = useQueryClient()
+  const [orders, setOrders] = useState<Order[]>([]);
+  const { toast } = useToast();
 
-  // Simulación de Fetch
-  const { data, refetch } = useQuery({
-    queryKey: ["comandas"],
-    queryFn: async () => mockComandas, // Aquí iría tu API real
-    refetchInterval: false // MANUAL
-  })
+  useEffect(() => {
+    const interval = setInterval(loadOrders, 5000);
+    loadOrders();
+    return () => clearInterval(interval);
+  }, []);
 
-  // Mutación Plato Listo
-  const completarPedido = (id: number) => {
-    // Aquí iría mutation.mutate(id)
-    toast.success(`Pedido #${id} marcado como LISTO ✅`)
-    // queryClient.invalidateQueries(["comandas"])
+  const loadOrders = async () => {
+    const all = await MockService.getOrders();
+    // Solo mostramos pendientes
+    setOrders(all.filter(o => o.status === 'pendiente'));
+  };
+
+  const handleMarkReady = async (id: string) => {
+    await MockService.markOrderReady(id);
+    loadOrders();
+    toast("¡Oído cocina! Plato listo. 🔔", "success");
+  };
+
+  // Cronómetro individual por tarjeta
+  const Timer = ({ start }: { start: number }) => {
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        const i = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 60000)), 1000);
+        return () => clearInterval(i);
+    }, [start]);
+    
+    return (
+        <span className={`flex items-center gap-1 font-bold ${elapsed > 15 ? 'text-red-600 animate-pulse' : 'text-slate-500'}`}>
+            <Clock size={16}/> {elapsed} min
+        </span>
+    );
   }
 
-  // Filtrado solo pendientes
-  const pendientes = data?.filter(c => c.estado === 'pendiente') || []
-
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">👨‍🍳 Monitor de Cocina</h1>
-        <Button size="lg" onClick={() => refetch()}>🔄 Nuevos Pedidos</Button>
+    <div className="p-6 min-h-screen bg-slate-200">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="bg-orange-500 p-3 rounded-xl text-white shadow-lg">
+            <ChefHat size={32} />
+        </div>
+        <div>
+            <h1 className="text-3xl font-black text-slate-800">KDS - COCINA</h1>
+            <p className="text-slate-500 font-medium">Pedidos pendientes en tiempo real</p>
+        </div>
       </div>
+      
+      {orders.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-96 text-gray-400">
+            <CheckCircle2 size={80} className="mb-4 opacity-20"/>
+            <p className="text-xl font-medium">Todo despachado, Chef.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {orders.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col border-t-8 border-orange-500 animate-in slide-in-from-bottom-4">
+                    {/* Header Tarjeta */}
+                    <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-start">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-800">Mesa {order.tableId.replace('t-', '')}</h2>
+                            <p className="text-xs font-mono text-slate-400 mt-1">ID: {order.id.slice(0,6)}</p>
+                        </div>
+                        <div className="bg-white px-3 py-1 rounded-full shadow-sm">
+                            <Timer start={order.timestamp} />
+                        </div>
+                    </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {pendientes.length === 0 ? (
-          <div className="col-span-full text-center text-gray-500 text-xl py-20">Todo limpio, Chef. 😴</div>
-        ) : (
-          pendientes.map((pedido) => (
-            <Card key={pedido.id} className="border-l-4 border-l-orange-500 shadow-md">
-              <CardHeader className="bg-orange-50 dark:bg-orange-950/20 pb-2">
-                <CardTitle className="flex justify-between text-lg">
-                  {pedido.mesa}
-                  <span className="text-sm font-normal text-gray-500">{pedido.hora}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                <ul className="list-disc list-inside space-y-1">
-                  {pedido.items.map((plato, i) => (
-                    <li key={i} className="text-lg font-medium">{plato}</li>
-                  ))}
-                </ul>
-                <Button className="w-full" onClick={() => completarPedido(pedido.id)}>
-                  ✅ Pedido Listo
-                </Button>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    {/* Lista Items */}
+                    <div className="p-5 flex-1 space-y-4">
+                        {order.items.map((item, i) => (
+                            <div key={i} className="flex gap-4 items-start border-b border-dashed border-gray-100 pb-3 last:border-0 last:pb-0">
+                                <span className="bg-slate-900 text-white w-10 h-10 flex items-center justify-center rounded-lg font-bold text-xl shrink-0">
+                                    {item.quantity}
+                                </span>
+                                <div>
+                                    <p className="text-xl font-bold leading-tight text-slate-700">{item.productName}</p>
+                                    {item.notes && (
+                                        <p className="bg-yellow-100 text-yellow-800 text-sm px-2 py-1 rounded mt-2 font-bold inline-block border border-yellow-200">
+                                            ⚠️ {item.notes}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Botón Acción */}
+                    <button 
+                        onClick={() => handleMarkReady(order.id)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 text-xl tracking-wide uppercase transition-colors"
+                    >
+                        MARCAR LISTO
+                    </button>
+                </div>
+            ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -1,89 +1,106 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { useMutation } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { LoginService, UsersService } from "../client"
-import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import useAuth from "../hooks/useAuth"
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { UserRole } from '../types';
+import { ChefHat, Loader2 } from 'lucide-react';
 
-// Mapa de redirección por rol
-const roleRedirects: Record<string, string> = {
-  superuser: "/admin",
-  admin: "/admin",
-  cocinero: "/cocina",
-  cajero: "/caja",
-  mesero: "/pos",
-}
-
-export const Route = createFileRoute("/login")({
+// --- ESTO ES LO QUE FALTABA ---
+export const Route = createFileRoute('/login')({
   component: Login,
 })
+// ------------------------------
 
 function Login() {
-  const { login } = useAuth()
-  const router = useRouter()
-  const { register, handleSubmit, formState: { errors } } = useForm()
-  
-  // Mutación para obtener datos del usuario DESPUÉS del login
-  const userMutation = useMutation({
-    mutationFn: UsersService.readUserMe,
-    onSuccess: (user) => {
-      // 1. Verificación de "Semáforo" (Turno)
-      // Nota: Como el backend aún no envía 'en_turno', validamos si es superuser por ahora.
-      // Cuando el backend esté listo, descomenta la línea de abajo:
-      // const tieneTurnoActivo = user.en_turno || user.is_superuser;
-      
-      const tieneTurnoActivo = true // MOCK TEMPORAL: Asumimos true para que puedas entrar
+  const [username, setUsername] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate(); // Usar el hook de TanStack Router
 
-      if (!tieneTurnoActivo) {
-        localStorage.removeItem("access_token") // Logout forzado
-        toast.error("⛔ ACCESO DENEGADO: Tu turno no ha iniciado.")
-        return
-      }
+  // Role Redirection Map
+  const roleRedirects: Record<UserRole, string> = {
+    [UserRole.ADMIN]: '/admin',
+    [UserRole.MESERO]: '/pos',
+    [UserRole.COCINERO]: '/cocina',
+    [UserRole.CAJERO]: '/caja'
+  };
 
-      // 2. Redirección Inteligente
-      const targetPath = roleRedirects[user.role || "mesero"] || "/" // Default a dashboard si no tiene rol
-      toast.success(`Bienvenido, ${user.full_name || "Usuario"}`)
-      router.navigate({ to: targetPath })
-    },
-    onError: () => {
-      toast.error("Error al verificar perfil de usuario")
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) return;
+
+    setIsSubmitting(true);
+    
+    // Simulación de login exitoso
+    const success = await login(username);
+    
+    if (success) {
+        let target = '/admin';
+        if (username === 'juan') target = '/pos';
+        if (username === 'maria') target = '/cocina';
+        if (username === 'pedro') target = '/caja';
+        if (username === 'admin') target = '/admin';
+        
+        // Navegación correcta con TanStack Router
+        navigate({ to: target });
     }
-  })
-
-  const onSubmit = async (data: any) => {
-    try {
-      await login(data)
-      // Login exitoso, ahora verificamos el usuario
-      userMutation.mutate()
-    } catch (error) {
-      toast.error("Credenciales incorrectas")
-    }
-  }
+    setIsSubmitting(false);
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
-        <h1 className="text-2xl font-bold text-center">Gastro Pro V2</h1>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...register("username", { required: true })} />
-            {errors.username && <span className="text-red-500 text-sm">Requerido</span>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+        <div className="flex flex-col items-center mb-8">
+          <div className="bg-orange-100 p-4 rounded-full mb-4">
+            <ChefHat className="w-10 h-10 text-orange-600" />
           </div>
+          <h1 className="text-2xl font-bold text-gray-800">Gastro Pro v2</h1>
+          <p className="text-gray-500 text-sm mt-1">Identifícate para iniciar turno</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" type="password" {...register("password", { required: true })} />
-            {errors.password && <span className="text-red-500 text-sm">Requerido</span>}
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Usuario
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className={`
+                w-full px-4 py-3 rounded-lg border bg-gray-50 focus:bg-white
+                focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all
+                ${!username && isSubmitting ? 'border-red-500' : 'border-gray-200'}
+              `}
+              placeholder="Ej: juan"
+            />
+            {!username && isSubmitting && (
+              <span className="text-xs text-red-500 mt-1 block">Requerido</span>
+            )}
           </div>
-          <Button type="submit" className="w-full">
-            Ingresar
-          </Button>
+
+          <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+            <p className="font-semibold mb-1">Usuarios Demo:</p>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <li>admin (Admin)</li>
+              <li>juan (Mesero)</li>
+              <li>maria (Cocina)</li>
+              <li>pedro (Caja)</li>
+            </ul>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition-colors flex justify-center items-center shadow-lg shadow-slate-900/20"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              "Iniciar Turno"
+            )}
+          </button>
         </form>
       </div>
     </div>
-  )
-}
+  );
+};
