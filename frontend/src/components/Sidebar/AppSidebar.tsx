@@ -9,6 +9,7 @@ import {
   BarChart3 
 } from "lucide-react"
 import { Link, useRouterState } from "@tanstack/react-router"
+import { useAuth } from "@/context/AuthContext" // Asegúrate de que esta ruta sea correcta
 
 import {
   Sidebar,
@@ -24,14 +25,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 
-// --- AQUÍ ESTABA EL ERROR, ESTA ES LA LÍNEA CORREGIDA: ---
-import { useAuth } from "@/context/AuthContext" 
-// ---------------------------------------------------------
-
 // Menú de navegación principal
 const items = [
   {
-    title: "Dashboard",
+    title: "Dashboard", // El traductor suele cambiar esto, pero el código lo mantiene en inglés internamente
     url: "/",
     icon: LayoutDashboard,
   },
@@ -69,13 +66,14 @@ const items = [
 
 export default function AppSidebar() {
   const { logout, user } = useAuth()
-  const router = useRouterState() // Para detectar ruta activa
+  const router = useRouterState() 
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 border-b">
-        <div className="flex items-center gap-2 font-bold text-xl px-2">
-          <span className="text-primary">Gastro</span>Pro
+        {/* AGREGAMOS 'translate="no"' PARA EVITAR QUE EL NAVEGADOR LO CAMBIE */}
+        <div className="flex items-center gap-2 font-bold text-xl px-2" translate="no">
+          <span className="text-primary">Rootventory</span>
         </div>
       </SidebarHeader>
 
@@ -89,7 +87,6 @@ export default function AppSidebar() {
                   <SidebarMenuButton 
                     asChild 
                     tooltip={item.title}
-                    // Resaltar activo si la URL actual empieza con la url del item
                     isActive={
                       item.url === "/" 
                         ? router.location.pathname === "/" 
@@ -112,7 +109,6 @@ export default function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
              <div className="flex flex-col gap-2 px-2 mb-2 group-data-[collapsible=icon]:hidden">
-                {/* Mostramos el nombre del usuario o 'Usuario' si es null */}
                 <span className="text-sm font-medium truncate">{user || "Usuario"}</span>
                 <span className="text-xs text-muted-foreground truncate capitalize">Sesión Activa</span>
              </div>

@@ -413,7 +413,7 @@ const HRTab = ({ toast }: { toast: any }) => {
             <div className="bg-white rounded-xl overflow-hidden max-w-sm w-full">
                 <div className="bg-slate-900 p-6 text-center text-white">
                     <h3 className="font-bold text-xl">Credencial de Acceso</h3>
-                    <p className="opacity-75 text-sm">Gastro Pro v2</p>
+                    <p className="opacity-75 text-sm">Rootventory</p>
                 </div>
                 <div className="p-8 flex flex-col items-center gap-4">
                     <div className="w-48 h-48 bg-slate-100 rounded-xl flex items-center justify-center border-4 border-slate-900">

@@ -53,7 +53,7 @@ function Login() {
           <div className="bg-orange-100 p-4 rounded-full mb-4">
             <ChefHat className="w-10 h-10 text-orange-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Gastro Pro v2</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Rootventory</h1>
           <p className="text-gray-500 text-sm mt-1">Identifícate para iniciar turno</p>
         </div>
 
