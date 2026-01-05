@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import React, { useState, useEffect } from 'react';
 import { MockService } from '../../services/mockService';
-import { Product, Table, OrderItem, ProductCategory } from '../../types';
+import { Product, Table, OrderItem } from '../../types';
 import { useToast } from '../../components/ui/Toast';
-import { Search, RotateCcw, Send, Receipt, Minus, Plus, Users, ArrowLeft, User } from 'lucide-react';
+import { Search, Send, ArrowLeft, Users, Trash2 } from 'lucide-react'; 
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
 
 export const Route = createFileRoute('/_layout/pos')({
   component: POS,
@@ -24,10 +23,6 @@ function POS() {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   
-  // Estado para división de cuentas
-  const [splitItems, setSplitItems] = useState<OrderItem[]>([]); 
-  const [currentPersonName, setCurrentPersonName] = useState('');
-
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,10 +41,10 @@ function POS() {
   const getTableColor = (status: string) => {
     switch (status) {
       case 'libre': return 'bg-green-500 border-green-600 text-white';
-      case 'cocinando': return 'bg-red-500 border-red-600 text-white animate-pulse'; // Rojo
-      case 'servir': return 'bg-orange-500 border-orange-600 text-white animate-bounce'; // Naranja
-      case 'comiendo': return 'bg-blue-600 border-blue-700 text-white'; // Azul
-      case 'pagando': return 'bg-purple-600 border-purple-700 text-white'; // Morado
+      case 'cocinando': return 'bg-red-500 border-red-600 text-white animate-pulse';
+      case 'servir': return 'bg-orange-500 border-orange-600 text-white animate-bounce';
+      case 'comiendo': return 'bg-blue-600 border-blue-700 text-white';
+      case 'pagando': return 'bg-purple-600 border-purple-700 text-white';
       default: return 'bg-gray-300';
     }
   };
@@ -66,17 +61,19 @@ function POS() {
 
   const addToCart = (p: Product) => {
     setCart(prev => {
-      // Simplificación: Agregamos items individuales para facilitar la división luego
       return [...prev, { 
           productId: p.id, 
           productName: p.name, 
           price: p.price, 
           quantity: 1, 
-          assignedTo: 'Mesa', // Por defecto
+          assignedTo: 'Mesa', 
           notes: '' 
       }];
     });
-    toast(`${p.name} agregado`, "info");
+  };
+
+  const removeFromCart = (indexToRemove: number) => {
+      setCart(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const updateItemNote = (index: number, note: string) => {
@@ -113,17 +110,6 @@ function POS() {
     if (!selectedTable) return;
     
     if (split) {
-      // Preparar items para el modal de división (simulado trayendo la orden actual)
-      // En una app real haríamos fetch de la orden activa. Aquí usamos el cart si es nueva, 
-      // o simulamos que traemos los items de la orden activa.
-      // Para este ejemplo, asumiremos que MockService nos devolvería los items consumidos.
-      // Como no tenemos endpoint "getOrder", usaremos un estado simulado vacío o el cart actual si no se ha borrado.
-      
-      // NOTA: Para que funcione la demo, debes crear una orden primero. 
-      // El modal de split aquí solo funcionará visualmente si acabas de crear la orden o 
-      // si implementamos 'getOrder' en MockService. 
-      // Por simplicidad, cerraremos la mesa y enviaremos la señal de "Split" al cajero.
-      
       setIsActionModalOpen(false);
       setIsSplitModalOpen(true);
     } else {
@@ -134,13 +120,8 @@ function POS() {
     }
   };
 
-  // Lógica Modal Dividir Cuenta (Asignar nombres)
-  // Nota: En un flujo real, esto recuperaría los items ya consumidos.
-  // Aquí simulamos que dividimos unos items genéricos para la demo.
   const confirmSplit = async () => {
       if(!selectedTable) return;
-      
-      // Simulamos que asignamos items
       const dummyItems: OrderItem[] = [
           { productId: 'p-1', productName: 'Hamburguesa', price: 25000, quantity: 1, assignedTo: 'Juan' },
           { productId: 'p-2', productName: 'Coca Cola', price: 5000, quantity: 1, assignedTo: 'Juan' },
@@ -262,9 +243,8 @@ function POS() {
                         <p className="font-bold text-slate-800">{p.name}</p>
                         <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold">${p.price/1000}k</span>
                     </div>
-                    
-                    {/* Acordeón Ingredientes */}
-                    {p.ingredients.length > 0 && (
+                    {/* AQUÍ ESTABA EL ERROR: AGREGAMOS '?' PARA QUE NO FALLE SI NO HAY INGREDIENTES */}
+                    {p.ingredients?.length > 0 && (
                         <details className="text-xs mt-2 text-gray-500" onClick={e => e.stopPropagation()}>
                             <summary className="cursor-pointer hover:text-slate-800 list-none">Ver ingredientes ▾</summary>
                             <p className="pl-2 mt-1 border-l-2 italic">{p.ingredients.join(', ')}</p>
@@ -284,14 +264,28 @@ function POS() {
         
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {cart.length === 0 ? (
-                <p className="text-center text-gray-400 mt-10">Carrito vacío</p>
+                <div className="text-center mt-10 opacity-50">
+                    <p className="text-6xl mb-2">🛒</p>
+                    <p>Carrito vacío</p>
+                </div>
             ) : (
                 cart.map((item, idx) => (
-                    <div key={idx} className="bg-white p-3 rounded shadow-sm border">
-                        <div className="flex justify-between font-bold text-slate-800">
-                            <span>{item.productName}</span>
-                            <span>${item.price}</span>
+                    <div key={idx} className="bg-white p-3 rounded shadow-sm border group hover:border-red-200 transition-colors">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className="font-bold text-slate-800 block">{item.productName}</span>
+                                <span className="text-sm text-slate-500">${item.price.toLocaleString()}</span>
+                            </div>
+                            
+                            {/* BOTÓN ELIMINAR */}
+                            <button 
+                                onClick={() => removeFromCart(idx)}
+                                className="text-gray-300 hover:text-red-500 p-1 transition-colors"
+                            >
+                                <Trash2 size={18} />
+                            </button>
                         </div>
+                        
                         <input 
                             className="text-xs border-b border-dashed w-full mt-2 p-1 focus:outline-none focus:border-slate-500 bg-transparent" 
                             placeholder="✍️ Nota: Sin cebolla..."

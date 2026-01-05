@@ -14,20 +14,21 @@ function Cocina() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const interval = setInterval(loadOrders, 5000);
+    // Polling rápido (3s) para ver nuevos pedidos
+    const interval = setInterval(loadOrders, 3000);
     loadOrders();
     return () => clearInterval(interval);
   }, []);
 
   const loadOrders = async () => {
     const all = await MockService.getOrders();
-    // Solo mostramos pendientes
+    // Filtramos solo los pendientes (para cocinar)
     setOrders(all.filter(o => o.status === 'pendiente'));
   };
 
   const handleMarkReady = async (id: string) => {
     await MockService.markOrderReady(id);
-    loadOrders();
+    loadOrders(); // Recarga inmediata
     toast("¡Oído cocina! Plato listo. 🔔", "success");
   };
 
@@ -100,7 +101,7 @@ function Cocina() {
                     {/* Botón Acción */}
                     <button 
                         onClick={() => handleMarkReady(order.id)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 text-xl tracking-wide uppercase transition-colors"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 text-xl tracking-wide uppercase transition-colors active:bg-green-800"
                     >
                         MARCAR LISTO
                     </button>

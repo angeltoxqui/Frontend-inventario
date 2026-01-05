@@ -19,6 +19,7 @@ import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutReportsRouteImport } from './routes/_layout/reports'
 import { Route as LayoutPosRouteImport } from './routes/_layout/pos'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
+import { Route as LayoutDashboardRouteImport } from './routes/_layout/dashboard'
 import { Route as LayoutCocinaRouteImport } from './routes/_layout/cocina'
 import { Route as LayoutCajaRouteImport } from './routes/_layout/caja'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
@@ -72,6 +73,11 @@ const LayoutItemsRoute = LayoutItemsRouteImport.update({
   path: '/items',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutDashboardRoute = LayoutDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutCocinaRoute = LayoutCocinaRouteImport.update({
   id: '/cocina',
   path: '/cocina',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof LayoutAdminRoute
   '/caja': typeof LayoutCajaRoute
   '/cocina': typeof LayoutCocinaRoute
+  '/dashboard': typeof LayoutDashboardRoute
   '/items': typeof LayoutItemsRoute
   '/pos': typeof LayoutPosRoute
   '/reports': typeof LayoutReportsRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/admin': typeof LayoutAdminRoute
   '/caja': typeof LayoutCajaRoute
   '/cocina': typeof LayoutCocinaRoute
+  '/dashboard': typeof LayoutDashboardRoute
   '/items': typeof LayoutItemsRoute
   '/pos': typeof LayoutPosRoute
   '/reports': typeof LayoutReportsRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/caja': typeof LayoutCajaRoute
   '/_layout/cocina': typeof LayoutCocinaRoute
+  '/_layout/dashboard': typeof LayoutDashboardRoute
   '/_layout/items': typeof LayoutItemsRoute
   '/_layout/pos': typeof LayoutPosRoute
   '/_layout/reports': typeof LayoutReportsRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/caja'
     | '/cocina'
+    | '/dashboard'
     | '/items'
     | '/pos'
     | '/reports'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/caja'
     | '/cocina'
+    | '/dashboard'
     | '/items'
     | '/pos'
     | '/reports'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/_layout/admin'
     | '/_layout/caja'
     | '/_layout/cocina'
+    | '/_layout/dashboard'
     | '/_layout/items'
     | '/_layout/pos'
     | '/_layout/reports'
@@ -258,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutItemsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/dashboard': {
+      id: '/_layout/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof LayoutDashboardRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/cocina': {
       id: '/_layout/cocina'
       path: '/cocina'
@@ -286,6 +305,7 @@ interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutCajaRoute: typeof LayoutCajaRoute
   LayoutCocinaRoute: typeof LayoutCocinaRoute
+  LayoutDashboardRoute: typeof LayoutDashboardRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
   LayoutPosRoute: typeof LayoutPosRoute
   LayoutReportsRoute: typeof LayoutReportsRoute
@@ -297,6 +317,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutCajaRoute: LayoutCajaRoute,
   LayoutCocinaRoute: LayoutCocinaRoute,
+  LayoutDashboardRoute: LayoutDashboardRoute,
   LayoutItemsRoute: LayoutItemsRoute,
   LayoutPosRoute: LayoutPosRoute,
   LayoutReportsRoute: LayoutReportsRoute,
