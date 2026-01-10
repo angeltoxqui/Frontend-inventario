@@ -2,18 +2,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../components/ui/Toast';
 import { MockService } from '../../services/mockService';
-import { BillingService } from '../../services/billingService'; // [NUEVO] Importamos servicio
+import { BillingService } from '../../services/billingService'; 
 import { Order, OrderItem, Product } from '../../types';
 import { 
   Wallet, Receipt, CreditCard, Smartphone, Banknote, 
   Calculator, User, AlertTriangle, CheckCircle2, ShieldAlert, FileText, 
-  Lock, Search, PackagePlus, Trash2, Coins, Printer, X, Loader2
+  Lock, Search, PackagePlus, Trash2, Coins, Printer, X, Loader2, Camera
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
-import { Switch } from '../../components/ui/switch'; // [NUEVO] Switch para activar factura
+import { Switch } from '../../components/ui/switch'; 
 import { InvoiceTemplate } from '../../components/Caja/InvoiceTemplate';
 
 export const Route = createFileRoute('/_layout/caja')({
@@ -32,7 +32,7 @@ function Caja() {
   // --- ESTADOS DE PAGO ---
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [isFacturaLoading, setIsFacturaLoading] = useState(false); // [NUEVO] Estado de carga de factura
+  const [isFacturaLoading, setIsFacturaLoading] = useState(false);
   
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [itemsToPay, setItemsToPay] = useState<OrderItem[]>([]);
@@ -40,8 +40,12 @@ function Caja() {
   const [paymentMethod, setPaymentMethod] = useState<'efectivo'|'tarjeta'|'Transferencia'>('efectivo');
   
   const [cashReceived, setCashReceived] = useState('');
+
+  // [NUEVO] Estados para FOTO de Transferencia
+  const [transferImage, setTransferImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
-  // [MODIFICADO] Datos de cliente para facturación
+  // Datos de cliente para facturación
   const [needsInvoice, setNeedsInvoice] = useState(false);
   const [clientInfo, setClientInfo] = useState({ nit: '', name: '', email: '', phone: '' });
   
@@ -82,7 +86,11 @@ function Caja() {
 
   const loadData = async () => {
     const orders = await MockService.getOrders();
-    setPendingOrders(orders.filter(o => o.status === 'por_cobrar' || o.status === 'entregado'));
+    // [CORRECCIÓN IMPORTANTE] Filtramos también por estado 'pagando'
+    setPendingOrders(orders.filter(o => 
+        o.status === 'por_cobrar' || 
+        (o.status as any) === 'pagando' 
+    ));
     const prods = await MockService.getProducts();
     setAllProducts(prods);
   };
@@ -112,6 +120,11 @@ function Caja() {
     // Resetear formulario
     setPaymentMethod('efectivo');
     setCashReceived('');
+    
+    // [NUEVO] Limpiar foto anterior
+    setTransferImage(null);
+    setImagePreview(null);
+    
     setNeedsInvoice(false);
     setClientInfo({ nit: '', name: '', email: '', phone: '' });
     setShowProductSearch(false);
@@ -123,6 +136,16 @@ function Caja() {
     setPrintData(null);
     
     setIsPaymentOpen(true);
+  };
+
+  // [NUEVO] Manejador de selección de imagen
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setTransferImage(file);
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    }
   };
 
   const addExtraProduct = (product: Product) => {
@@ -183,6 +206,14 @@ function Caja() {
           }
       }
 
+      // [NUEVO] Validación de Transferencia (FOTO OBLIGATORIA)
+      if (paymentMethod === 'Transferencia') {
+          if (!transferImage) {
+              toast("Es obligatorio tomar la foto del comprobante", "error");
+              return;
+          }
+      }
+
       // Validación de Facturación
       if (needsInvoice && (!clientInfo.nit || !clientInfo.email)) {
           toast("Error: NIT y Correo obligatorios para Factura Electrónica", "error");
@@ -190,7 +221,16 @@ function Caja() {
       }
 
       try {
-          setIsFacturaLoading(true); // Bloquear UI
+          setIsFacturaLoading(true); 
+
+          // Simulación de subida de imagen (si fuera real usaríamos FormData)
+          if (paymentMethod === 'Transferencia' && transferImage) {
+             console.log("Subiendo imagen de evidencia:", transferImage.name);
+             // await MockService.uploadProof(selectedOrder.id, transferImage); 
+          }
+
+          // Nota sobre la evidencia
+          const notes = paymentMethod === 'Transferencia' ? 'Comprobante: [IMAGEN ADJUNTA]' : '';
 
           // 1. Guardar pago local (Inventario)
           await MockService.payOrder(selectedOrder.id, total, itemsToPay, paymentMethod);
@@ -204,7 +244,7 @@ function Caja() {
                   const response = await BillingService.emitInvoice(
                       selectedOrder, itemsToPay, clientInfo, paymentMethod
                   );
-                  invoiceData = response.data; // Aquí viene el CUFE y QR simulados
+                  invoiceData = response.data; 
                   toast("¡Factura Electrónica Generada!", "success");
               } catch (billingError) {
                   console.error(billingError);
@@ -212,7 +252,7 @@ function Caja() {
               }
           }
 
-          // 3. Preparar datos para el Ticket (InvoiceTemplate)
+          // 3. Preparar datos para el Ticket
           setPrintData({
               order: { 
                   ...selectedOrder, 
@@ -227,7 +267,6 @@ function Caja() {
               change: calculateChange(),
               clientName: payerName !== 'Cuenta Única' ? payerName : (needsInvoice ? clientInfo.name : undefined),
               
-              // Datos de Factura Electrónica para el ticket impreso
               invoiceCufe: invoiceData?.cufe,
               invoiceQr: invoiceData?.qr_image,
               invoiceNumber: invoiceData?.number
@@ -236,7 +275,6 @@ function Caja() {
           // 4. Finalizar
           setPaymentSuccess(true);
           
-          // Actualización optimista de la lista
           setPendingOrders(currentOrders => 
               currentOrders.filter(o => o.id !== selectedOrder.id)
           );
@@ -245,7 +283,7 @@ function Caja() {
           console.error("Error al procesar pago:", error);
           toast(error.message || "Error desconocido", "error");
       } finally {
-          setIsFacturaLoading(false); // Desbloquear UI
+          setIsFacturaLoading(false);
       }
     }
   };
@@ -319,8 +357,6 @@ function Caja() {
                   cashReceived={printData.cashReceived}
                   change={printData.change}
                   clientName={printData.clientName}
-                  // Pasamos datos extra al template si lo soporta
-                  // invoiceCufe={printData.invoiceCufe} 
               />
           )}
       </div>
@@ -353,6 +389,10 @@ function Caja() {
                     <div>
                         <h2 className="text-3xl font-black text-slate-900">Mesa {order.tableId.replace('t-', '')}</h2>
                         <span className="text-xs font-mono text-slate-400">ID: {order.id.slice(0,4)}</span>
+                        {/* Indicador visual si está en estado PAGANDO */}
+                        {(order.status as any) === 'pagando' && (
+                           <span className="ml-2 bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">SOLICITAN CUENTA</span>
+                        )}
                     </div>
                     {order.isSplit ? (
                         <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold flex items-center gap-1"><User size={12}/> DIVIDIDA</span>
@@ -525,6 +565,60 @@ function Caja() {
                                         ))}
                                     </div>
                                 </div>
+                                
+                                {/* [NUEVO] BLOQUE PARA FOTO DE TRANSFERENCIA */}
+                                {paymentMethod === 'Transferencia' && (
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6 animate-in fade-in slide-in-from-bottom-2">
+                                        <h4 className="text-blue-800 font-bold mb-3 flex items-center gap-2 text-sm">
+                                            <Smartphone size={18}/> Comprobante de Transferencia
+                                        </h4>
+                                        
+                                        <div className="flex flex-col items-center gap-4">
+                                            {/* Área de Previsualización o Botón de Carga */}
+                                            <div className="w-full">
+                                                <label 
+                                                    htmlFor="transfer-photo" 
+                                                    className={`
+                                                        flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-colors
+                                                        ${imagePreview ? 'border-blue-400 bg-white' : 'border-blue-300 bg-blue-50 hover:bg-blue-100'}
+                                                    `}
+                                                >
+                                                    {imagePreview ? (
+                                                        <div className="relative w-full h-full p-2 group">
+                                                            <img src={imagePreview} alt="Comprobante" className="w-full h-full object-contain rounded-lg"/>
+                                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                                                <span className="text-white font-bold flex items-center gap-2"><Camera size={20}/> Cambiar Foto</span>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-blue-500">
+                                                            <div className="bg-blue-200 p-3 rounded-full mb-2 text-blue-700">
+                                                                <Camera size={32} />
+                                                            </div>
+                                                            <p className="mb-1 text-sm font-bold">Tocar para tomar foto</p>
+                                                            <p className="text-xs">o subir archivo</p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <input 
+                                                        id="transfer-photo" 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        capture="environment" // IMPORTANTE: Abre cámara trasera en móviles
+                                                        className="hidden" 
+                                                        onChange={handleImageSelect}
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            {imagePreview && (
+                                                <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                                    <CheckCircle2 size={12}/> Imagen cargada correctamente
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {paymentMethod === 'efectivo' && (
                                     <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-100 mb-6">

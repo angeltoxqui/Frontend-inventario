@@ -45,7 +45,8 @@ export interface Order {
   id: string; 
   tableId: string; 
   items: OrderItem[]; 
-  status: 'pendiente' | 'listo' | 'entregado' | 'por_cobrar' | 'pagado' | 'cancelado'; 
+  // [MODIFICADO] Se agregó 'pagando' para sincronizar con la vista de Mesero
+  status: 'pendiente' | 'listo' | 'entregado' | 'por_cobrar' | 'pagado' | 'cancelado' | 'pagando'; 
   timestamp: number; 
   total: number; 
   tip?: number; 
