@@ -121,7 +121,7 @@ function Reports() {
             Insumo: i.name, Costo_Unit: i.cost, Stock: i.currentStock, Total: i.cost * i.currentStock,
             Ultima_Actualizacion: i.lastUpdated ? new Date(i.lastUpdated).toLocaleDateString() : 'N/A'
         })));
-        XLSX.utils.book_append_sheet(wb, ws_inv, "Valorizacion_Bodega");
+        XLSX.utils.book_append_sheet(wb, ws_inv, "Valorizacion_De Insumos");
     }
     else if (activeTab === 'purchases') {
         const ws_exp = XLSX.utils.json_to_sheet(filteredExpenses.map(e => ({
@@ -139,7 +139,7 @@ function Reports() {
     <div className="p-6 max-w-7xl mx-auto bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <h1 className="text-3xl font-black text-slate-900">Reportes Gerenciales</h1>
+            <h1 className="text-3xl font-black text-slate-900">Reportes </h1>
             <p className="text-slate-500">Datos precisos para decisiones inteligentes</p>
         </div>
         <div className="flex gap-4">
@@ -252,7 +252,7 @@ function Reports() {
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl flex flex-col justify-center">
-                    <p className="opacity-70 font-bold uppercase text-sm tracking-wider mb-2">Valorización Bodega (Actual)</p>
+                    <p className="opacity-70 font-bold uppercase text-sm tracking-wider mb-2">Valorización De Insumos (Actuales)</p>
                     <h2 className="text-5xl font-black mb-4">${totalInventoryValue.toLocaleString()}</h2>
                     <p className="text-sm opacity-60">Capital total invertido en insumos disponibles hoy.</p>
                 </div>

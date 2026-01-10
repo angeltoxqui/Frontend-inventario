@@ -1,17 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../components/ui/Toast';
 import { MockService } from '../../services/mockService';
+import { BillingService } from '../../services/billingService'; // [NUEVO] Importamos servicio
 import { Order, OrderItem, Product } from '../../types';
 import { 
-  Wallet, Receipt, CreditCard, Smartphone, Banknote, Printer, 
+  Wallet, Receipt, CreditCard, Smartphone, Banknote, 
   Calculator, User, AlertTriangle, CheckCircle2, ShieldAlert, FileText, 
-  Lock, Search, PackagePlus, Trash2, Coins
+  Lock, Search, PackagePlus, Trash2, Coins, Printer, X, Loader2
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import { Switch } from '../../components/ui/switch'; // [NUEVO] Switch para activar factura
+import { InvoiceTemplate } from '../../components/Caja/InvoiceTemplate';
 
 export const Route = createFileRoute('/_layout/caja')({
   component: Caja,
@@ -22,14 +25,23 @@ function Caja() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const { toast } = useToast();
   
+  // Ref para impresión
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const [printData, setPrintData] = useState<any>(null);
+
   // --- ESTADOS DE PAGO ---
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [isFacturaLoading, setIsFacturaLoading] = useState(false); // [NUEVO] Estado de carga de factura
+  
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [itemsToPay, setItemsToPay] = useState<OrderItem[]>([]);
   const [payerName, setPayerName] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'efectivo'|'tarjeta'|'nequi'>('efectivo');
+  const [paymentMethod, setPaymentMethod] = useState<'efectivo'|'tarjeta'|'Transferencia'>('efectivo');
   
   const [cashReceived, setCashReceived] = useState('');
+  
+  // [MODIFICADO] Datos de cliente para facturación
   const [needsInvoice, setNeedsInvoice] = useState(false);
   const [clientInfo, setClientInfo] = useState({ nit: '', name: '', email: '', phone: '' });
   
@@ -43,6 +55,7 @@ function Caja() {
   const [isOpeningOpen, setIsOpeningOpen] = useState(false);
   const [baseCash, setBaseCash] = useState<number>(0);
   const [isBaseSet, setIsBaseSet] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0); 
 
   const [isArqueoOpen, setIsArqueoOpen] = useState(false);
   const [stepArqueo, setStepArqueo] = useState<'input' | 'result'>('input');
@@ -51,7 +64,6 @@ function Caja() {
   const [arqueoDiff, setArqueoDiff] = useState(0);
   const [justification, setJustification] = useState('');
 
-  // 1. CARGA DE DATOS Y SESIÓN PERSISTENTE
   useEffect(() => {
     loadData();
     checkSession();
@@ -63,6 +75,7 @@ function Caja() {
       const session = await MockService.getBoxSession();
       if (session && session.isOpen) {
           setBaseCash(session.base);
+          setSessionStartTime(session.startTime); 
           setIsBaseSet(true);
       }
   };
@@ -74,29 +87,29 @@ function Caja() {
     setAllProducts(prods);
   };
 
-  // 2. ABRIR CAJA (PERSISTENTE)
   const handleOpenBox = async () => {
       const base = parseFloat(realCash);
       if (isNaN(base) || base < 0) return toast("Monto inválido", "error");
-      
       await MockService.openBox(base);
       setBaseCash(base);
+      setSessionStartTime(Date.now()); 
       setIsBaseSet(true);
       setIsOpeningOpen(false);
       setRealCash('');
-      toast(`Caja abierta con base de $${base.toLocaleString()}. Admin notificado 🔔`, "success");
+      toast(`Caja abierta con base de $${base.toLocaleString()}. Admin notificado`, "success");
   };
 
-  // 3. INICIAR PAGO (CON BLOQUEO SI NO HAY CAJA ABIERTA)
   const openPayment = (order: Order, specificItems?: OrderItem[], name?: string) => {
     if (!isBaseSet) {
-        toast("⚠️ DEBES ABRIR LA CAJA PRIMERO", "error");
+        toast("Debes abrir la caja primero", "error");
         setIsOpeningOpen(true);
         return;
     }
     setSelectedOrder(order);
     setItemsToPay(specificItems || order.items);
     setPayerName(name || 'Cuenta Única');
+    
+    // Resetear formulario
     setPaymentMethod('efectivo');
     setCashReceived('');
     setNeedsInvoice(false);
@@ -104,10 +117,14 @@ function Caja() {
     setShowProductSearch(false);
     setTipType('none');
     setCustomTipAmount('');
+    
+    setPaymentSuccess(false); 
+    setIsFacturaLoading(false);
+    setPrintData(null);
+    
     setIsPaymentOpen(true);
   };
 
-  // Extras
   const addExtraProduct = (product: Product) => {
       const newItem: OrderItem = {
           productId: product.id,
@@ -127,61 +144,120 @@ function Caja() {
       setItemsToPay(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // Cálculos con Propina
   const calculateSubtotal = () => itemsToPay.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  
   const calculateTip = () => {
       if (tipType === 'none') return 0;
       if (tipType === '10') return calculateSubtotal() * 0.10;
       return parseFloat(customTipAmount) || 0;
   };
-
   const calculateTotal = () => calculateSubtotal() + calculateTip();
-
   const calculateChange = () => {
       const total = calculateTotal();
       const received = parseFloat(cashReceived) || 0;
       return received - total;
   };
 
+  const handlePrint = () => {
+      setTimeout(() => {
+          window.print();
+      }, 100);
+  };
+
+  const handleClosePaymentModal = () => {
+      setIsPaymentOpen(false);
+  }
+
+  // --- [LÓGICA PRINCIPAL DE PAGO Y FACTURACIÓN] ---
   const handlePay = async () => {
     if (selectedOrder) {
       const total = calculateTotal();
+      const subtotal = calculateSubtotal();
+      const tip = calculateTip();
       
+      // Validación de efectivo
       if (paymentMethod === 'efectivo') {
           const received = parseFloat(cashReceived) || 0;
-          if (received < total - 50) { // Tolerancia $50 pesos
+          if (received < total - 50) { 
               toast(`Falta dinero. Recibido: $${received.toLocaleString()}, Total: $${total.toLocaleString()}`, "error");
               return;
           }
       }
 
+      // Validación de Facturación
       if (needsInvoice && (!clientInfo.nit || !clientInfo.email)) {
-          toast("NIT y Correo obligatorios para factura", "error");
+          toast("Error: NIT y Correo obligatorios para Factura Electrónica", "error");
           return;
       }
 
-      await MockService.payOrder(selectedOrder.id, total, itemsToPay, paymentMethod);
-      setIsPaymentOpen(false);
-      loadData();
-      toast("Pago registrado 💰", "success");
+      try {
+          setIsFacturaLoading(true); // Bloquear UI
+
+          // 1. Guardar pago local (Inventario)
+          await MockService.payOrder(selectedOrder.id, total, itemsToPay, paymentMethod);
+          
+          let invoiceData = null;
+
+          // 2. Procesar Factura Electrónica (Si se requiere)
+          if (needsInvoice) {
+              try {
+                  toast("Conectando con DIAN...", "info");
+                  const response = await BillingService.emitInvoice(
+                      selectedOrder, itemsToPay, clientInfo, paymentMethod
+                  );
+                  invoiceData = response.data; // Aquí viene el CUFE y QR simulados
+                  toast("¡Factura Electrónica Generada!", "success");
+              } catch (billingError) {
+                  console.error(billingError);
+                  toast("Pago OK, pero falló la Factura Electrónica. Verifica logs.", "warning");
+              }
+          }
+
+          // 3. Preparar datos para el Ticket (InvoiceTemplate)
+          setPrintData({
+              order: { 
+                  ...selectedOrder, 
+                  items: itemsToPay, 
+                  id: `${selectedOrder.id}-PAID` 
+              },
+              subtotal,
+              tip,
+              total,
+              paymentMethod,
+              cashReceived: parseFloat(cashReceived) || 0,
+              change: calculateChange(),
+              clientName: payerName !== 'Cuenta Única' ? payerName : (needsInvoice ? clientInfo.name : undefined),
+              
+              // Datos de Factura Electrónica para el ticket impreso
+              invoiceCufe: invoiceData?.cufe,
+              invoiceQr: invoiceData?.qr_image,
+              invoiceNumber: invoiceData?.number
+          });
+
+          // 4. Finalizar
+          setPaymentSuccess(true);
+          
+          // Actualización optimista de la lista
+          setPendingOrders(currentOrders => 
+              currentOrders.filter(o => o.id !== selectedOrder.id)
+          );
+
+      } catch (error: any) {
+          console.error("Error al procesar pago:", error);
+          toast(error.message || "Error desconocido", "error");
+      } finally {
+          setIsFacturaLoading(false); // Desbloquear UI
+      }
     }
   };
 
-  // 4. ARQUEO Y CIERRE
   const openArqueo = async () => {
     if (!isBaseSet) {
-        toast("⚠️ Primero debes realizar la APERTURA de caja.", "warning");
+        toast("Primero debes realizar la APERTURA de caja.", "warning");
         setIsOpeningOpen(true);
         return;
     }
-
     const report = await MockService.getSalesReport();
-    const today = new Date().toDateString();
-    const salesCash = report.history
-        .filter(s => new Date(s.timestamp).toDateString() === today && s.method === 'efectivo')
-        .reduce((sum, s) => sum + s.total, 0);
-
+    const salesCash = report.history.filter(s => s.method === 'efectivo' && s.timestamp >= sessionStartTime).reduce((sum, s) => sum + s.total, 0);
     const totalExpected = salesCash + baseCash;
     setSystemCash(totalExpected);
     setRealCash('');
@@ -199,10 +275,9 @@ function Caja() {
 
   const closeTurn = async () => {
     if (arqueoDiff < 0 && justification.trim().length < 10) {
-        toast("⛔ Debes explicar el faltante (mínimo 10 caracteres).", "error");
+        toast("Debes explicar el faltante (mínimo 10 caracteres).", "error");
         return;
     }
-    
     await MockService.registerClosing({
         user: 'Cajero Turno',
         systemExpected: systemCash, 
@@ -212,11 +287,10 @@ function Caja() {
         justification: arqueoDiff < 0 ? justification : undefined,
         openingBase: baseCash
     });
-    
     setBaseCash(0);
+    setSessionStartTime(0); 
     setIsBaseSet(false);
-    
-    toast("Turno cerrado correctamente ✅", "success");
+    toast("Turno cerrado correctamente", "success");
     setIsArqueoOpen(false);
   };
 
@@ -232,7 +306,26 @@ function Caja() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto bg-slate-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
+      
+      <div id="printable-invoice-area" className="hidden print:block">
+          {printData && (
+              <InvoiceTemplate 
+                  ref={invoiceRef}
+                  order={printData.order}
+                  subtotal={printData.subtotal}
+                  tip={printData.tip}
+                  total={printData.total}
+                  paymentMethod={printData.paymentMethod}
+                  cashReceived={printData.cashReceived}
+                  change={printData.change}
+                  clientName={printData.clientName}
+                  // Pasamos datos extra al template si lo soporta
+                  // invoiceCufe={printData.invoiceCufe} 
+              />
+          )}
+      </div>
+
+      <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <Wallet className="text-slate-900"/> Terminal de Caja
         </h1>
@@ -253,19 +346,19 @@ function Caja() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden">
           {pendingOrders.map(order => (
             <div key={order.id} className="bg-white border p-0 rounded-xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-                <div className="bg-purple-50 p-4 border-b border-purple-100 flex justify-between items-center">
+                <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-start">
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800">Mesa {order.tableId.replace('t-', '')}</h2>
-                        {order.isSplit ? (
-                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold flex items-center gap-1 w-fit mt-1"><User size={12}/> CUENTA DIVIDIDA</span>
-                        ) : (
-                            <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-bold mt-1 inline-block">Cuenta Única</span>
-                        )}
+                        <h2 className="text-3xl font-black text-slate-900">Mesa {order.tableId.replace('t-', '')}</h2>
+                        <span className="text-xs font-mono text-slate-400">ID: {order.id.slice(0,4)}</span>
                     </div>
-                    <span className="text-xs font-mono text-slate-400">ID: {order.id.slice(0,4)}</span>
+                    {order.isSplit ? (
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold flex items-center gap-1"><User size={12}/> DIVIDIDA</span>
+                    ) : (
+                        <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-bold">Única</span>
+                    )}
                 </div>
 
                 <div className="p-4 flex-1">
@@ -278,18 +371,21 @@ function Caja() {
                                     <div key={name} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                                         <div>
                                             <div className="flex items-center gap-2 font-bold text-slate-700"><User size={16} className="text-blue-500"/> {name}</div>
-                                            <p className="text-xs text-gray-500">{items.length} items • ${subtotal.toLocaleString()}</p>
+                                            <p className="text-xs text-gray-500">{items.length} items</p>
                                         </div>
-                                        <Button size="sm" onClick={() => openPayment(order, items, name)} className="bg-white border hover:bg-green-50 text-green-700 hover:text-green-800 border-green-200">Cobrar</Button>
+                                        <div className="text-right">
+                                            <p className="font-black text-slate-900">${subtotal.toLocaleString()}</p>
+                                            <Button size="sm" onClick={() => openPayment(order, items, name)} className="h-7 text-xs bg-white border hover:bg-green-50 text-green-700 hover:text-green-800 border-green-200 mt-1">Cobrar</Button>
+                                        </div>
                                     </div>
                                 )
                             })}
                         </div>
                     ) : (
                         <div className="text-center py-4">
-                            <p className="text-gray-500 mb-2">Total a Pagar</p>
-                            <p className="text-4xl font-black text-slate-900 mb-4">${order.items.reduce((a, b) => a + b.price, 0).toLocaleString()}</p>
-                            <Button onClick={() => openPayment(order)} className="w-full bg-slate-900 hover:bg-slate-800 h-14 text-lg">Cobrar Todo</Button>
+                            <p className="text-gray-500 mb-1 text-sm font-bold uppercase">Total a Pagar</p>
+                            <p className="text-5xl font-black text-slate-900 mb-6 tracking-tight">${order.items.reduce((a, b) => a + b.price, 0).toLocaleString()}</p>
+                            <Button onClick={() => openPayment(order)} className="w-full bg-slate-900 hover:bg-slate-800 h-14 text-lg font-bold shadow-lg">Cobrar Todo</Button>
                         </div>
                     )}
                 </div>
@@ -304,24 +400,38 @@ function Caja() {
       </div>
 
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="text-xl">Procesar Pago: <span className="text-blue-600">{payerName}</span></DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
-                <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 h-fit flex flex-col h-full">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-700 flex items-center gap-2"><Receipt size={20}/> Factura</h3>
-                        <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50 h-8" onClick={() => setShowProductSearch(!showProductSearch)}>
-                            <PackagePlus size={16} className="mr-1"/> Agregar Ítem
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto print:hidden">
+            <DialogHeader>
+                <DialogTitle className="text-xl flex justify-between items-center">
+                    <span>Procesar Pago: <span className="text-blue-600 font-bold">{payerName}</span></span>
+                    {paymentSuccess && (
+                        <Button variant="ghost" size="sm" onClick={handleClosePaymentModal} className="text-slate-400 hover:text-red-500">
+                            <X size={20}/> Cerrar
                         </Button>
+                    )}
+                </DialogTitle>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                
+                {/* COLUMNA IZQUIERDA: DETALLES */}
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 h-fit flex flex-col h-full opacity-100 transition-opacity">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2"><Receipt size={20}/> Detalle Factura</h3>
+                        {!paymentSuccess && (
+                            <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50 h-8" onClick={() => setShowProductSearch(!showProductSearch)}>
+                                <PackagePlus size={16} className="mr-1"/> Agregar Extra
+                            </Button>
+                        )}
                     </div>
                     
-                    {showProductSearch && (
+                    {showProductSearch && !paymentSuccess && (
                         <div className="mb-4 bg-white p-2 rounded-lg border shadow-sm animate-in slide-in-from-top-2">
                             <div className="relative">
                                 <Search size={14} className="absolute left-2 top-2.5 text-gray-400"/>
                                 <input 
                                     className="w-full pl-7 p-1.5 text-sm border rounded bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    placeholder="Buscar extra (ej: chicle)..."
+                                    placeholder="Buscar extra..."
                                     value={productSearchTerm}
                                     onChange={(e) => setProductSearchTerm(e.target.value)}
                                     autoFocus
@@ -346,17 +456,13 @@ function Caja() {
                         {itemsToPay.map((item, idx) => (
                             <div key={idx} className="flex justify-between items-center py-2 border-b border-dashed border-slate-200 last:border-0 group">
                                 <div>
-                                    <p className="font-bold text-slate-800 text-sm">{item.productName}</p>
-                                    <p className="text-xs text-slate-500">
-                                        Cant: {item.quantity} 
-                                        {item.assignedTo === 'Agregado en Caja' && <span className="text-blue-600 font-bold ml-1">(Extra)</span>}
-                                    </p>
+                                    <p className="font-bold text-slate-700 text-sm">{item.productName}</p>
+                                    <p className="text-xs text-slate-400">Cant: {item.quantity}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <p className="font-mono font-medium text-slate-700">${item.price.toLocaleString()}</p>
-                                    {/* BOTÓN ELIMINAR (SOLO PARA EXTRAS) */}
-                                    {item.assignedTo === 'Agregado en Caja' && (
-                                        <button onClick={() => removeExtraItem(idx)} className="text-red-400 hover:text-red-600 transition-colors p-1" title="Eliminar ítem extra">
+                                    <p className="font-mono font-medium text-slate-600">${item.price.toLocaleString()}</p>
+                                    {item.assignedTo === 'Agregado en Caja' && !paymentSuccess && (
+                                        <button onClick={() => removeExtraItem(idx)} className="text-red-400 hover:text-red-600 transition-colors p-1">
                                             <Trash2 size={16}/>
                                         </button>
                                     )}
@@ -365,7 +471,6 @@ function Caja() {
                         ))}
                     </div>
 
-                    {/* TOTALES */}
                     <div className="mt-6 pt-4 border-t-2 border-slate-200 space-y-2">
                         <div className="flex justify-between text-sm text-slate-500">
                             <span>Subtotal</span>
@@ -373,87 +478,169 @@ function Caja() {
                         </div>
                         {calculateTip() > 0 && (
                             <div className="flex justify-between text-sm text-green-600 font-bold">
-                                <span>Propina / Servicio</span>
+                                <span>Propina</span>
                                 <span>+${calculateTip().toLocaleString()}</span>
                             </div>
                         )}
                         <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                            <span className="font-bold text-slate-500 uppercase">Total Neto</span>
-                            <span className="font-black text-3xl text-slate-900">${calculateTotal().toLocaleString()}</span>
+                            <span className="font-bold text-slate-500 uppercase text-xs">Total Neto</span>
+                            <span className="font-black text-2xl text-slate-800">${calculateTotal().toLocaleString()}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    {/* PROPINA */}
-                    <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                        <Label className="text-xs font-bold text-slate-400 uppercase mb-2 block flex items-center gap-1"><Coins size={14}/> Propina Sugerida</Label>
-                        <div className="flex gap-2 mb-2">
-                            <button onClick={() => setTipType('none')} className={`flex-1 py-2 text-sm rounded-lg border font-medium transition-all ${tipType === 'none' ? 'bg-slate-200 border-slate-300 text-slate-800' : 'hover:bg-slate-50'}`}>No</button>
-                            <button onClick={() => setTipType('10')} className={`flex-1 py-2 text-sm rounded-lg border font-medium transition-all ${tipType === '10' ? 'bg-green-100 border-green-300 text-green-800' : 'hover:bg-slate-50'}`}>10%</button>
-                            <button onClick={() => setTipType('custom')} className={`flex-1 py-2 text-sm rounded-lg border font-medium transition-all ${tipType === 'custom' ? 'bg-blue-100 border-blue-300 text-blue-800' : 'hover:bg-slate-50'}`}>Otro</button>
-                        </div>
-                        {tipType === 'custom' && (
-                            <div className="relative animate-in fade-in zoom-in-95 duration-200">
-                                <span className="absolute left-3 top-2.5 text-gray-400">$</span>
-                                <Input className="pl-6 h-10" placeholder="Monto propina..." type="number" value={customTipAmount} onChange={(e) => setCustomTipAmount(e.target.value)} autoFocus/>
+                {/* COLUMNA DERECHA: PAGO Y FACTURACIÓN */}
+                <div className="space-y-6 flex flex-col justify-between">
+                    
+                    {!paymentSuccess ? (
+                        <>
+                            <div>
+                                <div className="text-center mb-6">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total a Pagar</p>
+                                    <p className="text-6xl font-black text-slate-900 tracking-tighter">${calculateTotal().toLocaleString()}</p>
+                                </div>
+
+                                <div className="bg-white mb-6">
+                                    <Label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Propina</Label>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setTipType('none')} className={`flex-1 py-2 text-sm rounded-lg border font-medium ${tipType === 'none' ? 'bg-slate-800 text-white' : 'bg-slate-50'}`}>No</button>
+                                        <button onClick={() => setTipType('10')} className={`flex-1 py-2 text-sm rounded-lg border font-medium ${tipType === '10' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-slate-50'}`}>10%</button>
+                                        <button onClick={() => setTipType('custom')} className={`flex-1 py-2 text-sm rounded-lg border font-medium ${tipType === 'custom' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-50'}`}>Otro</button>
+                                    </div>
+                                    {tipType === 'custom' && (
+                                        <Input className="mt-2 text-center" placeholder="Monto..." type="number" value={customTipAmount} onChange={(e) => setCustomTipAmount(e.target.value)} autoFocus/>
+                                    )}
+                                </div>
+
+                                <div className="mb-6">
+                                    <Label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Método</Label>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {['efectivo', 'tarjeta', 'Transferencia'].map(m => (
+                                            <button key={m} onClick={() => setPaymentMethod(m as any)} className={`p-4 rounded-xl border flex flex-col items-center gap-2 capitalize transition-all ${paymentMethod === m ? 'bg-slate-900 text-white border-slate-900 shadow-lg scale-105' : 'bg-white hover:bg-slate-50 text-slate-500'}`}>
+                                                {m === 'efectivo' && <Banknote size={24}/>}
+                                                {m === 'tarjeta' && <CreditCard size={24}/>}
+                                                {m === 'Transferencia' && <Smartphone size={24}/>}
+                                                <span className="text-xs font-bold">{m}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {paymentMethod === 'efectivo' && (
+                                    <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-100 mb-6">
+                                        <div className="flex gap-6 items-center">
+                                            <div className="flex-1">
+                                                <Label className="text-yellow-800 font-bold mb-1 block text-xs uppercase">Dinero Recibido</Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-3 text-yellow-600 font-bold">$</span>
+                                                    <Input className="pl-6 bg-white border-yellow-200 font-bold text-2xl h-14 text-slate-900" placeholder="0" type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)}/>
+                                                </div>
+                                            </div>
+                                            <div className="text-right min-w-[120px]">
+                                                <p className="text-xs text-yellow-700 font-bold uppercase mb-1">Su Cambio</p>
+                                                <p className={`text-4xl font-black tracking-tight ${calculateChange() < 0 ? 'text-red-500' : 'text-green-600'}`}>${calculateChange().toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    {/* MÉTODOS DE PAGO */}
-                    <div>
-                        <Label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Método de Pago</Label>
-                        <div className="grid grid-cols-3 gap-3">
-                            {['efectivo', 'tarjeta', 'nequi'].map(m => (
-                                <button key={m} onClick={() => setPaymentMethod(m as any)} className={`p-3 rounded-lg border flex flex-col items-center gap-2 capitalize transition-all ${paymentMethod === m ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'hover:bg-slate-50'}`}>
-                                    {m === 'efectivo' && <Banknote size={20}/>}
-                                    {m === 'tarjeta' && <CreditCard size={20}/>}
-                                    {m === 'nequi' && <Smartphone size={20}/>}
-                                    {m}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            {/* --- SECCIÓN DE FACTURACIÓN ELECTRÓNICA --- */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <Label className="text-slate-800 font-bold flex items-center gap-2">
+                                        <FileText size={16} className="text-blue-600"/> Facturación Electrónica
+                                    </Label>
+                                    <Switch checked={needsInvoice} onCheckedChange={setNeedsInvoice} />
+                                </div>
 
-                    {paymentMethod === 'efectivo' && (
-                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
-                            <Label className="text-yellow-800 font-bold mb-2 flex items-center gap-2"><Calculator size={16}/> Cambio</Label>
-                            <div className="flex gap-4 items-center">
-                                <div className="flex-1 relative">
-                                    <span className="absolute left-3 top-2.5 text-gray-400">$</span>
-                                    <Input className="pl-6 bg-white border-yellow-200 font-bold text-lg" placeholder="Recibido..." type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)}/>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-yellow-600 font-bold uppercase">Devolver</p>
-                                    <p className={`text-2xl font-black ${calculateChange() < 0 ? 'text-red-500' : 'text-green-600'}`}>${calculateChange().toLocaleString()}</p>
-                                </div>
+                                {needsInvoice && (
+                                    <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-bold text-slate-500">NIT / Cédula</Label>
+                                            <Input 
+                                               value={clientInfo.nit} 
+                                               onChange={e => setClientInfo({...clientInfo, nit: e.target.value})} 
+                                               className="bg-white h-9" 
+                                               placeholder="Ej: 123456789"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-bold text-slate-500">Nombre / Razón Social</Label>
+                                            <Input 
+                                               value={clientInfo.name} 
+                                               onChange={e => setClientInfo({...clientInfo, name: e.target.value})} 
+                                               className="bg-white h-9"
+                                               placeholder="Ej: Cliente Final"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 col-span-2">
+                                            <Label className="text-xs font-bold text-slate-500">Email (Para enviar XML)</Label>
+                                            <Input 
+                                               value={clientInfo.email} 
+                                               onChange={e => setClientInfo({...clientInfo, email: e.target.value})} 
+                                               className="bg-white h-9"
+                                               placeholder="cliente@email.com"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 col-span-2">
+                                            <Label className="text-xs font-bold text-slate-500">Teléfono</Label>
+                                            <Input 
+                                               value={clientInfo.phone} 
+                                               onChange={e => setClientInfo({...clientInfo, phone: e.target.value})} 
+                                               className="bg-white h-9"
+                                               placeholder="300 123 4567"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Button 
+                                onClick={handlePay} 
+                                disabled={isFacturaLoading}
+                                className="w-full bg-slate-900 hover:bg-slate-800 h-16 text-xl font-bold shadow-xl transition-all active:scale-95"
+                            >
+                                {isFacturaLoading ? (
+                                    <span className="flex items-center gap-2"><Loader2 className="animate-spin"/> PROCESANDO DIAN...</span>
+                                ) : (
+                                    <>CONFIRMAR PAGO <CheckCircle2 className="ml-2" size={24}/></>
+                                )}
+                            </Button>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full animate-in fade-in zoom-in-95 duration-300">
+                            <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                                <CheckCircle2 size={64}/>
+                            </div>
+                            <h2 className="text-3xl font-black text-slate-900 mb-2">¡Pago Exitoso!</h2>
+                            <p className="text-slate-500 mb-8 text-center">
+                                La orden ha sido cerrada y el inventario actualizado.
+                                {needsInvoice && <span className="block text-blue-600 font-bold mt-2">Factura Electrónica Emitida</span>}
+                            </p>
+                            
+                            <div className="flex flex-col gap-4 w-full">
+                                <Button 
+                                    onClick={handlePrint} 
+                                    className="w-full bg-slate-900 text-white h-16 text-xl font-bold shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800"
+                                >
+                                    <Printer size={28}/> IMPRIMIR FACTURA
+                                </Button>
+                                <Button 
+                                    variant="outline"
+                                    onClick={handleClosePaymentModal} 
+                                    className="w-full h-12 text-slate-500 hover:text-slate-900 border-2"
+                                >
+                                    Cerrar y Atender Siguiente
+                                </Button>
                             </div>
                         </div>
                     )}
-
-                    <div className="border rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <Label className="font-bold text-slate-700 flex items-center gap-2"><FileText size={18}/> ¿Factura Electrónica?</Label>
-                            <input type="checkbox" className="w-5 h-5 accent-slate-900 cursor-pointer" checked={needsInvoice} onChange={(e) => setNeedsInvoice(e.target.checked)}/>
-                        </div>
-                        {needsInvoice && (
-                            <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2">
-                                <Input className="h-9 text-sm" placeholder="NIT / Cédula" value={clientInfo.nit} onChange={e => setClientInfo({...clientInfo, nit: e.target.value})}/>
-                                <Input className="h-9 text-sm" placeholder="Nombre" value={clientInfo.name} onChange={e => setClientInfo({...clientInfo, name: e.target.value})}/>
-                                <Input className="h-9 text-sm col-span-2" placeholder="Correo Electrónico" value={clientInfo.email} onChange={e => setClientInfo({...clientInfo, email: e.target.value})}/>
-                                <Input className="h-9 text-sm col-span-2" placeholder="Teléfono" value={clientInfo.phone} onChange={e => setClientInfo({...clientInfo, phone: e.target.value})}/>
-                            </div>
-                        )}
-                    </div>
-                    <Button onClick={handlePay} className="w-full bg-slate-900 hover:bg-slate-800 h-14 text-lg font-bold shadow-xl transition-all active:scale-95">
-                        CONFIRMAR PAGO <CheckCircle2 className="ml-2" size={20}/>
-                    </Button>
                 </div>
             </div>
         </DialogContent>
       </Dialog>
-
+      
       <Dialog open={isOpeningOpen} onOpenChange={(v) => !isBaseSet ? setIsOpeningOpen(true) : setIsOpeningOpen(v)}>
           <DialogContent className="sm:max-w-sm" onInteractOutside={(e) => { if(!isBaseSet) e.preventDefault(); }}>
               <DialogHeader><DialogTitle>Apertura de Caja</DialogTitle></DialogHeader>

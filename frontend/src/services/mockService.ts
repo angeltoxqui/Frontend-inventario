@@ -1,161 +1,239 @@
 import { 
   Product, ProductCategory, User, UserRole, Table, Order, 
-  Ingredient, SaleRecord, CashClosingLog, Expense, CashierSession 
+  Ingredient, SaleRecord, CashClosingLog, Expense, CashierSession, OrderItem, Store, SuperAdminUser, MigrationLog 
 } from '../types';
 
-// CAMBIAMOS LA VERSIÓN PARA LIMPIAR DATOS CORRUPTOS ANTERIORES
-const STORAGE_KEY = 'rootventory_db_v8_fixed';
+const STORAGE_KEY = 'rootventory_db_v13_clean_start';
 
 // --- DATA INICIAL ---
 const defaultIngredients: Ingredient[] = [
   { id: 'i-1', name: 'Carne Molida', unit: 'gr', cost: 25, currentStock: 5000, maxStock: 10000, lastUpdated: Date.now() },
-  { id: 'i-2', name: 'Pan Hamburguesa', unit: 'und', cost: 800, currentStock: 50, maxStock: 100, lastUpdated: Date.now() }, // 800 pesos por pan
+  { id: 'i-2', name: 'Pan Hamburguesa', unit: 'und', cost: 800, currentStock: 50, maxStock: 100, lastUpdated: Date.now() },
   { id: 'i-3', name: 'Papas Francesa', unit: 'gr', cost: 12, currentStock: 20000, maxStock: 50000, lastUpdated: Date.now() },
 ];
 
 const defaultProducts: Product[] = [
-  { id: 'p-1', name: 'Hamburguesa Sencilla', price: 20000, category: ProductCategory.FUERTES, ingredients: [], recipe: [{ingredientId: 'i-1', quantity: 150}, {ingredientId: 'i-2', quantity: 1}] },
-  { id: 'p-2', name: 'Coca Cola', price: 5000, category: ProductCategory.BEBIDAS, ingredients: [], recipe: [] },
+  { id: 'p-1', name: 'Hamburguesa Sencilla', price: 20000, category: ProductCategory.FUERTES, recipe: [{ingredientId: 'i-1', quantity: 150}, {ingredientId: 'i-2', quantity: 1}], stock: 50, status: 'Activo' },
+  { id: 'p-2', name: 'Coca Cola', price: 5000, category: ProductCategory.BEBIDAS, recipe: [], stock: 100, status: 'Activo' },
 ];
 
 const defaultUsers: User[] = [
-  { id: '1', fullName: 'Admin General', role: UserRole.ADMIN, en_turno: true },
-  { id: '2', fullName: 'Mesero Juan', role: UserRole.MESERO, en_turno: true },
-  { id: '3', fullName: 'Chef Maria', role: UserRole.COCINERO, en_turno: true },
-  { id: '4', fullName: 'Cajero Pedro', role: UserRole.CAJERO, en_turno: true },
+  { id: 'u-0', username: 'owner', pin: '0000', fullName: 'Super Admin', role: UserRole.SUPERADMIN, en_turno: true },
+  { id: '1', username: 'admin', pin: '1234', fullName: 'Admin General', role: UserRole.ADMIN, en_turno: true, permissions: [] },
+  { id: '2', username: 'juan', pin: '1111', fullName: 'Mesero Juan', role: UserRole.MESERO, en_turno: true, permissions: [] },
+  { id: '3', username: 'maria', pin: '2222', fullName: 'Chef Maria', role: UserRole.COCINERO, en_turno: true, permissions: [] },
+  { id: '4', username: 'pedro', pin: '3333', fullName: 'Cajero Pedro', role: UserRole.CAJERO, en_turno: true, permissions: [] },
 ];
 
 const defaultTables: Table[] = Array.from({ length: 9 }, (_, i) => ({ id: `t-${i + 1}`, number: i + 1, status: 'libre' }));
 
-// --- PERSISTENCIA ---
-const loadData = () => { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; };
-const saved = loadData();
+const defaultStores: Store[] = [
+    { tenant_id: 1, schema_name: 'tenant_000001', name: 'Restaurante Demo', adminName: 'Juan Perez', adminEmail: 'juan@demo.com', status: 'active', plan: 'basic', nextPayment: "2026-02-05T12:00:00Z", revenue: 0 },
+    { tenant_id: 2, schema_name: 'tenant_000002', name: 'Pizza Italia', adminName: 'Luigi Mario', adminEmail: 'luigi@pizza.com', status: 'active', plan: 'pro', nextPayment: "2026-02-10T12:00:00Z", revenue: 1200000 },
+    { tenant_id: 3, schema_name: 'tenant_000003', name: 'Tacos Pastor', adminName: 'Carlos R.', adminEmail: 'carlos@tacos.com', status: 'suspended', plan: 'basic', nextPayment: "2025-12-01T12:00:00Z", revenue: 0 },
+];
 
-let ingredients: Ingredient[] = saved?.ingredients || defaultIngredients;
-let products: Product[] = saved?.products || defaultProducts;
-let users: User[] = saved?.users || defaultUsers;
-let tables: Table[] = saved?.tables || defaultTables;
-let orders: Order[] = saved?.orders || [];
-let salesHistory: SaleRecord[] = saved?.salesHistory || [];
-let closingLogs: CashClosingLog[] = saved?.closingLogs || [];
-let expenses: Expense[] = saved?.expenses || [];
-let cashierSession: CashierSession | null = saved?.cashierSession || null;
+const defaultSuperAdmins: SuperAdminUser[] = [
+    { user_id: 'sa-1', email: 'dev@company.com', display: 'Dev Principal', role: 'dev', is_active: true, created_at: new Date().toISOString() }
+];
 
-const persistData = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
-        ingredients, products, users, tables, orders, salesHistory, closingLogs, expenses, cashierSession 
-    }));
+const defaultMigrations: MigrationLog[] = [
+    { id: 'm-1', migration_name: '2025_12_init_schema', applied_at: "2025-12-01T10:00:00Z", status: 'success', tenants_applied: 3 }
+];
+
+interface DatabaseSchema {
+    ingredients: Ingredient[];
+    products: Product[];
+    users: User[];
+    tables: Table[];
+    orders: Order[];
+    salesHistory: SaleRecord[];
+    closingLogs: CashClosingLog[];
+    expenses: Expense[];
+    cashierSession: CashierSession | null;
+    stores: Store[]; 
+    superAdmins: SuperAdminUser[];
+    migrations: MigrationLog[];
+}
+
+const createDefaultDb = (): DatabaseSchema => ({
+    ingredients: defaultIngredients,
+    products: defaultProducts,
+    users: defaultUsers,
+    tables: defaultTables,
+    orders: [],
+    salesHistory: [],
+    closingLogs: [],
+    expenses: [],
+    cashierSession: null,
+    stores: defaultStores,
+    superAdmins: defaultSuperAdmins,
+    migrations: defaultMigrations
+});
+
+const getDb = (): DatabaseSchema => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return createDefaultDb();
+    try {
+        return JSON.parse(stored);
+    } catch (error) {
+        console.error("CRITICAL: LocalStorage corrupted.", error);
+        return createDefaultDb(); 
+    }
 };
 
-// --- SERVICIO ---
+const saveDb = (db: DatabaseSchema) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    window.dispatchEvent(new Event('storage')); 
+};
+
 export const MockService = {
-  getIngredients: async () => [...ingredients],
-  getProducts: async () => [...products],
-  getTables: async () => [...tables],
-  getOrders: async () => [...orders],
-  getUsers: async () => [...users],
-  getClosingLogs: async () => [...closingLogs],
-  getBoxSession: async () => cashierSession,
-  
-  // --- CORRECCIÓN EN INGREDIENTES ---
-  createIngredient: async (i: any) => { 
-      // Aseguramos que tenga fecha
-      const newIng = { ...i, lastUpdated: Date.now() };
-      ingredients.push(newIng); 
-      persistData(); 
-      return newIng; 
-  },
-  
-  updateIngredient: async (id: string, d: any) => { 
-      // Mapeamos y aseguramos que el ID coincida exactamente
-      let found = false;
-      ingredients = ingredients.map(x => {
-          if (x.id === id) {
-              found = true;
-              return { ...x, ...d, lastUpdated: Date.now() }; // Sobrescribimos propiedades
-          }
-          return x;
-      });
+  // Getters
+  getIngredients: async () => getDb().ingredients,
+  getProducts: async () => getDb().products,
+  getOrders: async () => getDb().orders,
+  getUsers: async () => getDb().users,
+  getClosingLogs: async () => getDb().closingLogs,
+  getBoxSession: async () => getDb().cashierSession,
+
+  // --- OBTENER MESAS (CON AUTOCORRECCIÓN) ---
+  getTables: async () => { 
+      const db = getDb();
       
-      if (found) {
-          persistData(); 
-          return true; 
+      // Limpiamos timestamps basura de mesas libres para evitar alertas falsas
+      const sanitizedTables = db.tables.map(t => {
+          // Si está libre, NO debe tener timestamp. Si lo tiene, es basura.
+          if (t.status === 'libre' && t.timestamp) {
+              return { ...t, timestamp: undefined };
+          }
+          return t;
+      });
+
+      // Si detectamos cambios, guardamos la versión limpia
+      if (JSON.stringify(sanitizedTables) !== JSON.stringify(db.tables)) {
+          db.tables = sanitizedTables;
+          saveDb(db);
       }
-      return false; // Retornamos false si no se encontró (para debug)
+
+      return db.tables;
+  },
+
+  // --- NUEVO: FUNCIÓN PARA RESETEAR SALA (FIX) ---
+  resetAllTables: async () => {
+      const db = getDb();
+      db.tables = db.tables.map(t => ({
+          ...t,
+          status: 'libre',
+          timestamp: undefined // Borrado total de tiempo
+      }));
+      // Opcional: Limpiar órdenes pendientes si se desea un reset total
+      // db.orders = []; 
+      saveDb(db);
+      return true;
+  },
+
+  // CRUD Básicos
+  createIngredient: async (i: Omit<Ingredient, 'id' | 'lastUpdated'>) => { const db = getDb(); const newIng = { ...i, id: Math.random().toString(36).substr(2,9), lastUpdated: Date.now() }; db.ingredients.push(newIng as any); saveDb(db); return newIng; },
+  updateIngredient: async (id: string, d: Partial<Ingredient>) => { const db = getDb(); db.ingredients = db.ingredients.map(x => x.id === id ? { ...x, ...d, lastUpdated: Date.now() } : x); saveDb(db); return true; },
+  deleteIngredient: async (id: string) => { const db = getDb(); db.ingredients = db.ingredients.filter(x => x.id !== id); saveDb(db); return true; },
+
+  createProduct: async (p: Omit<Product, 'id'>) => { const db = getDb(); const newP = { ...p, id: `p-${Date.now()}`, recipe: p.recipe || [] }; db.products.push(newP); saveDb(db); return newP; },
+  updateProduct: async (id: string, d: Partial<Product>) => { const db = getDb(); db.products = db.products.map(x => x.id === id ? {...x, ...d} : x); saveDb(db); return true; },
+  deleteProduct: async (id: string) => { const db = getDb(); db.products = db.products.filter(x => x.id !== id); saveDb(db); return true; },
+
+  updateUserStatus: async (id: string, s: boolean) => { const db = getDb(); db.users = db.users.map(u => u.id === id ? {...u, en_turno: s} : u); saveDb(db); return true; },
+  updateUser: async (id: string, data: Partial<User>) => { const db = getDb(); db.users = db.users.map(u => u.id === id ? { ...u, ...data } : u); saveDb(db); return true; },
+
+  // --- COCINA Y ORDENES ---
+  createOrder: async (order: Order) => { 
+      const db = getDb(); 
+      db.orders.push(order); 
+      db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'cocinando', timestamp: Date.now() } : t); 
+      saveDb(db); 
+      return order; 
+  },
+
+  updateOrderStatus: async (id: string, status: string) => { 
+      const db = getDb(); 
+      const order = db.orders.find(o => o.id === id);
+      
+      if(order) { 
+          order.status = status as any; 
+          
+          if(status === 'cocinando') {
+              db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'cocinando' } : t);
+          }
+          if(status === 'servir') {
+              db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'servir' } : t);
+          }
+          if(status === 'entregado' || status === 'comiendo') {
+             db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'comiendo' } : t);
+          }
+
+          saveDb(db); 
+          return true; 
+      } 
+      return false; 
   },
   
-  deleteIngredient: async (id: string) => { ingredients = ingredients.filter(x => x.id !== id); persistData(); return true; },
+  markOrderReady: async (id: string) => { const db = getDb(); const o = db.orders.find(x => x.id === id); if(o) { o.status = 'servir'; db.tables = db.tables.map(t => t.id === o.tableId ? { ...t, status: 'servir' } : t); saveDb(db); } return true; },
+  serveTable: async (tid: string) => { const db = getDb(); const o = db.orders.find(x => x.tableId === tid && (x.status === 'servir' || x.status === 'listo')); if(o) { o.status = 'entregado'; db.tables = db.tables.map(t => t.id === tid ? { ...t, status: 'comiendo' } : t); saveDb(db); } return true; },
   
-  // ... (Resto de funciones igual que antes: Products, Users, Orders, etc.) ...
-  createProduct: async (p: any) => { products.push(p); persistData(); return p; },
-  updateProduct: async (id: string, d: any) => { products = products.map(x => x.id === id ? {...x, ...d} : x); persistData(); return true; },
-  
-  updateUserStatus: async (id: string, s: boolean) => { users = users.map(u => u.id === id ? {...u, en_turno: s} : u); persistData(); return true; },
-
-  createOrder: async (order: Order) => {
-    orders.push(order);
-    tables = tables.map(t => t.id === order.tableId ? { ...t, status: 'cocinando', timestamp: Date.now() } : t);
-    persistData();
-    return order;
-  },
-  markOrderReady: async (id: string) => {
-    const o = orders.find(x => x.id === id);
-    if(o) { o.status = 'listo'; tables = tables.map(t => t.id === o.tableId ? { ...t, status: 'servir' } : t); persistData(); }
-    return true;
-  },
-  serveTable: async (tid: string) => {
-    const o = orders.find(x => x.tableId === tid && x.status === 'listo');
-    if(o) { o.status = 'entregado'; tables = tables.map(t => t.id === tid ? { ...t, status: 'comiendo' } : t); persistData(); }
-    return true;
-  },
-  requestBill: async (tid: string, split: any) => {
-    const o = orders.find(x => x.tableId === tid);
-    if(o) { o.status = 'por_cobrar'; o.isSplit = split?.isSplit; tables = tables.map(t => t.id === tid ? { ...t, status: 'pagando' } : t); persistData(); }
-    return true;
-  },
-  
-  payOrder: async (orderId: string, amount: number, items: any[], method: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if(!order) return false;
-    
-    const itemsSummary = items.map((i: any) => ({ name: i.productName, price: i.price, quantity: i.quantity }));
-    salesHistory.push({
-        id: Math.random().toString(), timestamp: Date.now(), total: amount, method, 
-        waiterName: 'Cajero Turno', tableNumber: 0, itemsCount: items.length, cost: amount * 0.4, discount: 0,
-        itemsSummary: itemsSummary
-    });
-
-    // Descontar inventario
-    items.forEach((soldItem: any) => {
-        const prod = products.find(p => p.id === soldItem.productId);
-        if (prod && prod.recipe) {
-            prod.recipe.forEach(recipeItem => {
-                const ingredient = ingredients.find(ing => ing.id === recipeItem.ingredientId);
-                if (ingredient) {
-                    ingredient.currentStock -= (recipeItem.quantity * soldItem.quantity);
-                    if (ingredient.currentStock < 0) ingredient.currentStock = 0;
-                }
-            });
-        }
-    });
-
-    if (!order.isSplit || (order.isSplit && order.items.length === items.length)) {
-        tables = tables.map(t => t.id === order.tableId ? { ...t, status: 'libre', timestamp: undefined } : t);
-        orders = orders.filter(o => o.id !== orderId);
-    }
-    persistData();
-    return true;
+  requestBill: async (tid: string, split: { isSplit: boolean; items: OrderItem[] }) => { 
+      const db = getDb(); 
+      const orders = db.orders.filter(x => x.tableId === tid && x.status !== 'pagado' && x.status !== 'cancelado');
+      
+      if(orders.length > 0) { 
+          orders.forEach(o => {
+              o.status = 'pagando'; 
+              o.isSplit = split?.isSplit; 
+          });
+          db.tables = db.tables.map(t => t.id === tid ? { ...t, status: 'pagando' } : t); 
+          saveDb(db); 
+          return true;
+      } 
+      return false; 
   },
 
-  openBox: async (base: number) => { cashierSession = { isOpen: true, base, startTime: Date.now() }; persistData(); return true; },
-  registerClosing: async (log: Omit<CashClosingLog, 'id' | 'timestamp'>) => { closingLogs.push({ ...log, id: Math.random().toString(), timestamp: Date.now() }); cashierSession = null; persistData(); return true; },
-
-  getSalesReport: async () => { return { history: salesHistory, summary: { totalRevenue: salesHistory.reduce((a,b)=>a+b.total,0) } }; },
-  getFinancialData: async () => { 
-      const totalIncome = salesHistory.reduce((sum, s) => sum + s.total, 0); 
-      const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-      return { totalIncome, totalExpenses, netProfit: totalIncome - totalExpenses, transactions: [] }; 
+  payOrder: async (orderId: string, amount: number, items: OrderItem[], method: string) => {
+      const db = getDb();
+      const order = db.orders.find(o => o.id === orderId);
+      
+      if (order) {
+          order.status = 'pagado'; 
+          
+          const pendingOrders = db.orders.filter(o => o.tableId === order.tableId && o.status !== 'pagado' && o.status !== 'cancelado');
+          if (pendingOrders.length === 0) {
+              db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'libre', timestamp: undefined } : t);
+          }
+          
+          const sale: SaleRecord = { id: `sale-${Date.now()}`, orderId: order.id, total: amount, method: method, timestamp: Date.now(), items: items };
+          if (!db.salesHistory) db.salesHistory = [];
+          db.salesHistory.push(sale);
+          saveDb(db);
+          return true;
+      }
+      return false;
   },
-  getInventoryData: async () => { return { ingredients: [...ingredients], expenses: [...expenses], sales: [...salesHistory] }; },
-  registerExpense: async (expense: any) => { expenses.push({ ...expense, id: Math.random().toString(), timestamp: Date.now() }); persistData(); return true; },
+
+  // --- CAJA Y OTROS ---
+  openBox: async (base: number) => { const db = getDb(); db.cashierSession = { isOpen: true, base, startTime: Date.now() }; saveDb(db); return true; },
+  registerClosing: async (log: Omit<CashClosingLog, 'id' | 'timestamp'>) => { const db = getDb(); db.closingLogs.push({ ...log, id: Math.random().toString(), timestamp: Date.now() }); db.cashierSession = null; saveDb(db); return true; },
+  getSalesReport: async () => { const db = getDb(); return { history: db.salesHistory, summary: { totalRevenue: db.salesHistory.reduce((a,b)=>a+b.total,0) } }; },
+  getFinancialData: async () => { const db = getDb(); return { totalIncome: 0, totalExpenses: 0, netProfit: 0, transactions: [] }; },
+  getInventoryData: async () => { const db = getDb(); return { ingredients: [...db.ingredients], expenses: [...db.expenses], sales: [...db.salesHistory] }; },
+  registerExpense: async (expense: Omit<Expense, 'id' | 'timestamp'>) => { const db = getDb(); db.expenses.push({ ...expense, id: Math.random().toString(), timestamp: Date.now() }); saveDb(db); return true; },
+
+  // --- SUPERADMIN API ---
+  getStores: async () => { await new Promise(r => setTimeout(r, 600)); return getDb().stores; },
+  createStore: async (data: any) => { const db = getDb(); const newStore = { ...data, tenant_id: db.stores.length+1, status: 'active', revenue: 0, schema_name: `tenant_${db.stores.length+1}` }; db.stores.push(newStore); saveDb(db); return newStore; },
+  toggleStoreStatus: async (id: number, s: any) => { const db = getDb(); const st = db.stores.find(x=>x.tenant_id===id); if(st){st.status=s; saveDb(db); return true;} return false; },
+  deleteStore: async (id: number) => { const db = getDb(); db.stores = db.stores.filter(s=>s.tenant_id!==id); saveDb(db); return true; },
+  getSuperAdmins: async () => { await new Promise(r=>setTimeout(r,400)); return getDb().superAdmins; },
+  inviteSuperAdmin: async (d:any) => { const db=getDb(); const u={...d, user_id:`sa-${Date.now()}`, is_active:true, created_at: new Date().toISOString()}; db.superAdmins.push(u); saveDb(db); return u; },
+  toggleSuperAdmin: async (uid:string, a:boolean) => { const db=getDb(); const u=db.superAdmins.find(x=>x.user_id===uid); if(u){u.is_active=a; saveDb(db); return true;} return false; },
+  getMigrations: async () => getDb().migrations,
+  applyMigration: async (n:string) => { const db=getDb(); db.migrations.push({id:`m-${Date.now()}`, migration_name:n, applied_at:new Date().toISOString(), status:'success', tenants_applied:db.stores.length}); saveDb(db); return true; },
+  triggerMigration: async () => "job-ok",
+  exportBackup: async () => "url-backup"
 };

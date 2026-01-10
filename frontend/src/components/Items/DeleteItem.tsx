@@ -1,91 +1,59 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Trash2 } from "lucide-react"
 import { useState } from "react"
-import { useForm } from "react-hook-form"
-
-import { ItemsService } from "@/client"
+import { MockService } from "@/services/mockService"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
 
 interface DeleteItemProps {
   id: string
-  onSuccess: () => void
 }
 
-const DeleteItem = ({ id, onSuccess }: DeleteItemProps) => {
+const DeleteItem = ({ id }: DeleteItemProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const queryClient = useQueryClient()
   const { showSuccessToast, showErrorToast } = useCustomToast()
-  const { handleSubmit } = useForm()
-
-  const deleteItem = async (id: string) => {
-    await ItemsService.deleteItem({ id: id })
-  }
 
   const mutation = useMutation({
-    mutationFn: deleteItem,
+    mutationFn: (id: string) => MockService.deleteProduct(id),
     onSuccess: () => {
-      showSuccessToast("The item was deleted successfully")
+      showSuccessToast("Producto eliminado")
       setIsOpen(false)
-      onSuccess()
+      queryClient.invalidateQueries({ queryKey: ["products"] })
     },
-    onError: handleError.bind(showErrorToast),
-    onSettled: () => {
-      queryClient.invalidateQueries()
+    onError: (err) => {
+        console.error(err)
+        showErrorToast("Error al eliminar")
     },
   })
 
-  const onSubmit = async () => {
-    mutation.mutate(id)
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuItem
-        variant="destructive"
-        onSelect={(e) => e.preventDefault()}
-        onClick={() => setIsOpen(true)}
-      >
-        <Trash2 />
-        Delete Item
+      <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()} onClick={() => setIsOpen(true)}>
+        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
       </DropdownMenuItem>
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle>Delete Item</DialogTitle>
-            <DialogDescription>
-              This item will be permanently deleted. Are you sure? You will not
-              be able to undo this action.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="mt-4">
-            <DialogClose asChild>
-              <Button variant="outline" disabled={mutation.isPending}>
-                Cancel
-              </Button>
-            </DialogClose>
-            <LoadingButton
-              variant="destructive"
-              type="submit"
-              loading={mutation.isPending}
-            >
-              Delete
-            </LoadingButton>
-          </DialogFooter>
-        </form>
+        <DialogHeader>
+          <DialogTitle>Eliminar Producto</DialogTitle>
+          <DialogDescription>
+            ¿Estás seguro? Esta acción no se puede deshacer y afectará el inventario.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4">
+          <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+          <LoadingButton 
+            variant="destructive" 
+            onClick={() => mutation.mutate(id)} 
+            loading={mutation.isPending}
+          >
+            Eliminar
+          </LoadingButton>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

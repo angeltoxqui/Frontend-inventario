@@ -1,73 +1,100 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Pencil } from "lucide-react"
-import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Pencil, Trash2, Beaker, Plus } from "lucide-react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { type ItemPublic, ItemsService } from "@/client"
+import { Product, ProductCategory, RecipeItem } from "@/types"
+import { MockService } from "@/services/mockService"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LoadingButton } from "@/components/ui/loading-button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
 
 const formSchema = z.object({
-  title: z.string().min(1, { message: "Title is required" }),
-  description: z.string().optional(),
+  name: z.string().min(1, "El nombre es requerido"),
+  category: z.nativeEnum(ProductCategory),
+  price: z.coerce.number().min(0),
+  stock: z.coerce.number().min(0),
 })
 
 type FormData = z.infer<typeof formSchema>
 
 interface EditItemProps {
-  item: ItemPublic
-  onSuccess: () => void
+  item: Product
 }
 
-const EditItem = ({ item, onSuccess }: EditItemProps) => {
+const EditItem = ({ item }: EditItemProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>(item.recipe || [])
+  const [selectedIngId, setSelectedIngId] = useState<string>("")
+  const [ingQuantity, setIngQuantity] = useState<number>(1)
+
   const queryClient = useQueryClient()
   const { showSuccessToast, showErrorToast } = useCustomToast()
 
+  const { data: ingredientsList } = useQuery({
+    queryKey: ["ingredients"],
+    queryFn: MockService.getIngredients,
+  })
+
+  useEffect(() => {
+    if (isOpen) {
+        setRecipeItems(item.recipe || []);
+    }
+  }, [isOpen, item]);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    mode: "onBlur",
-    criteriaMode: "all",
     defaultValues: {
-      title: item.title,
-      description: item.description ?? undefined,
+      name: item.name,
+      category: item.category,
+      price: item.price,
+      stock: item.stock || 0,
     },
   })
 
+  const handleAddIngredient = () => {
+    if (!selectedIngId || ingQuantity <= 0) return;
+    setRecipeItems(prev => {
+        const existing = prev.find(i => i.ingredientId === selectedIngId);
+        if (existing) {
+            return prev.map(i => i.ingredientId === selectedIngId ? { ...i, quantity: i.quantity + ingQuantity } : i)
+        }
+        return [...prev, { ingredientId: selectedIngId, quantity: ingQuantity }]
+    });
+    setSelectedIngId("");
+    setIngQuantity(1);
+  };
+
+  const handleRemoveIngredient = (id: string) => {
+    setRecipeItems(prev => prev.filter(i => i.ingredientId !== id));
+  };
+
   const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      ItemsService.updateItem({ id: item.id, requestBody: data }),
+    mutationFn: (data: FormData) => MockService.updateProduct(item.id, {
+        ...data,
+        // --- CAMBIO AQUÍ: Eliminado ingredients ---
+        recipe: recipeItems
+    }),
     onSuccess: () => {
-      showSuccessToast("Item updated successfully")
+      showSuccessToast("Producto actualizado correctamente")
       setIsOpen(false)
-      onSuccess()
+      queryClient.invalidateQueries({ queryKey: ["products"] })
     },
-    onError: handleError.bind(showErrorToast),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] })
+    onError: (err) => {
+        console.error(err)
+        showErrorToast("Error al actualizar")
     },
   })
 
@@ -77,63 +104,121 @@ const EditItem = ({ item, onSuccess }: EditItemProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuItem
-        onSelect={(e) => e.preventDefault()}
-        onClick={() => setIsOpen(true)}
-      >
-        <Pencil />
-        Edit Item
+      <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsOpen(true)}>
+        <Pencil className="mr-2 h-4 w-4" /> Editar
       </DropdownMenuItem>
-      <DialogContent className="sm:max-w-md">
+      
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar Producto</DialogTitle>
+          <DialogDescription>Modifica los detalles y la receta del producto.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
-              <DialogDescription>
-                Update the item details below.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Title <span className="text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="Title" type="text" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Description" type="text" {...field} />
-                    </FormControl>
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="price" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Precio</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
                     <FormMessage />
-                  </FormItem>
+                </FormItem>
+                )} />
+                 <FormField control={form.control} name="stock" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Stock Manual</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+                )} />
+            </div>
+
+            <FormField control={form.control} name="category" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoría</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {Object.values(ProductCategory).map((cat) => (
+                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <div className="border rounded-md p-4 bg-slate-50 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                    <Beaker className="text-primary h-4 w-4" />
+                    <h4 className="font-semibold text-sm text-slate-700">Composición / Receta</h4>
+                </div>
+                
+                <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                        <label className="text-xs font-medium mb-1 block text-slate-500">Ingrediente</label>
+                        <Select value={selectedIngId} onValueChange={setSelectedIngId}>
+                            <SelectTrigger className="bg-white"><SelectValue placeholder="Agregar ingrediente..." /></SelectTrigger>
+                            <SelectContent>
+                                {ingredientsList?.map(ing => (
+                                    <SelectItem key={ing.id} value={ing.id}>
+                                        {ing.name} ({ing.unit})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="w-24">
+                        <label className="text-xs font-medium mb-1 block text-slate-500">Cantidad</label>
+                        <Input 
+                            type="number" 
+                            className="bg-white" 
+                            value={ingQuantity} 
+                            onChange={(e) => setIngQuantity(parseFloat(e.target.value))} 
+                        />
+                    </div>
+                    <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0">
+                        <Plus className="h-4 w-4" />
+                    </Button>
+                </div>
+
+                {recipeItems.length > 0 && (
+                    <ScrollArea className="h-32 border rounded bg-white p-2">
+                        <div className="space-y-2">
+                            {recipeItems.map((item, index) => {
+                                const ingName = ingredientsList?.find(i => i.id === item.ingredientId)?.name || "Desconocido";
+                                const ingUnit = ingredientsList?.find(i => i.id === item.ingredientId)?.unit || "";
+                                return (
+                                    <div key={index} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded border border-slate-100">
+                                        <span className="font-medium text-slate-700">{ingName}</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-slate-500 font-mono">{item.quantity} {ingUnit}</span>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemoveIngredient(item.ingredientId)}
+                                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </ScrollArea>
                 )}
-              />
             </div>
 
             <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline" disabled={mutation.isPending}>
-                  Cancel
-                </Button>
-              </DialogClose>
-              <LoadingButton type="submit" loading={mutation.isPending}>
-                Save
-              </LoadingButton>
+              <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+              <LoadingButton type="submit" loading={mutation.isPending}>Guardar</LoadingButton>
             </DialogFooter>
           </form>
         </Form>

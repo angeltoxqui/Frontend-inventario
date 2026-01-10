@@ -15,6 +15,7 @@ import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutSuperAdminRouteImport } from './routes/_layout/super-admin'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutReportsRouteImport } from './routes/_layout/reports'
 import { Route as LayoutPosRouteImport } from './routes/_layout/pos'
@@ -51,6 +52,11 @@ const LayoutRoute = LayoutRouteImport.update({
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutSuperAdminRoute = LayoutSuperAdminRouteImport.update({
+  id: '/super-admin',
+  path: '/super-admin',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/pos': typeof LayoutPosRoute
   '/reports': typeof LayoutReportsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/super-admin': typeof LayoutSuperAdminRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesByTo {
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/pos': typeof LayoutPosRoute
   '/reports': typeof LayoutReportsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/super-admin': typeof LayoutSuperAdminRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_layout/pos': typeof LayoutPosRoute
   '/_layout/reports': typeof LayoutReportsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/super-admin': typeof LayoutSuperAdminRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/reports'
     | '/settings'
+    | '/super-admin'
     | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/reports'
     | '/settings'
+    | '/super-admin'
     | '/'
   id:
     | '__root__'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_layout/pos'
     | '/_layout/reports'
     | '/_layout/settings'
+    | '/_layout/super-admin'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -240,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof LayoutIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/super-admin': {
+      id: '/_layout/super-admin'
+      path: '/super-admin'
+      fullPath: '/super-admin'
+      preLoaderRoute: typeof LayoutSuperAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/settings': {
@@ -310,6 +329,7 @@ interface LayoutRouteChildren {
   LayoutPosRoute: typeof LayoutPosRoute
   LayoutReportsRoute: typeof LayoutReportsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutSuperAdminRoute: typeof LayoutSuperAdminRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
@@ -322,6 +342,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutPosRoute: LayoutPosRoute,
   LayoutReportsRoute: LayoutReportsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
+  LayoutSuperAdminRoute: LayoutSuperAdminRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
 

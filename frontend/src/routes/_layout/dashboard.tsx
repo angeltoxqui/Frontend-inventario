@@ -1,8 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import React, { useEffect, useState } from 'react'
 import { MockService } from '../../services/mockService'
-import { DollarSign, ShoppingBag, Users, Utensils, TrendingUp, Activity } from 'lucide-react'
+import { 
+  DollarSign, 
+  ShoppingBag, 
+  Users, 
+  ArrowUpRight, 
+  AlertCircle,
+  TrendingUp,
+  Utensils 
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_layout/dashboard')({
   component: Dashboard,
@@ -15,7 +25,6 @@ function Dashboard() {
     const load = async () => {
       const fin = await MockService.getFinancialData();
       const tables = await MockService.getTables();
-      // Contamos mesas ocupadas (no libres)
       const busy = tables.filter(t => t.status !== 'libre').length;
       setStats({
         income: fin.totalIncome,
@@ -27,48 +36,111 @@ function Dashboard() {
   }, []);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-slate-900">Hola, Admin </h1>
-        <p className="text-slate-500">Aquí tienes el resumen de operación de hoy.</p>
-      </div>
-
-      {/* TARJETAS DE RESUMEN */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-            <div className="p-4 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
-            <div>
-                <p className="text-sm font-bold text-slate-400">Ventas Hoy</p>
-                <p className="text-3xl font-black text-slate-800">${stats.income.toLocaleString()}</p>
-            </div>
+    // Fondo base definido en index.css (Beige suave)
+    <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
+      
+      {/* HEADER: Título grande y limpio */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h1 className="text-4xl font-black text-foreground tracking-tight">Dashboard General</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Bienvenido de nuevo. Aquí tienes el pulso de tu restaurante hoy.</p>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-            <div className="p-4 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag size={24} /></div>
-            <div>
-                <p className="text-sm font-bold text-slate-400">Pedidos Hoy</p>
-                <p className="text-3xl font-black text-slate-800">{stats.orders}</p>
-            </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-            <div className="p-4 bg-orange-50 text-orange-600 rounded-xl"><Users size={24} /></div>
-            <div>
-                <p className="text-sm font-bold text-slate-400">Mesas Activas</p>
-                <p className="text-3xl font-black text-slate-800">{stats.activeTables} / 9</p>
-            </div>
+        <div className="flex gap-3">
+           <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
+              <TrendingUp className="mr-2 h-4 w-4" /> Ver Reportes
+           </Button>
+           <Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
+              <Utensils className="mr-2 h-4 w-4" /> Ir a Cocina
+           </Button>
         </div>
       </div>
 
-      {/* ACCESOS RÁPIDOS */}
-      <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Activity size={20}/> Accesos Rápidos</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link to="/reports" className="p-4 bg-white border hover:border-slate-300 rounded-xl text-center hover:shadow-md transition-all group">
-             <TrendingUp className="mx-auto mb-2 text-purple-500 group-hover:scale-110 transition-transform"/>
-             <span className="font-bold text-slate-700">Ver Reportes</span>
-          </Link>
-          <Link to="/cocina" className="p-4 bg-white border hover:border-slate-300 rounded-xl text-center hover:shadow-md transition-all group">
-             <Utensils className="mx-auto mb-2 text-orange-500 group-hover:scale-110 transition-transform"/>
-             <span className="font-bold text-slate-700">Ir a Cocina</span>
-          </Link>
+      {/* METRICS GRID: Estilo "Bistro Admin" */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 1: Ingresos (Estilo Sage Green) */}
+        <Card className="border-primary/20 bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+          <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+             <DollarSign size={80} className="text-primary" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Ingresos Totales
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+               <DollarSign size={18} />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-foreground mt-2">${stats.income.toLocaleString()}</div>
+            <p className="text-xs text-primary font-medium mt-1 flex items-center">
+              <ArrowUpRight size={14} className="mr-1" /> +12% vs ayer
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Pedidos (Estilo Azul/Grisáceo Pastel) */}
+        <Card className="border-border bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+             <ShoppingBag size={80} />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Pedidos Hoy
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+               <ShoppingBag size={18} />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-foreground mt-2">{stats.orders}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Promedio de 15 mins/mesa
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Mesas (Estilo Terracota/Alerta) */}
+        <Card className="border-orange-100 bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+             <Users size={80} className="text-orange-500" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Ocupación
+            </CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+               <Users size={18} />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-foreground mt-2">{stats.activeTables} / 9</div>
+            {stats.activeTables > 7 && (
+                <p className="text-xs text-orange-600 font-bold mt-1 flex items-center bg-orange-50 w-fit px-2 py-0.5 rounded-full">
+                  <AlertCircle size={12} className="mr-1" /> Alta demanda
+                </p>
+            )}
+            {stats.activeTables <= 7 && (
+                <p className="text-xs text-muted-foreground mt-1">Capacidad saludable</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SECCIÓN VISUAL ADICIONAL: Accesos Rápidos mejorados */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-foreground mb-4">Gestión Rápida</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             {/* Aquí usaríamos componentes Link estilizados como tarjetas pequeñas */}
+             {['Reportes', 'Usuarios', 'Inventario', 'Ajustes'].map((item, i) => (
+               <div key={i} className="group p-4 bg-white border border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-between">
+                  <span className="font-medium text-foreground">{item}</span>
+                  <div className="h-8 w-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <ArrowUpRight size={16} />
+                  </div>
+               </div>
+             ))}
+        </div>
       </div>
     </div>
   )

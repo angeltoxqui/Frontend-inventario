@@ -35,7 +35,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     // Auto-eliminar después de 4 segundos
     setTimeout(() => {
       removeToast(id);
-    }, 4000);
+    }, 7000);
   }, []);
 
   const removeToast = (id: string) => {
