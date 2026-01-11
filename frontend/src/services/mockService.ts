@@ -1,3 +1,5 @@
+// src/services/mockService.ts
+
 import { 
   Product, ProductCategory, User, UserRole, Table, Order, 
   Ingredient, SaleRecord, CashClosingLog, Expense, CashierSession, OrderItem, Store, SuperAdminUser, MigrationLog 
@@ -195,7 +197,23 @@ export const MockService = {
       return false; 
   },
 
-  payOrder: async (orderId: string, amount: number, items: OrderItem[], method: string) => {
+  // --- [NUEVO] SUBIDA DE EVIDENCIA ---
+  uploadEvidence: async (file: File): Promise<string> => {
+      console.log(`[MockService] Iniciando subida simulada de: ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
+      
+      // Simulamos latencia de red (1.5 segundos)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Simulamos que el backend nos devuelve una URL pública del bucket
+      // En producción, aquí iría el fetch() real a tu API.
+      const fakeUrl = `https://storage.googleapis.com/tu-restaurante-bucket/proofs/${Date.now()}_${file.name}`;
+      console.log("[MockService] Subida completada. URL:", fakeUrl);
+      
+      return fakeUrl;
+  },
+
+  // --- [MODIFICADO] PAGO DE ORDEN (Acepta proofUrl) ---
+  payOrder: async (orderId: string, amount: number, items: OrderItem[], method: string, proofUrl?: string) => {
       const db = getDb();
       const order = db.orders.find(o => o.id === orderId);
       
@@ -207,7 +225,17 @@ export const MockService = {
               db.tables = db.tables.map(t => t.id === order.tableId ? { ...t, status: 'libre', timestamp: undefined } : t);
           }
           
-          const sale: SaleRecord = { id: `sale-${Date.now()}`, orderId: order.id, total: amount, method: method, timestamp: Date.now(), items: items };
+          // Creamos el registro de venta incluyendo la evidencia si existe
+          const sale: any = { // Usamos 'any' temporalmente para agregar campos extras si SaleRecord es estricto
+              id: `sale-${Date.now()}`, 
+              orderId: order.id, 
+              total: amount, 
+              method: method, 
+              timestamp: Date.now(), 
+              items: items,
+              proofUrl: proofUrl // Guardamos la URL de la evidencia para auditoría
+          };
+
           if (!db.salesHistory) db.salesHistory = [];
           db.salesHistory.push(sale);
           saveDb(db);

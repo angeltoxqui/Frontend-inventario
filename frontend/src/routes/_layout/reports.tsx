@@ -133,17 +133,20 @@ function Reports() {
     XLSX.writeFile(wb, `Reporte_${activeTab}_${dateLabel}.xlsx`);
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center text-slate-400">Cargando...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-muted-foreground">Cargando...</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto bg-slate-50 min-h-screen">
+    // [CORRECCIÓN] Fondo adaptativo bg-muted/40
+    <div className="p-6 max-w-7xl mx-auto bg-muted/40 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <h1 className="text-3xl font-black text-slate-900">Reportes </h1>
-            <p className="text-slate-500">Datos precisos para decisiones inteligentes</p>
+            {/* [CORRECCIÓN] Texto dinámico */}
+            <h1 className="text-3xl font-black text-foreground">Reportes </h1>
+            <p className="text-muted-foreground">Datos precisos para decisiones inteligentes</p>
         </div>
         <div className="flex gap-4">
-            <div className="flex bg-white p-1 rounded-xl border shadow-sm overflow-x-auto">
+            {/* [CORRECCIÓN] Navegación bg-card */}
+            <div className="flex bg-card p-1 rounded-xl border border-border shadow-sm overflow-x-auto">
                 <TabButton active={activeTab === 'sales'} onClick={() => setActiveTab('sales')} label="Ventas" icon={DollarSign}/>
                 <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} label="Rendimiento" icon={BarChart4}/>
                 <TabButton active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} label="Inventario" icon={Package}/>
@@ -157,8 +160,9 @@ function Reports() {
 
       {/* FILTRO DE TIEMPO (Solo para Ventas, Rendimiento y Compras) */}
       {activeTab !== 'inventory' && (
-          <div className="mb-6 flex items-center gap-2 bg-white p-2 rounded-lg w-fit shadow-sm border">
-              <span className="text-xs font-bold text-slate-400 uppercase px-2">Rango:</span>
+          // [CORRECCIÓN] Filtro bg-card
+          <div className="mb-6 flex items-center gap-2 bg-card p-2 rounded-lg w-fit shadow-sm border border-border">
+              <span className="text-xs font-bold text-muted-foreground uppercase px-2">Rango:</span>
               <TimeFilterBtn active={timeRange==='day'} onClick={()=>setTimeRange('day')} label="Hoy"/>
               <TimeFilterBtn active={timeRange==='week'} onClick={()=>setTimeRange('week')} label="7 Días"/>
               <TimeFilterBtn active={timeRange==='biweek'} onClick={()=>setTimeRange('biweek')} label="15 Días"/>
@@ -170,33 +174,35 @@ function Reports() {
       {activeTab === 'sales' && (
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <BigKpiCard title={`Ventas (${getRangeLabel(timeRange)})`} value={totalSales} color="text-green-600" bg="bg-green-50" icon={TrendingUp} sub={`${totalTransactions} facturas`}/>
-                <BigKpiCard title="Producto Estrella" value={productPerformance[0]?.totalRevenue || 0} label={productPerformance[0]?.name || "Sin datos"} color="text-purple-600" bg="bg-purple-50" icon={ArrowUpRight} sub="Mayor ingreso" isCurrency={true}/>
-                <BigKpiCard title="Ticket Promedio" value={totalTransactions ? Math.round(totalSales/totalTransactions) : 0} color="text-blue-600" bg="bg-blue-50" icon={CreditCard} sub="Por mesa"/>
+                <BigKpiCard title={`Ventas (${getRangeLabel(timeRange)})`} value={totalSales} color="text-green-600 dark:text-green-400" bg="bg-green-500/10" icon={TrendingUp} sub={`${totalTransactions} facturas`}/>
+                <BigKpiCard title="Producto Estrella" value={productPerformance[0]?.totalRevenue || 0} label={productPerformance[0]?.name || "Sin datos"} color="text-purple-600 dark:text-purple-400" bg="bg-purple-500/10" icon={ArrowUpRight} sub="Mayor ingreso" isCurrency={true}/>
+                <BigKpiCard title="Ticket Promedio" value={totalTransactions ? Math.round(totalSales/totalTransactions) : 0} color="text-blue-600 dark:text-blue-400" bg="bg-blue-500/10" icon={CreditCard} sub="Por mesa"/>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl border shadow-sm h-full">
-                    <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Layers size={18}/> Desglose de Ventas</h3>
+                {/* [CORRECCIÓN] Tarjeta Ventas bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm h-full">
+                    <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><Layers size={18}/> Desglose de Ventas</h3>
                     <div className="overflow-y-auto max-h-[400px]">
                         <table className="w-full text-sm text-left">
-                            <thead className="text-xs font-bold text-slate-400 uppercase bg-slate-50 sticky top-0">
+                            <thead className="text-xs font-bold text-muted-foreground uppercase bg-muted/50 sticky top-0">
                                 <tr><th className="p-3">Hora</th><th className="p-3">Detalle</th><th className="p-3 text-right">Total</th></tr>
                             </thead>
-                            <tbody className="divide-y">
-                                {filteredSales.length === 0 ? <tr><td colSpan={3} className="p-8 text-center text-gray-400 italic">No hay datos.</td></tr> : 
+                            <tbody className="divide-y divide-border">
+                                {filteredSales.length === 0 ? <tr><td colSpan={3} className="p-8 text-center text-muted-foreground italic">No hay datos.</td></tr> : 
                                 filteredSales.slice().reverse().map((s) => (
-                                    <tr key={s.id} className="hover:bg-slate-50">
-                                        <td className="p-3 font-mono text-slate-500">{new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                                        <td className="p-3"><div className="font-bold text-slate-700">Mesa {s.tableNumber}</div><div className="text-xs text-slate-500 truncate max-w-[200px]">{s.itemsSummary?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Varios'}</div></td>
-                                        <td className="p-3 text-right font-bold text-green-600">${s.total.toLocaleString()}</td>
+                                    <tr key={s.id} className="hover:bg-muted/30">
+                                        <td className="p-3 font-mono text-muted-foreground">{new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                                        <td className="p-3"><div className="font-bold text-foreground">Mesa {s.tableNumber}</div><div className="text-xs text-muted-foreground truncate max-w-[200px]">{s.itemsSummary?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Varios'}</div></td>
+                                        <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">${s.total.toLocaleString()}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col">
-                    <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><PieChart size={18}/> Métodos de Pago</h3>
+                {/* [CORRECCIÓN] Tarjeta Gráfica bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm flex flex-col">
+                    <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><PieChart size={18}/> Métodos de Pago</h3>
                     <div className="flex-1 min-h-[300px]"><PaymentMethodsChart sales={filteredSales} /></div>
                 </div>
             </div>
@@ -207,39 +213,42 @@ function Reports() {
       {activeTab === 'performance' && (
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><ArrowUpRight className="text-green-600"/> Los Más Vendidos (Top 5)</h3>
+                {/* [CORRECCIÓN] Tarjeta Más Vendidos bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm">
+                    <h3 className="font-bold text-lg text-foreground mb-6 flex items-center gap-2"><ArrowUpRight className="text-green-600"/> Los Más Vendidos (Top 5)</h3>
                     <div className="space-y-4">
                         {productPerformance.slice(0, 5).map((p, i) => (
                             <div key={i} className="relative">
                                 <div className="flex justify-between items-end mb-1 text-sm">
-                                    <span className="font-bold text-slate-700 flex gap-2"><span className="text-slate-400 font-mono">#{i+1}</span> {p.name}</span>
-                                    <span className="font-bold text-green-600">${p.totalRevenue.toLocaleString()} <span className="text-xs text-slate-400 font-normal">({p.qty} unids)</span></span>
+                                    <span className="font-bold text-foreground flex gap-2"><span className="text-muted-foreground font-mono">#{i+1}</span> {p.name}</span>
+                                    <span className="font-bold text-green-600 dark:text-green-400">${p.totalRevenue.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">({p.qty} unids)</span></span>
                                 </div>
-                                <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${(p.totalRevenue / (productPerformance[0]?.totalRevenue || 1)) * 100}%` }}></div></div>
+                                <div className="w-full bg-muted rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: `${(p.totalRevenue / (productPerformance[0]?.totalRevenue || 1)) * 100}%` }}></div></div>
                             </div>
                         ))}
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><ArrowDownRight className="text-red-600"/> Los Menos Vendidos (Bottom 5)</h3>
+                {/* [CORRECCIÓN] Tarjeta Menos Vendidos bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm">
+                    <h3 className="font-bold text-lg text-foreground mb-6 flex items-center gap-2"><ArrowDownRight className="text-red-600"/> Los Menos Vendidos (Bottom 5)</h3>
                     <div className="space-y-4">
                         {productPerformance.slice(-5).reverse().map((p, i) => (
-                            <div key={i} className="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-100">
-                                <span className="font-medium text-slate-700">{p.name}</span>
-                                <div className="text-right"><p className="font-bold text-red-600">${p.totalRevenue.toLocaleString()}</p><p className="text-xs text-red-400">{p.qty} unidades</p></div>
+                            <div key={i} className="flex justify-between items-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                                <span className="font-medium text-foreground">{p.name}</span>
+                                <div className="text-right"><p className="font-bold text-red-600 dark:text-red-400">${p.totalRevenue.toLocaleString()}</p><p className="text-xs text-red-400/80">{p.qty} unidades</p></div>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><Users className="text-blue-600"/> Rendimiento del Equipo</h3>
+            {/* [CORRECCIÓN] Tarjeta Equipo bg-card */}
+            <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm">
+                <h3 className="font-bold text-lg text-foreground mb-6 flex items-center gap-2"><Users className="text-blue-600"/> Rendimiento del Equipo</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {staffPerformance.map((s, i) => (
-                        <div key={i} className="p-4 rounded-xl border flex items-center gap-4 bg-slate-50">
+                        <div key={i} className="p-4 rounded-xl border border-border flex items-center gap-4 bg-muted/30">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${i===0 ? 'bg-yellow-500' : (i===1 ? 'bg-gray-400' : 'bg-orange-700')}`}>{i < 3 ? <Award size={20}/> : `#${i+1}`}</div>
-                            <div><p className="font-bold text-slate-800">{s.name}</p><p className="text-sm text-slate-500">{s.orders} pedidos cerrados</p><p className="font-bold text-blue-600 mt-1">${s.totalRevenue.toLocaleString()}</p></div>
+                            <div><p className="font-bold text-foreground">{s.name}</p><p className="text-sm text-muted-foreground">{s.orders} pedidos cerrados</p><p className="font-bold text-blue-600 dark:text-blue-400 mt-1">${s.totalRevenue.toLocaleString()}</p></div>
                         </div>
                     ))}
                 </div>
@@ -251,38 +260,41 @@ function Reports() {
       {activeTab === 'inventory' && (
         <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl flex flex-col justify-center">
+                {/* [CORRECCIÓN] Tarjeta oscura (se mantiene dark por diseño) */}
+                <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl flex flex-col justify-center border border-slate-800">
                     <p className="opacity-70 font-bold uppercase text-sm tracking-wider mb-2">Valorización De Insumos (Actuales)</p>
                     <h2 className="text-5xl font-black mb-4">${totalInventoryValue.toLocaleString()}</h2>
                     <p className="text-sm opacity-60">Capital total invertido en insumos disponibles hoy.</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col">
-                    <h3 className="font-bold text-slate-700 mb-4 text-red-600 flex items-center gap-2"><ArrowDownRight/> Stock Bajo</h3>
+                {/* [CORRECCIÓN] Tarjeta Stock Bajo bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm flex flex-col">
+                    <h3 className="font-bold text-foreground mb-4 text-red-600 flex items-center gap-2"><ArrowDownRight/> Stock Bajo</h3>
                     <div className="flex-1 overflow-y-auto">
                         {inventoryData.ingredients.filter(i => i.currentStock < i.maxStock * 0.2).length === 0 ? (
                             <div className="h-full flex items-center justify-center text-green-600 font-medium"><CheckCircle2 size={24} className="mr-2"/> Todo OK.</div>
                         ) : (
-                            <table className="w-full text-sm"><tbody>{inventoryData.ingredients.filter(i => i.currentStock < i.maxStock * 0.2).map(i => <tr key={i.id} className="border-b"><td className="py-2 font-bold">{i.name}</td><td className="py-2 text-right text-red-600 font-bold">{i.currentStock} {i.unit}</td></tr>)}</tbody></table>
+                            <table className="w-full text-sm"><tbody>{inventoryData.ingredients.filter(i => i.currentStock < i.maxStock * 0.2).map(i => <tr key={i.id} className="border-b border-border"><td className="py-2 font-bold">{i.name}</td><td className="py-2 text-right text-red-600 font-bold">{i.currentStock} {i.unit}</td></tr>)}</tbody></table>
                         )}
                     </div>
                 </div>
             </div>
             
-            <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Desglose de Valorización</h3>
+            {/* [CORRECCIÓN] Desglose bg-card */}
+            <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm">
+                <h3 className="font-bold text-lg text-foreground mb-4">Desglose de Valorización</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                        <thead className="bg-muted/50 text-muted-foreground font-bold uppercase text-xs">
                             <tr><th className="p-4">Insumo</th><th className="p-4 text-right">Costo Unit.</th><th className="p-4 text-right">Stock</th><th className="p-4 text-right">Total</th><th className="p-4 text-right">Última Act.</th></tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody className="divide-y divide-border">
                             {inventoryBreakdown.map(i => (
-                                <tr key={i.id} className="hover:bg-slate-50">
-                                    <td className="p-4 font-bold text-slate-700">{i.name}</td>
-                                    <td className="p-4 text-right text-slate-500">${i.cost.toLocaleString()}</td>
+                                <tr key={i.id} className="hover:bg-muted/30">
+                                    <td className="p-4 font-bold text-foreground">{i.name}</td>
+                                    <td className="p-4 text-right text-muted-foreground">${i.cost.toLocaleString()}</td>
                                     <td className="p-4 text-right font-medium">{i.currentStock} {i.unit}</td>
-                                    <td className="p-4 text-right font-mono font-bold text-slate-900">${(i.cost * i.currentStock).toLocaleString()}</td>
-                                    <td className="p-4 text-right text-xs text-slate-400">{i.lastUpdated ? new Date(i.lastUpdated).toLocaleDateString() : 'N/A'}</td>
+                                    <td className="p-4 text-right font-mono font-bold text-foreground">${(i.cost * i.currentStock).toLocaleString()}</td>
+                                    <td className="p-4 text-right text-xs text-muted-foreground">{i.lastUpdated ? new Date(i.lastUpdated).toLocaleDateString() : 'N/A'}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -298,29 +310,30 @@ function Reports() {
             <BigKpiCard 
                 title={`Compras de Insumos (${getRangeLabel(timeRange)})`} 
                 value={totalExpensesPeriod} 
-                color="text-red-600" bg="bg-red-50" icon={ShoppingBag} 
+                color="text-red-600 dark:text-red-400" bg="bg-red-500/10" icon={ShoppingBag} 
                 sub="Salidas de dinero registradas en el periodo"
             />
 
-            <div className="bg-white p-6 rounded-2xl border shadow-sm">
+            {/* [CORRECCIÓN] Historial bg-card */}
+            <div className="bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-sm">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                         <FileText size={20}/> Historial Detallado
                     </h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                        <thead className="bg-muted/50 text-muted-foreground font-bold uppercase text-xs">
                             <tr><th className="p-4">Fecha</th><th className="p-4">Concepto</th><th className="p-4">Categoría</th><th className="p-4 text-right">Monto</th></tr>
                         </thead>
-                        <tbody className="divide-y">
-                            {filteredExpenses.length === 0 ? <tr><td colSpan={4} className="p-6 text-center text-gray-400">Sin compras en este periodo.</td></tr> : 
+                        <tbody className="divide-y divide-border">
+                            {filteredExpenses.length === 0 ? <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Sin compras en este periodo.</td></tr> : 
                             filteredExpenses.slice().reverse().map(e => (
-                                <tr key={e.id} className="hover:bg-slate-50">
-                                    <td className="p-4 text-gray-500">{new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                                    <td className="p-4 font-medium text-slate-700">{e.concept}</td>
-                                    <td className="p-4"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs uppercase">{e.category}</span></td>
-                                    <td className="p-4 text-right font-bold text-red-600">-${e.amount.toLocaleString()}</td>
+                                <tr key={e.id} className="hover:bg-muted/30">
+                                    <td className="p-4 text-muted-foreground">{new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                                    <td className="p-4 font-medium text-foreground">{e.concept}</td>
+                                    <td className="p-4"><span className="bg-muted text-muted-foreground px-2 py-1 rounded text-xs uppercase">{e.category}</span></td>
+                                    <td className="p-4 text-right font-bold text-red-600 dark:text-red-400">-${e.amount.toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -330,18 +343,49 @@ function Reports() {
         </div>
       )}
     </div>
-  );
+  ); 
 }
 
 const getRangeLabel = (range: TimeRange) => { switch(range) { case 'day': return 'Hoy'; case 'week': return '7 Días'; case 'biweek': return '15 Días'; case 'month': return 'Mes'; } }
-const TabButton = ({ active, onClick, label, icon: Icon }: any) => (<button onClick={onClick} className={`px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${active ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}><Icon size={16} /> {label}</button>);
-const TimeFilterBtn = ({ active, onClick, label }: any) => (<button onClick={onClick} className={`px-3 py-1 text-xs font-bold rounded transition-all ${active ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{label}</button>);
-const BigKpiCard = ({ title, value, label, sub, color, bg, icon: Icon, isCurrency = true }: any) => (<div className={`p-6 rounded-2xl border shadow-sm ${bg} border-opacity-50`}><div className="flex justify-between items-start mb-2"><p className="text-slate-600 font-bold text-xs uppercase tracking-wide">{title}</p><div className={`p-2 rounded-lg bg-white bg-opacity-60 ${color}`}><Icon size={20}/></div></div><div className="flex items-baseline gap-2"><h2 className={`text-3xl font-black ${color}`}>{label ? label : (isCurrency ? `$${value.toLocaleString()}` : value)}</h2>{label && <span className="text-sm font-bold text-slate-500">${value.toLocaleString()}</span>}</div><p className="text-xs text-slate-500 mt-2 font-medium">{sub}</p></div>);
+
+// [CORRECCIÓN] TabButton con colores adaptables
+const TabButton = ({ active, onClick, label, icon: Icon }: any) => (
+    <button onClick={onClick} className={`px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+        <Icon size={16} /> {label}
+    </button>
+);
+
+// [CORRECCIÓN] TimeFilterBtn con colores adaptables
+const TimeFilterBtn = ({ active, onClick, label }: any) => (
+    <button onClick={onClick} className={`px-3 py-1 text-xs font-bold rounded transition-all ${active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+        {label}
+    </button>
+);
+
+// [CORRECCIÓN] BigKpiCard con bg-card y colores adaptables
+const BigKpiCard = ({ title, value, label, sub, color, bg, icon: Icon, isCurrency = true }: any) => (
+    <div className={`p-6 rounded-2xl border border-border shadow-sm ${bg} bg-opacity-10 border-opacity-50`}>
+        <div className="flex justify-between items-start mb-2">
+            <p className="text-muted-foreground font-bold text-xs uppercase tracking-wide">{title}</p>
+            <div className={`p-2 rounded-lg bg-background bg-opacity-60 ${color}`}>
+                <Icon size={20}/>
+            </div>
+        </div>
+        <div className="flex items-baseline gap-2">
+            <h2 className={`text-3xl font-black ${color}`}>
+                {label ? label : (isCurrency ? `$${value.toLocaleString()}` : value)}
+            </h2>
+            {label && <span className="text-sm font-bold text-muted-foreground">${value.toLocaleString()}</span>}
+        </div>
+        <p className="text-xs text-muted-foreground mt-2 font-medium">{sub}</p>
+    </div>
+);
+
 const PaymentMethodsChart = ({ sales }: { sales: SaleRecord[] }) => {
     const data = useMemo(() => {
         const methods = sales.reduce((acc: any, curr) => { const key = curr.method || 'OTROS'; acc[key] = (acc[key] || 0) + curr.total; return acc; }, {});
         return { labels: Object.keys(methods).map(k => k.toUpperCase()), datasets: [{ data: Object.values(methods), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#6366f1'], borderWidth: 0 }] };
     }, [sales]);
-    if (sales.length === 0) return <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sin datos.</div>;
-    return <Doughnut data={data} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />;
-}
+    if (sales.length === 0) return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>;
+    return <Doughnut data={data} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: 'var(--foreground)' } } } }} />;
+};

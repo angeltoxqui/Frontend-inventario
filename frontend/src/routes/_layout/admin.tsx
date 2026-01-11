@@ -13,7 +13,6 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button'; 
 import { Label } from '../../components/ui/label'; 
 
-// 1. DEFINIMOS QUE ESTA RUTA ACEPTA PARÁMETROS (tab)
 interface AdminSearch {
   tab?: string
 }
@@ -21,37 +20,37 @@ interface AdminSearch {
 export const Route = createFileRoute('/_layout/admin')({
   validateSearch: (search: Record<string, unknown>): AdminSearch => {
     return {
-      tab: (search.tab as string) || 'finance', // Por defecto 'finance'
+      tab: (search.tab as string) || 'finance',
     }
   },
   component: AdminPanel,
 })
 
 function AdminPanel() {
-  // 2. LEEMOS EL PARÁMETRO DE LA URL
   const { tab } = Route.useSearch();
   const { toast } = useToast();
   
-  // Estado de la pestaña activa
   const [activeTab, setActiveTab] = useState<'finance' | 'inventory' | 'menu' | 'hr' | 'tables'>('finance');
 
-  // 3. EFECTO: CUANDO ENTRAMOS CON UN LINK ESPECÍFICO, CAMBIAMOS LA PESTAÑA
   useEffect(() => {
     if (tab === 'users') {
-      setActiveTab('hr'); // Si el dashboard dice "users", vamos a "hr"
+      setActiveTab('hr'); 
     } else if (tab && ['finance', 'inventory', 'menu', 'hr', 'tables'].includes(tab)) {
       setActiveTab(tab as any);
     }
   }, [tab]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-slate-50">
+    // [CORRECCIÓN] Fondo general adaptativo
+    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-muted/40">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Panel Administrativo</h1>
-          <p className="text-slate-500">Gestión integral del restaurante</p>
+          <h1 className="text-3xl font-bold text-foreground">Panel Administrativo</h1>
+          <p className="text-muted-foreground">Gestión integral del restaurante</p>
         </div>
-        <div className="flex bg-white p-1 rounded-xl shadow-sm border overflow-x-auto max-w-full">
+        
+        {/* [CORRECCIÓN] Navegación con fondo de tarjeta */}
+        <div className="flex bg-card p-1 rounded-xl shadow-sm border border-border overflow-x-auto max-w-full">
           {[
             { id: 'finance', icon: Wallet, label: 'Finanzas' },
             { id: 'inventory', icon: Package, label: 'Inventario' },
@@ -63,12 +62,13 @@ function AdminPanel() {
               key={item.id}
               onClick={() => {
                 setActiveTab(item.id as any);
-                // Opcional: Actualizar la URL al hacer clic manualmente para mantener el estado si recargan
                 window.history.pushState(null, '', `/admin?tab=${item.id === 'hr' ? 'users' : item.id}`);
               }}
               className={`
                 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap
-                ${activeTab === item.id ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-gray-50'}
+                ${activeTab === item.id 
+                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
               `}
             >
               <item.icon size={16}/> {item.label}
@@ -77,7 +77,8 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px]">
+      {/* [CORRECCIÓN] Contenedor principal con fondo de tarjeta */}
+      <div className="bg-card text-card-foreground rounded-2xl shadow-sm border border-border overflow-hidden min-h-[600px]">
         {activeTab === 'finance' && <FinanceTab toast={toast} />}
         {activeTab === 'inventory' && <InventoryTab toast={toast} />}
         {activeTab === 'menu' && <MenuTab toast={toast} />}
@@ -87,8 +88,6 @@ function AdminPanel() {
     </div>
   );
 }
-
-// ... (EL RESTO DE TUS COMPONENTES SE MANTIENEN IGUAL) ...
 
 // ------------------------------------------------------------------
 // 1. FINANZAS
@@ -107,47 +106,51 @@ const FinanceTab = ({ toast }: { toast: any }) => {
     return (
         <div className="p-6 space-y-8">
             <div>
-                <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
+                {/* [CORRECCIÓN] Texto dinámico */}
+                <h3 className="font-bold text-lg mb-4 text-foreground flex items-center gap-2">
                     <AlertTriangle className="text-orange-500"/> Auditoría de Cierres de Caja
                 </h3>
-                <div className="overflow-x-auto border rounded-xl shadow-sm">
+                <div className="overflow-x-auto border border-border rounded-xl shadow-sm">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 font-bold text-gray-500 border-b">
+                        {/* [CORRECCIÓN] Header de tabla con bg-muted */}
+                        <thead className="bg-muted/50 font-bold text-muted-foreground border-b border-border">
                             <tr>
                                 <th className="p-4">Fecha/Hora</th>
                                 <th className="p-4">Cajero</th>
                                 <th className="p-4">Estado</th>
-                                <th className="p-4 text-right bg-blue-50 text-blue-700">Base Inicial</th>
+                                <th className="p-4 text-right bg-blue-500/10 text-blue-600 dark:text-blue-400">Base Inicial</th>
                                 <th className="p-4 text-right">Sistema (Total)</th>
                                 <th className="p-4 text-right">Real (Físico)</th>
                                 <th className="p-4 text-right">Diferencia</th>
                                 <th className="p-4">Justificación</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody className="divide-y divide-border">
                             {closingLogs.length === 0 ? (
-                                <tr><td colSpan={8} className="p-8 text-center text-gray-400">No hay cierres registrados aún.</td></tr>
+                                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No hay cierres registrados aún.</td></tr>
                             ) : closingLogs.map(log => (
-                                <tr key={log.id} className={`hover:bg-gray-50 ${log.status === 'faltante' ? 'bg-red-50 hover:bg-red-100' : ''}`}>
-                                    <td className="p-4 text-gray-600">{new Date(log.timestamp).toLocaleString()}</td>
-                                    <td className="p-4 font-medium">{log.user}</td>
+                                // [CORRECCIÓN] Hover y fondos de estado con opacidad
+                                <tr key={log.id} className={`hover:bg-muted/50 transition-colors ${log.status === 'faltante' ? 'bg-red-500/10 hover:bg-red-500/20' : ''}`}>
+                                    <td className="p-4 text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
+                                    <td className="p-4 font-medium text-foreground">{log.user}</td>
                                     <td className="p-4">
-                                        {log.status === 'ok' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><CheckCircle2 size={12}/> OK</span>}
-                                        {log.status === 'faltante' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><AlertTriangle size={12}/> FALTANTE</span>}
-                                        {log.status === 'sobrante' && <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><AlertTriangle size={12}/> SOBRANTE</span>}
+                                        {/* Badges con opacidad para soportar dark mode */}
+                                        {log.status === 'ok' && <span className="bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><CheckCircle2 size={12}/> OK</span>}
+                                        {log.status === 'faltante' && <span className="bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><AlertTriangle size={12}/> FALTANTE</span>}
+                                        {log.status === 'sobrante' && <span className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-1 rounded text-xs font-bold flex items-center w-fit gap-1"><AlertTriangle size={12}/> SOBRANTE</span>}
                                     </td>
-                                    <td className="p-4 text-right font-mono font-bold text-blue-600 bg-blue-50/50">
+                                    <td className="p-4 text-right font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-500/5">
                                         <div className="flex items-center justify-end gap-1">
                                             <Lock size={12} className="opacity-50"/> ${log.openingBase?.toLocaleString() || '0'}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-right font-mono">${log.systemExpected.toLocaleString()}</td>
-                                    <td className="p-4 text-right font-mono font-bold">${log.realCounted.toLocaleString()}</td>
-                                    <td className={`p-4 text-right font-mono font-bold ${log.difference < 0 ? 'text-red-600' : (log.difference > 0 ? 'text-yellow-600' : 'text-green-600')}`}>
+                                    <td className="p-4 text-right font-mono text-foreground">${log.systemExpected.toLocaleString()}</td>
+                                    <td className="p-4 text-right font-mono font-bold text-foreground">${log.realCounted.toLocaleString()}</td>
+                                    <td className={`p-4 text-right font-mono font-bold ${log.difference < 0 ? 'text-red-600 dark:text-red-400' : (log.difference > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400')}`}>
                                         {log.difference > 0 ? '+' : ''}{log.difference.toLocaleString()}
                                     </td>
                                     <td className="p-4">
-                                        {log.justification ? <div className="text-xs text-red-800 italic bg-white/50 p-2 rounded border border-red-100">"{log.justification}"</div> : <span className="text-gray-300">-</span>}
+                                        {log.justification ? <div className="text-xs text-red-600 dark:text-red-300 italic bg-background p-2 rounded border border-red-200 dark:border-red-900">"{log.justification}"</div> : <span className="text-muted-foreground">-</span>}
                                     </td>
                                 </tr>
                             ))}
@@ -268,27 +271,27 @@ const InventoryTab = ({ toast }: { toast: any }) => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-slate-800">Gestión de Insumos</h2>
-        <button onClick={() => { setFormData({id:'', name:'', baseUnit:'gr', buyUnit:'libra', buyPrice:'', packageContent:'', currentStockBuyUnits:'', minStockBuyUnits:''}); setIsModalOpen(true); }} className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 font-medium">
+        <h2 className="text-xl font-bold text-foreground">Gestión de Insumos</h2>
+        <button onClick={() => { setFormData({id:'', name:'', baseUnit:'gr', buyUnit:'libra', buyPrice:'', packageContent:'', currentStockBuyUnits:'', minStockBuyUnits:''}); setIsModalOpen(true); }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 font-medium shadow-md">
           <Plus size={18}/> Nuevo Insumo
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto border border-border rounded-lg">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500 font-semibold">
+          <thead className="bg-muted/50 border-b border-border text-xs uppercase text-muted-foreground font-semibold">
             <tr><th className="p-4">Insumo</th><th className="p-4">Costo Interno (Base)</th><th className="p-4">Stock Total (Base)</th><th className="p-4">Valor Artículo</th><th className="p-4 text-right">Acciones</th></tr>
           </thead>
-          <tbody className="divide-y text-sm">
+          <tbody className="divide-y divide-border text-sm">
             {ingredients.map(ing => (
-              <tr key={ing.id} className="hover:bg-gray-50 group">
-                <td className="p-4 font-bold text-slate-700">{ing.name}</td>
-                <td className="p-4 text-slate-600">${ing.cost.toFixed(1)} / {ing.unit}</td>
-                <td className="p-4"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${ing.currentStock < ing.maxStock ? 'bg-red-500' : 'bg-green-500'}`}/><span className="font-mono font-medium">{ing.currentStock.toLocaleString()} {ing.unit}</span></div></td>
-                <td className="p-4 font-mono text-slate-900">${(ing.currentStock * ing.cost).toLocaleString()}</td>
+              <tr key={ing.id} className="hover:bg-muted/30 group">
+                <td className="p-4 font-bold text-foreground">{ing.name}</td>
+                <td className="p-4 text-muted-foreground">${ing.cost.toFixed(1)} / {ing.unit}</td>
+                <td className="p-4"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${ing.currentStock < ing.maxStock ? 'bg-red-500' : 'bg-green-500'}`}/><span className="font-mono font-medium text-foreground">{ing.currentStock.toLocaleString()} {ing.unit}</span></div></td>
+                <td className="p-4 font-mono text-foreground">${(ing.currentStock * ing.cost).toLocaleString()}</td>
                 <td className="p-4 text-right space-x-2">
-                  <button onClick={() => openEdit(ing)} className="text-blue-500 hover:bg-blue-50 p-2 rounded"><Edit size={16}/></button>
-                  <button onClick={() => handleDelete(ing.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={16}/></button>
+                  <button onClick={() => openEdit(ing)} className="text-blue-500 hover:bg-blue-500/10 p-2 rounded"><Edit size={16}/></button>
+                  <button onClick={() => handleDelete(ing.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded"><Trash2 size={16}/></button>
                 </td>
               </tr>
             ))}
@@ -297,33 +300,35 @@ const InventoryTab = ({ toast }: { toast: any }) => {
       </div>
       
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-           <div className="bg-white p-6 rounded-xl w-[550px] shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">{formData.id ? 'Editar (Modo Exacto)' : 'Agregar Insumo'} <Calculator size={18} className="text-blue-500"/></h3>
-            {formData.id && <div className="mb-4 bg-yellow-50 p-3 rounded text-xs text-yellow-800 border border-yellow-200"><Info size={14} className="inline mr-1"/>Estás editando. Los valores se muestran en <b>Unidad Base</b> para mayor precisión.</div>}
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+           {/* [CORRECCIÓN] Modal con bg-card */}
+           <div className="bg-card text-card-foreground p-6 rounded-xl w-[550px] shadow-2xl max-h-[90vh] overflow-y-auto border border-border">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">{formData.id ? 'Editar (Modo Exacto)' : 'Agregar Insumo'} <Calculator size={18} className="text-primary"/></h3>
+            {formData.id && <div className="mb-4 bg-yellow-500/10 p-3 rounded text-xs text-yellow-700 dark:text-yellow-400 border border-yellow-500/20"><Info size={14} className="inline mr-1"/>Estás editando. Los valores se muestran en <b>Unidad Base</b> para mayor precisión.</div>}
             
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nombre</label><input className="w-full p-2 border rounded" placeholder="Ej: Pan" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} autoFocus/></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Se mide en...</label><select className="w-full p-2 border rounded" value={formData.baseUnit} onChange={e => setFormData({...formData, baseUnit: e.target.value as any})}><option value="gr">Gramos</option><option value="ml">Mililitros</option><option value="und">Unidad</option></select></div>
+                  {/* [CORRECCIÓN] Inputs con bg-background y text-foreground */}
+                  <div><label className="text-xs font-bold text-muted-foreground uppercase block mb-1">Nombre</label><input className="w-full p-2 border border-input rounded bg-background text-foreground" placeholder="Ej: Pan" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} autoFocus/></div>
+                  <div><label className="text-xs font-bold text-muted-foreground uppercase block mb-1">Se mide en...</label><select className="w-full p-2 border border-input rounded bg-background text-foreground" value={formData.baseUnit} onChange={e => setFormData({...formData, baseUnit: e.target.value as any})}><option value="gr">Gramos</option><option value="ml">Mililitros</option><option value="und">Unidad</option></select></div>
               </div>
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
-                  <div className="flex items-center gap-2 text-blue-800 font-bold text-sm border-b border-blue-200 pb-2"><Scale size={16}/> Compra</div>
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-500/20 space-y-4">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold text-sm border-b border-blue-500/20 pb-2"><Scale size={16}/> Compra</div>
                   <div className="grid grid-cols-2 gap-4">
-                      <div><label className="text-xs font-bold text-slate-500 block mb-1">¿Cómo lo compras?</label><select className="w-full p-2 border rounded bg-white" value={formData.buyUnit} onChange={e => setFormData({...formData, buyUnit: e.target.value as any})}><option value="libra">Por Libra</option><option value="kilo">Por Kilo</option><option value="litro">Por Litro</option><option value="paquete">Por Paquete</option><option value="unidad">Por Unidad</option><option value="gramo">Por Gramo (Manual)</option></select></div>
-                      <div><label className="text-xs font-bold text-slate-500 block mb-1">Precio</label><input type="number" className="w-full p-2 border rounded" placeholder="Valor" value={formData.buyPrice} onChange={e => setFormData({...formData, buyPrice: e.target.value})} /></div>
+                      <div><label className="text-xs font-bold text-muted-foreground block mb-1">¿Cómo lo compras?</label><select className="w-full p-2 border border-input rounded bg-background text-foreground" value={formData.buyUnit} onChange={e => setFormData({...formData, buyUnit: e.target.value as any})}><option value="libra">Por Libra</option><option value="kilo">Por Kilo</option><option value="litro">Por Litro</option><option value="paquete">Por Paquete</option><option value="unidad">Por Unidad</option><option value="gramo">Por Gramo (Manual)</option></select></div>
+                      <div><label className="text-xs font-bold text-muted-foreground block mb-1">Precio</label><input type="number" className="w-full p-2 border border-input rounded bg-background text-foreground" placeholder="Valor" value={formData.buyPrice} onChange={e => setFormData({...formData, buyPrice: e.target.value})} /></div>
                   </div>
-                  {formData.buyUnit === 'paquete' && <div className="bg-white p-2 rounded border border-blue-200"><label className="text-xs font-bold text-blue-700 block mb-1">¿Cuánto trae? ({formData.baseUnit})</label><input type="number" className="w-full p-2 border border-blue-300 rounded" placeholder="Ej: 500" value={formData.packageContent} onChange={e => setFormData({...formData, packageContent: e.target.value})} /></div>}
-                  <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-200 shadow-sm"><span className="text-xs text-slate-500 font-medium">Costo Calculado:</span><span className="font-bold text-blue-700 text-lg">${calculateCostPerBaseUnit().toFixed(2)} <span className="text-xs text-slate-400 font-normal">/ {formData.baseUnit}</span></span></div>
+                  {formData.buyUnit === 'paquete' && <div className="bg-background p-2 rounded border border-border"><label className="text-xs font-bold text-primary block mb-1">¿Cuánto trae? ({formData.baseUnit})</label><input type="number" className="w-full p-2 border border-input rounded bg-background" placeholder="Ej: 500" value={formData.packageContent} onChange={e => setFormData({...formData, packageContent: e.target.value})} /></div>}
+                  <div className="flex justify-between items-center bg-background p-3 rounded-lg border border-border shadow-sm"><span className="text-xs text-muted-foreground font-medium">Costo Calculado:</span><span className="font-bold text-primary text-lg">${calculateCostPerBaseUnit().toFixed(2)} <span className="text-xs text-muted-foreground font-normal">/ {formData.baseUnit}</span></span></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold text-slate-500 block mb-1">Existencia ({getStockLabel()})</label><input type="number" className="w-full p-2 border rounded font-bold" placeholder="Cantidad física" value={formData.currentStockBuyUnits} onChange={e => setFormData({...formData, currentStockBuyUnits: e.target.value})} /><p className="text-[10px] text-slate-400 mt-1">Total: <b>{((parseFloat(formData.currentStockBuyUnits)||0) * getConversionFactor()).toLocaleString()} {formData.baseUnit}</b></p></div>
-                  <div><label className="text-xs font-bold text-slate-500 block mb-1">Alerta Mínimo ({getStockLabel()})</label><input type="number" className="w-full p-2 border rounded" placeholder="Avisar si baja de..." value={formData.minStockBuyUnits} onChange={e => setFormData({...formData, minStockBuyUnits: e.target.value})} /></div>
+                  <div><label className="text-xs font-bold text-muted-foreground block mb-1">Existencia ({getStockLabel()})</label><input type="number" className="w-full p-2 border border-input rounded bg-background text-foreground font-bold" placeholder="Cantidad física" value={formData.currentStockBuyUnits} onChange={e => setFormData({...formData, currentStockBuyUnits: e.target.value})} /><p className="text-[10px] text-muted-foreground mt-1">Total: <b>{((parseFloat(formData.currentStockBuyUnits)||0) * getConversionFactor()).toLocaleString()} {formData.baseUnit}</b></p></div>
+                  <div><label className="text-xs font-bold text-muted-foreground block mb-1">Alerta Mínimo ({getStockLabel()})</label><input type="number" className="w-full p-2 border border-input rounded bg-background text-foreground" placeholder="Avisar si baja de..." value={formData.minStockBuyUnits} onChange={e => setFormData({...formData, minStockBuyUnits: e.target.value})} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
-              <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded font-bold shadow-lg hover:bg-slate-800">{formData.id ? 'Guardar Cambios' : 'Crear Insumo'}</button>
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-border">
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded">Cancelar</button>
+              <button onClick={handleSave} className="px-6 py-2 bg-primary text-primary-foreground rounded font-bold shadow hover:bg-primary/90">{formData.id ? 'Guardar Cambios' : 'Crear Insumo'}</button>
             </div>
            </div>
         </div>
@@ -373,79 +378,82 @@ const MenuTab = ({ toast }: { toast: any }) => {
     };
     
     const getCategoryColor = (cat: ProductCategory) => {
+        // [CORRECCIÓN] Colores con opacidad
         switch (cat) {
-            case 'bebidas': return 'text-cyan-600 bg-cyan-50 border-cyan-200';
-            case 'fuertes': return 'text-orange-600 bg-orange-50 border-orange-200';
-            case 'entradas': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-            case 'postres': return 'text-pink-600 bg-pink-50 border-pink-200';
-            default: return 'text-gray-600 bg-gray-50';
+            case 'bebidas': return 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-200 dark:border-cyan-800';
+            case 'fuertes': return 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-200 dark:border-orange-800';
+            case 'entradas': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 border-yellow-200 dark:border-yellow-800';
+            case 'postres': return 'text-pink-600 dark:text-pink-400 bg-pink-500/10 border-pink-200 dark:border-pink-800';
+            default: return 'text-muted-foreground bg-muted';
         }
     }
 
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800">Carta & Recetas</h2>
-                <button onClick={() => { setEditingProd({ recipe: [] }); setIsModalOpen(true); }} className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800"><Plus size={18}/> Nuevo Plato</button>
+                <h2 className="text-xl font-bold text-foreground">Carta & Recetas</h2>
+                <button onClick={() => { setEditingProd({ recipe: [] }); setIsModalOpen(true); }} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 shadow-md"><Plus size={18}/> Nuevo Plato</button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products.map(p => (
-                <div key={p.id} className="border rounded-xl p-4 bg-white hover:shadow-md transition-shadow">
+                // [CORRECCIÓN] bg-card
+                <div key={p.id} className="border border-border rounded-xl p-4 bg-card text-card-foreground hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-2">
                         <h3 className="font-bold text-lg">{p.name}</h3>
                         <span className={`text-xs px-2 py-1 rounded border uppercase font-bold ${getCategoryColor(p.category)}`}>{p.category}</span>
                     </div>
-                    <p className="text-xl font-mono font-medium text-slate-700 mb-4">${p.price.toLocaleString()}</p>
-                    <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><UtensilsCrossed size={12}/> Receta</p>
-                        {(!p.recipe || p.recipe.length === 0) ? <span className="text-xs text-gray-400 italic">Sin ingredientes</span> : (
+                    <p className="text-xl font-mono font-medium text-foreground mb-4">${p.price.toLocaleString()}</p>
+                    <div className="bg-muted/50 p-3 rounded-lg mb-4 border border-border">
+                        <p className="text-xs font-bold text-muted-foreground uppercase mb-2 flex items-center gap-1"><UtensilsCrossed size={12}/> Receta</p>
+                        {(!p.recipe || p.recipe.length === 0) ? <span className="text-xs text-muted-foreground italic">Sin ingredientes</span> : (
                         <ul className="text-xs space-y-1">
                             {p.recipe.map((r, i) => {
                             const ing = ingredients.find(ing => ing.id === r.ingredientId);
-                            return <li key={i} className="flex justify-between text-gray-600"><span>{ing?.name}</span> <span>{r.quantity} {ing?.unit}</span></li>
+                            return <li key={i} className="flex justify-between text-muted-foreground"><span>{ing?.name}</span> <span>{r.quantity} {ing?.unit}</span></li>
                             })}
                         </ul>
                         )}
                     </div>
-                    <div className="flex gap-2 justify-end"><button onClick={() => { setEditingProd(p); setIsModalOpen(true); }} className="text-sm border px-3 py-1 rounded hover:bg-gray-50">Editar</button></div>
+                    <div className="flex gap-2 justify-end"><button onClick={() => { setEditingProd(p); setIsModalOpen(true); }} className="text-sm border border-border px-3 py-1 rounded hover:bg-muted">Editar</button></div>
                 </div>
                 ))}
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-10">
-                <div className="bg-white p-6 rounded-xl w-[500px] shadow-2xl">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 overflow-y-auto py-10">
+                {/* [CORRECCIÓN] Modal bg-card */}
+                <div className="bg-card text-card-foreground p-6 rounded-xl w-[500px] shadow-2xl border border-border">
                     <h3 className="text-lg font-bold mb-4">{editingProd.id ? 'Editar' : 'Crear'} Plato</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <input className="w-full p-2 border rounded" placeholder="Nombre" value={editingProd.name || ''} onChange={e => setEditingProd({...editingProd, name: e.target.value})} />
-                            <select className="w-full p-2 border rounded" value={editingProd.category || 'fuertes'} onChange={e => setEditingProd({...editingProd, category: e.target.value as any})}>
+                            <input className="w-full p-2 border border-input rounded bg-background text-foreground" placeholder="Nombre" value={editingProd.name || ''} onChange={e => setEditingProd({...editingProd, name: e.target.value})} />
+                            <select className="w-full p-2 border border-input rounded bg-background text-foreground" value={editingProd.category || 'fuertes'} onChange={e => setEditingProd({...editingProd, category: e.target.value as any})}>
                                 <option value="fuertes">Fuertes</option><option value="bebidas">Bebidas</option><option value="entradas">Entradas</option><option value="postres">Postres</option>
                             </select>
                         </div>
-                        <input type="number" className="w-full p-2 border rounded" placeholder="Precio Venta" value={editingProd.price || ''} onChange={e => setEditingProd({...editingProd, price: parseFloat(e.target.value)})} />
+                        <input type="number" className="w-full p-2 border border-input rounded bg-background text-foreground" placeholder="Precio Venta" value={editingProd.price || ''} onChange={e => setEditingProd({...editingProd, price: parseFloat(e.target.value)})} />
                         
-                        <div className="border-t pt-4">
+                        <div className="border-t border-border pt-4">
                             <label className="text-sm font-bold block mb-2">Ingredientes de Receta</label>
                             <div className="flex gap-2 mb-2">
-                                <select className="flex-1 p-2 border rounded text-sm" value={tempIngredient.id} onChange={e => setTempIngredient({...tempIngredient, id: e.target.value})}>
+                                <select className="flex-1 p-2 border border-input rounded text-sm bg-background text-foreground" value={tempIngredient.id} onChange={e => setTempIngredient({...tempIngredient, id: e.target.value})}>
                                     <option value="">Seleccionar Insumo...</option>{ingredients.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
                                 </select>
-                                <input type="number" className="w-24 p-2 border rounded text-sm" placeholder="Cant. (gr/ml)" value={tempIngredient.qty || ''} onChange={e => setTempIngredient({...tempIngredient, qty: parseFloat(e.target.value)})}/>
-                                <button onClick={addIngredientToRecipe} className="bg-slate-200 p-2 rounded"><Plus size={16}/></button>
+                                <input type="number" className="w-24 p-2 border border-input rounded text-sm bg-background text-foreground" placeholder="Cant." value={tempIngredient.qty || ''} onChange={e => setTempIngredient({...tempIngredient, qty: parseFloat(e.target.value)})}/>
+                                <button onClick={addIngredientToRecipe} className="bg-muted p-2 rounded hover:bg-muted/80"><Plus size={16}/></button>
                             </div>
-                            <div className="bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto">
+                            <div className="bg-muted/30 p-2 rounded border border-border max-h-32 overflow-y-auto">
                                 {(editingProd.recipe || []).map((r, i) => {
                                     const ing = ingredients.find(ing => ing.id === r.ingredientId);
                                     const cost = ing ? (ing.cost * r.quantity) : 0;
                                     return (
-                                        <div key={i} className="flex justify-between items-center text-sm p-1 border-b last:border-0">
+                                        <div key={i} className="flex justify-between items-center text-sm p-1 border-b border-border last:border-0">
                                             <span>{ing?.name}</span>
-                                            <div className="flex items-center gap-2 text-slate-500">
+                                            <div className="flex items-center gap-2 text-muted-foreground">
                                                 <span className="font-bold">{r.quantity} {ing?.unit}</span>
                                                 <span className="text-xs">(${cost.toFixed(0)})</span>
-                                                <button onClick={() => removeIngredientFromRecipe(i)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button>
+                                                <button onClick={() => removeIngredientFromRecipe(i)} className="text-red-500 hover:bg-red-500/10 p-1 rounded"><Trash2 size={14}/></button>
                                             </div>
                                         </div>
                                     )
@@ -454,8 +462,8 @@ const MenuTab = ({ toast }: { toast: any }) => {
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
-                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-500">Cancelar</button>
-                        <button onClick={handleSave} className="px-4 py-2 bg-slate-900 text-white rounded font-bold">Guardar</button>
+                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded">Cancelar</button>
+                        <button onClick={handleSave} className="px-4 py-2 bg-primary text-primary-foreground rounded font-bold hover:bg-primary/90">Guardar</button>
                     </div>
                 </div>
                 </div>
@@ -505,36 +513,37 @@ const HRTab = ({ toast }: { toast: any }) => {
     return (
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-slate-800">Personal & Accesos</h2>
-              <button className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+              <h2 className="text-xl font-bold text-foreground">Personal & Accesos</h2>
+              <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 shadow-md">
                   <Plus size={18}/> Nuevo Empleado
               </button>
           </div>
     
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {users.map(u => (
-              <div key={u.id} className={`border rounded-xl bg-white shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${u.role === 'admin' ? 'border-purple-200' : 'border-gray-200'}`}>
-                 <div className="p-4 flex items-center gap-4 border-b border-slate-50">
-                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl text-white shadow-sm ${u.role === 'admin' ? 'bg-purple-600' : 'bg-slate-700'}`}>
+              // [CORRECCIÓN] bg-card
+              <div key={u.id} className={`border rounded-xl bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${u.role === 'admin' ? 'border-purple-500/30' : 'border-border'}`}>
+                 <div className="p-4 flex items-center gap-4 border-b border-border">
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl text-white shadow-sm ${u.role === 'admin' ? 'bg-purple-600' : 'bg-secondary text-secondary-foreground'}`}>
                         {u.fullName.charAt(0)}
                      </div>
                      <div className="flex-1">
-                        <h3 className="font-bold text-slate-800 text-lg leading-tight">{u.fullName}</h3>
-                        <span className="text-xs font-bold uppercase text-slate-400">{u.role}</span>
+                        <h3 className="font-bold text-foreground text-lg leading-tight">{u.fullName}</h3>
+                        <span className="text-xs font-bold uppercase text-muted-foreground">{u.role}</span>
                      </div>
                      {u.role !== 'admin' && (
                          <button 
                             onClick={() => toggleShift(u)}
                             title={u.en_turno ? "Clic para cerrar turno" : "Clic para iniciar turno"}
-                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-2 cursor-pointer ${u.en_turno ? 'bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'}`}
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-2 cursor-pointer ${u.en_turno ? 'bg-green-500/10 text-green-600 border-green-500/20 hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/20' : 'bg-muted text-muted-foreground border-border hover:bg-green-500/10 hover:text-green-600 hover:border-green-500/20'}`}
                          >
-                            <span className={`w-2 h-2 rounded-full transition-colors ${u.en_turno ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}/>
+                            <span className={`w-2 h-2 rounded-full transition-colors ${u.en_turno ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}/>
                             {u.en_turno ? 'EN TURNO' : 'OFF'}
                          </button>
                      )}
                  </div>
-                 <div className="p-4 bg-slate-50 flex-1">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
+                 <div className="p-4 bg-muted/30 flex-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-1">
                         <Lock size={12}/> Accesos Permitidos
                     </p>
                     <div className="space-y-3">
@@ -542,17 +551,17 @@ const HRTab = ({ toast }: { toast: any }) => {
                             const isMainRole = u.role === mod.id;
                             const isActive = hasAccess(u, mod.id);
                             return (
-                                <div key={mod.id} className="flex items-center justify-between bg-white p-2 rounded border border-slate-100">
-                                    <span className={`text-sm font-medium ${isActive ? 'text-slate-700' : 'text-slate-400'}`}>
+                                <div key={mod.id} className="flex items-center justify-between bg-background p-2 rounded border border-border">
+                                    <span className={`text-sm font-medium ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                                         {mod.label}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        {isMainRole && <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1 rounded">PRINCIPAL</span>}
+                                        {isMainRole && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold bg-blue-500/10 px-1 rounded">PRINCIPAL</span>}
                                         <Switch 
                                             checked={isActive}
                                             disabled={isMainRole || u.role === 'admin'}
                                             onCheckedChange={() => togglePermission(u, mod.id)}
-                                            className={isActive ? 'bg-slate-900' : 'bg-slate-200'}
+                                            className={isActive ? 'data-[state=checked]:bg-primary' : 'bg-input'}
                                         />
                                     </div>
                                 </div>
@@ -611,26 +620,26 @@ const TablesTab = ({ toast }: { toast: any }) => {
   return (
     <div className="p-6">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             Monitor de Sala 
             <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
         </h2>
         
-        <div className="flex items-end gap-2 bg-slate-100 p-2 rounded-lg border border-slate-200">
+        <div className="flex items-end gap-2 bg-muted p-2 rounded-lg border border-border">
             <div>
-                <Label htmlFor="threshold" className="text-[10px] font-bold uppercase text-slate-500">Alerta "Sin Pagar"</Label>
+                <Label htmlFor="threshold" className="text-[10px] font-bold uppercase text-muted-foreground">Alerta "Sin Pagar"</Label>
                 <div className="flex items-center gap-1">
                     <Input 
                         id="threshold" 
-                        className="h-8 w-20 text-right font-mono" 
+                        className="h-8 w-20 text-right font-mono bg-background" 
                         value={alertThresholdInput}
                         onChange={(e) => setAlertThresholdInput(e.target.value)}
                         placeholder="Min"
                     />
-                    <span className="text-xs text-slate-500 font-medium">min</span>
+                    <span className="text-xs text-muted-foreground font-medium">min</span>
                 </div>
             </div>
-            <Button size="sm" onClick={saveThreshold} className="h-8 bg-slate-800 hover:bg-slate-700">
+            <Button size="sm" onClick={saveThreshold} className="h-8 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Save size={14}/>
             </Button>
         </div>
@@ -638,13 +647,14 @@ const TablesTab = ({ toast }: { toast: any }) => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
         {tables.map(t => (
+            // [CORRECCIÓN] Tarjetas de mesa con opacidad y bordes adaptados
             <div key={t.id} className={`
                 aspect-square rounded-2xl flex flex-col items-center justify-center border-2 shadow-sm relative overflow-hidden transition-all
-                ${t.status === 'libre' ? 'border-green-200 bg-white' : ''}
-                ${t.status === 'cocinando' ? 'border-red-200 bg-red-50' : ''}
-                ${t.status === 'servir' ? 'border-orange-300 bg-orange-50' : ''}
-                ${t.status === 'comiendo' ? 'border-blue-200 bg-blue-50' : ''}
-                ${t.status === 'pagando' ? 'border-purple-200 bg-purple-50' : ''}
+                ${t.status === 'libre' ? 'border-green-500/20 bg-card' : ''}
+                ${t.status === 'cocinando' ? 'border-red-500/30 bg-red-500/10' : ''}
+                ${t.status === 'servir' ? 'border-orange-500/30 bg-orange-500/10' : ''}
+                ${t.status === 'comiendo' ? 'border-blue-500/30 bg-blue-500/10' : ''}
+                ${t.status === 'pagando' ? 'border-purple-500/30 bg-purple-500/10' : ''}
             `}> 
                 <div className={`absolute top-0 w-full h-2 
                     ${t.status === 'libre' ? 'bg-green-500' : ''}
@@ -653,15 +663,15 @@ const TablesTab = ({ toast }: { toast: any }) => {
                     ${t.status === 'comiendo' ? 'bg-blue-500' : ''}
                     ${t.status === 'pagando' ? 'bg-purple-500' : ''}
                 `}/>
-                <h3 className="text-3xl font-bold text-slate-800 mb-1">{t.number}</h3>
+                <h3 className="text-3xl font-bold text-foreground mb-1">{t.number}</h3>
                 <span className={`text-xs uppercase font-bold mb-2 px-2 py-0.5 rounded
-                      ${t.status === 'libre' ? 'text-green-600 bg-green-100' : ''}
-                      ${t.status === 'cocinando' ? 'text-red-600 bg-red-100' : ''}
-                      ${t.status === 'servir' ? 'text-orange-600 bg-orange-100' : ''}
-                      ${t.status === 'comiendo' ? 'text-blue-600 bg-blue-100' : ''}
-                      ${t.status === 'pagando' ? 'text-purple-600 bg-purple-100' : ''}
+                      ${t.status === 'libre' ? 'text-green-600 dark:text-green-400 bg-green-500/10' : ''}
+                      ${t.status === 'cocinando' ? 'text-red-600 dark:text-red-400 bg-red-500/10' : ''}
+                      ${t.status === 'servir' ? 'text-orange-600 dark:text-orange-400 bg-orange-500/10' : ''}
+                      ${t.status === 'comiendo' ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10' : ''}
+                      ${t.status === 'pagando' ? 'text-purple-600 dark:text-purple-400 bg-purple-500/10' : ''}
                 `}>{t.status}</span>
-                {t.timestamp && <div className="bg-white/80 px-2 py-1 rounded shadow-sm text-slate-700 border border-slate-100"><Timer start={t.timestamp}/></div>}
+                {t.timestamp && <div className="bg-background/80 px-2 py-1 rounded shadow-sm text-foreground border border-border"><Timer start={t.timestamp}/></div>}
             </div>
         ))}
       </div>

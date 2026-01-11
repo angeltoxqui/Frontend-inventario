@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '../components/ui/
 import AppSidebar from '../components/Sidebar/AppSidebar'
 import { Separator } from '../components/ui/separator'
 import { ChefHat } from 'lucide-react'
+import { ModeToggle } from '../components/ModeToggle' // <--- IMPORTAMOS EL TOGGLE
 
 export const Route = createFileRoute('/_layout')({
   component: Layout,
@@ -32,24 +33,29 @@ function Layout() {
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       
-      {/* ELIMINADO 'w-full' para evitar conflictos de ancho. flex-1 es suficiente. */}
-      <SidebarInset className="flex-1 min-w-0 min-h-screen bg-slate-50/50 flex flex-col overflow-hidden transition-all duration-300">
+      {/* Usamos bg-background y text-foreground para soportar temas */}
+      <SidebarInset className="flex-1 min-w-0 min-h-screen bg-muted/20 dark:bg-slate-950 flex flex-col overflow-hidden transition-all duration-300">
          
-         {/* HEADER */}
-         <header className="h-16 flex items-center px-4 sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm gap-4 shrink-0">
+         {/* HEADER ACTUALIZADO CON COLORES DINÁMICOS */}
+         <header className="h-16 flex items-center px-4 sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border shadow-sm gap-4 shrink-0">
             <div className="flex items-center gap-3">
-                <SidebarTrigger className="text-slate-500 hover:text-slate-900 transition-colors" />
-                <Separator orientation="vertical" className="h-6 bg-slate-200" />
+                <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
+                <Separator orientation="vertical" className="h-6 bg-border" />
                 
                 <div className="flex items-center gap-2 select-none">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                         <ChefHat className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col leading-none">
-                        <span className="font-bold text-lg text-slate-900 tracking-tight">Setoi</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"></span>
+                        <span className="font-bold text-lg text-foreground tracking-tight">Setoi</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Inventario</span>
                     </div>
                 </div>
+            </div>
+
+            {/* AÑADIMOS EL BOTÓN DE TEMA A LA DERECHA */}
+            <div className="ml-auto flex items-center gap-2">
+                <ModeToggle />
             </div>
          </header>
 
