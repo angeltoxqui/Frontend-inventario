@@ -1,19 +1,18 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
-import { MockService } from '@/services/mockService'
+import { createFileRoute } from '@tanstack/react-router'
+import React, { useEffect, useState } from 'react'
+import { MockService } from '../../services/mockService'
 import { 
   DollarSign, 
   ShoppingBag, 
   Users, 
   ArrowUpRight, 
   AlertCircle,
-  FileText,
-  Settings,
-  Package,
-  Briefcase
+  TrendingUp,
+  Utensils 
 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-// Eliminé Button, TrendingUp y Utensils de los imports porque ya no se usan
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_layout/')({
   component: Dashboard,
@@ -24,50 +23,47 @@ function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const fin = await MockService.getFinancialData();
-        const tables = await MockService.getTables();
-        const busy = tables.filter(t => t.status !== 'libre').length;
-        setStats({
-          income: fin.totalIncome,
-          orders: fin.todaySales.length,
-          activeTables: busy
-        });
-      } catch (error) {
-        console.error("Error cargando dashboard", error);
-      }
+      const fin = await MockService.getFinancialData();
+      const tables = await MockService.getTables();
+      const busy = tables.filter(t => t.status !== 'libre').length;
+      setStats({
+        income: fin.totalIncome,
+        orders: fin.todaySales.length,
+        activeTables: busy
+      });
     };
     load();
   }, []);
 
-  // BOTONES CON RUTAS INTELIGENTES (Esto se mantiene intacto)
-  const quickLinks = [
-    { title: 'Reportes', url: '/reports', icon: FileText },
-    { title: 'RRHH', url: '/admin?tab=users', icon: Briefcase }, 
-    { title: 'Insumos', url: '/items?view=insumos', icon: Package }, 
-    { title: 'Ajustes', url: '/settings', icon: Settings },
-  ];
-
   return (
-    <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500 min-h-screen bg-background">
       
-      {/* HEADER LIMPIO */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard General</h1>
-          <p className="text-slate-500 mt-2 text-lg">Bienvenido de nuevo. Aquí tienes el pulso de tu restaurante hoy.</p>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard General</h1>
+          <p className="text-slate-600 dark:text-slate-300 mt-2 text-lg">Bienvenido de nuevo. Aquí tienes el pulso de tu restaurante hoy.</p>
         </div>
-        {/* Se eliminó el div con los botones de Reportes y Cocina */}
+        <div className="flex gap-3">
+           <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
+              <TrendingUp className="mr-2 h-4 w-4" /> Ver Reportes
+           </Button>
+           <Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
+              <Utensils className="mr-2 h-4 w-4" /> Ir a Cocina
+           </Button>
+        </div>
       </div>
 
       {/* METRICS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-primary/20 bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+        
+        {/* Card 1: Ingresos */}
+        <Card className="border-primary/20 bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
              <DollarSign size={80} className="text-primary" />
           </div>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-            <CardTitle className="text-sm font-medium uppercase tracking-wider text-slate-500">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground dark:text-white">
               Ingresos Totales
             </CardTitle>
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -75,19 +71,20 @@ function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold text-slate-900 mt-2">${stats.income.toLocaleString()}</div>
+            <div className="text-3xl font-bold mt-2">${stats.income.toLocaleString()}</div>
             <p className="text-xs text-primary font-medium mt-1 flex items-center">
               <ArrowUpRight size={14} className="mr-1" /> +12% vs ayer
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+        {/* Card 2: Pedidos */}
+        <Card className="border-border bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
           <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
              <ShoppingBag size={80} />
           </div>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-            <CardTitle className="text-sm font-medium uppercase tracking-wider text-slate-500">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground dark:text-white">
               Pedidos Hoy
             </CardTitle>
             <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -95,19 +92,20 @@ function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold text-slate-900 mt-2">{stats.orders}</div>
-            <p className="text-xs text-slate-500 mt-1">
+            <div className="text-3xl font-bold mt-2">{stats.orders}</div>
+            <p className="text-xs text-muted-foreground dark:text-white mt-1">
               Promedio de 15 mins/mesa
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-orange-100 bg-white/80 backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+        {/* Card 3: Mesas */}
+        <Card className="border-orange-100 bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
            <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
              <Users size={80} className="text-orange-500" />
           </div>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-            <CardTitle className="text-sm font-medium uppercase tracking-wider text-slate-500">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground dark:text-white">
               Ocupación
             </CardTitle>
             <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
@@ -115,35 +113,30 @@ function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold text-slate-900 mt-2">{stats.activeTables} / 9</div>
-            {stats.activeTables > 7 ? (
+            <div className="text-3xl font-bold mt-2">{stats.activeTables} / 9</div>
+            {stats.activeTables > 7 && (
                 <p className="text-xs text-orange-600 font-bold mt-1 flex items-center bg-orange-50 w-fit px-2 py-0.5 rounded-full">
                   <AlertCircle size={12} className="mr-1" /> Alta demanda
                 </p>
-            ) : (
-                <p className="text-xs text-slate-500 mt-1">Capacidad saludable</p>
+            )}
+            {stats.activeTables <= 7 && (
+                <p className="text-xs text-muted-foreground dark:text-white mt-1">Capacidad saludable</p>
             )}
           </CardContent>
         </Card>
       </div>
 
+      {/* SECCIÓN VISUAL ADICIONAL */}
       <div className="mt-8">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Gestión Rápida</h2>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Gestión Rápida</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-             {quickLinks.map((item, i) => (
-               <Link 
-                  key={i} 
-                  to={item.url}
-                  className="group p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-between shadow-sm hover:shadow-md"
-               >
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <item.icon size={16} />
-                    </div>
-                    <span className="font-medium text-slate-700 group-hover:text-primary transition-colors">{item.title}</span>
+             {['Reportes', 'Usuarios', 'Inventario', 'Ajustes'].map((item, i) => (
+               <div key={i} className="group p-4 bg-white dark:bg-slate-800 dark:text-white border border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-slate-700 transition-all flex items-center justify-between">
+                  <span className="font-medium text-slate-900 dark:text-white">{item}</span>
+                  <div className="h-8 w-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <ArrowUpRight size={16} />
                   </div>
-                  <ArrowUpRight size={16} className="text-slate-300 group-hover:text-primary transition-colors" />
-               </Link>
+               </div>
              ))}
         </div>
       </div>

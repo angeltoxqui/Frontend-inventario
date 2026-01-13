@@ -37,14 +37,18 @@
   }
  
   .dark {
-    /* Fondo oscuro (casi negro azulado) */
-    --background: 222.2 84% 4.9%;
+    /* --- CORRECCIÓN DE FONDO --- */
+   
+    --background: 222.2 84% 4.9%; 
+    /* Texto casi blanco */
     --foreground: 210 40% 98%;
  
-    --card: 222.2 84% 4.9%;
+   
+    --card: 222.2 84% 12%; 
     --card-foreground: 210 40% 98%;
  
-    --popover: 222.2 84% 4.9%;
+    /* Popovers también un poco más claros */
+    --popover: 222.2 84% 12%;
     --popover-foreground: 210 40% 98%;
  
     --primary: 210 40% 98%;
@@ -96,5 +100,4 @@
     background-color: #cbd5e1;
     border-radius: 20px;
   }
-
 }
