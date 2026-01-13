@@ -63,25 +63,18 @@ Este proyecto destaca por el uso de tecnologías modernas y buenas prácticas de
 
 ## 💻 Instalación y Ejecución Local
 
-Si deseas correr este proyecto en tu máquina local:
 
-1.  **Clonar el repositorio**
-    ```bash
-    git clone [https://github.com/angeltoxqui/Frontend-inventario.git](https://github.com/angeltoxqui/Frontend-inventario.git)
-    cd Frontend-inventario
-    ```
-
-2.  **Instalar dependencias**
+1.  **Instalar dependencias**
     ```bash
     npm install
     ```
 
-3.  **Correr el servidor de desarrollo**
+2.  **Correr el servidor de desarrollo**
     ```bash
     npm run dev
     ```
 
-4.  Abrir `http://localhost:5173` en tu navegador.
+3.  Abrir `http://localhost:5173` en tu navegador.
 
 ---
 
