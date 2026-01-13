@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import React, { useEffect, useState } from 'react'
 import { MockService } from '../../services/mockService'
 import { 
@@ -6,13 +6,9 @@ import {
   ShoppingBag, 
   Users, 
   ArrowUpRight, 
-  AlertCircle,
-  TrendingUp,
-  Utensils 
+  AlertCircle
 } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_layout/')({
   component: Dashboard,
@@ -23,6 +19,7 @@ function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
+      // Nota: Idealmente maneja errores aquí con un try/catch en el futuro
       const fin = await MockService.getFinancialData();
       const tables = await MockService.getTables();
       const busy = tables.filter(t => t.status !== 'libre').length;
@@ -35,22 +32,22 @@ function Dashboard() {
     load();
   }, []);
 
+  // Configuración de los enlaces de gestión rápida
+  const quickLinks = [
+    { label: 'Reportes', path: '/reports' },
+    { label: 'Usuarios', path: '/admin?tab=users' },     // Ruta de gestión de personal/RRHH
+    { label: 'Inventario', path: '/admin?tab=inventory' },   // Ruta de gestión de inventario en el panel admin
+    { label: 'Ajustes', path: '/settings' }
+  ];
+
   return (
     <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500 min-h-screen bg-background">
       
-      {/* HEADER */}
+      {/* HEADER*/}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard General</h1>
-          <p className="text-slate-600 dark:text-slate-300 mt-2 text-lg">Bienvenido de nuevo. Aquí tienes el pulso de tu restaurante hoy.</p>
-        </div>
-        <div className="flex gap-3">
-           <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
-              <TrendingUp className="mr-2 h-4 w-4" /> Ver Reportes
-           </Button>
-           <Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
-              <Utensils className="mr-2 h-4 w-4" /> Ir a Cocina
-           </Button>
+          <p className="text-slate-600 dark:text-slate-300 mt-2 text-lg">Bienvenido de nuevo. </p>
         </div>
       </div>
 
@@ -58,7 +55,7 @@ function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 1: Ingresos */}
-        <Card className="border-primary/20 bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+        <Card className="border-orange-100 bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
              <DollarSign size={80} className="text-primary" />
           </div>
@@ -66,7 +63,7 @@ function Dashboard() {
             <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground dark:text-white">
               Ingresos Totales
             </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                <DollarSign size={18} />
             </div>
           </CardHeader>
@@ -79,8 +76,8 @@ function Dashboard() {
         </Card>
 
         {/* Card 2: Pedidos */}
-        <Card className="border-border bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+        <Card className="border-orange-100 bg-white/80 dark:bg-card dark:text-white backdrop-blur shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+          <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
              <ShoppingBag size={80} />
           </div>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
@@ -126,17 +123,21 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* SECCIÓN VISUAL ADICIONAL */}
+      {/* SECCIÓN VISUAL ADICIONAL - GESTIÓN RÁPIDA CON NAVEGACIÓN */}
       <div className="mt-8">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Gestión Rápida</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-             {['Reportes', 'Usuarios', 'Inventario', 'Ajustes'].map((item, i) => (
-               <div key={i} className="group p-4 bg-white dark:bg-slate-800 dark:text-white border border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-slate-700 transition-all flex items-center justify-between">
-                  <span className="font-medium text-slate-900 dark:text-white">{item}</span>
+             {quickLinks.map((item, i) => (
+               <Link 
+                  key={i} 
+                  to={item.path}
+                  className="group p-4 bg-white dark:bg-slate-800 dark:text-white border border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-slate-700 transition-all flex items-center justify-between"
+               >
+                  <span className="font-medium text-slate-900 dark:text-white">{item.label}</span>
                   <div className="h-8 w-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                     <ArrowUpRight size={16} />
                   </div>
-               </div>
+               </Link>
              ))}
         </div>
       </div>
