@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     TanStackRouterVite(),
-    // ¡Asegúrate de que NO esté tailwindcss() aquí!
+    
   ],
   resolve: {
     alias: {

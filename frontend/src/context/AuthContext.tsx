@@ -1,26 +1,54 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { MockService } from '../services/mockService'; // Importamos el servicio
+import { User } from '../types'; // Importamos el tipo User
 
-// 1. Tipado fuerte para el contexto (Mejora de Developer Experience)
 interface AuthContextType {
-  user: string | null;
+  user: User | null; // Ahora guardamos el objeto completo
   isAuthenticated: boolean;
   login: (username: string) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>; // Nueva función para recargar permisos sin salir
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // 2. Inicialización perezosa (Lazy Initialization) para leer del storage al inicio
-  const [user, setUser] = useState<string | null>(() => {
-    return localStorage.getItem('rootventory_user');
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar usuario al iniciar la app
+  useEffect(() => {
+    refreshUser().finally(() => setLoading(false));
+  }, []);
+
+  const refreshUser = async () => {
+    const storedUsername = localStorage.getItem('rootventory_user');
+    if (storedUsername) {
+      try {
+        const users = await MockService.getUsers();
+        const found = users.find(u => u.username === storedUsername);
+        if (found) setUser(found);
+      } catch (error) {
+        console.error("Error recargando usuario:", error);
+      }
+    }
+  };
 
   const login = async (username: string) => {
-    setUser(username);
-    localStorage.setItem('access_token', 'mock-token-123');
-    localStorage.setItem('rootventory_user', username); // Guardamos el usuario
-    return true; 
+    try {
+      const users = await MockService.getUsers();
+      const found = users.find(u => u.username === username);
+      
+      if (found) {
+        setUser(found);
+        localStorage.setItem('access_token', 'mock-token-123');
+        localStorage.setItem('rootventory_user', username);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
   };
 
   const logout = () => {
@@ -32,11 +60,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
-      isAuthenticated: !!user, // Helper útil
+      isAuthenticated: !!user, 
       login, 
-      logout 
+      logout,
+      refreshUser 
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

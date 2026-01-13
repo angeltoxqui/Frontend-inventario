@@ -247,8 +247,36 @@ export const MockService = {
   // --- CAJA Y OTROS ---
   openBox: async (base: number) => { const db = getDb(); db.cashierSession = { isOpen: true, base, startTime: Date.now() }; saveDb(db); return true; },
   registerClosing: async (log: Omit<CashClosingLog, 'id' | 'timestamp'>) => { const db = getDb(); db.closingLogs.push({ ...log, id: Math.random().toString(), timestamp: Date.now() }); db.cashierSession = null; saveDb(db); return true; },
+  
   getSalesReport: async () => { const db = getDb(); return { history: db.salesHistory, summary: { totalRevenue: db.salesHistory.reduce((a,b)=>a+b.total,0) } }; },
-  getFinancialData: async () => { const db = getDb(); return { totalIncome: 0, totalExpenses: 0, netProfit: 0, transactions: [] }; },
+  
+  // --- CORRECCIÓN DASHBOARD: Datos reales del día ---
+  getFinancialData: async () => { 
+      const db = getDb(); 
+      
+      // 1. Obtenemos el rango de tiempo de HOY (00:00 a 23:59)
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+
+      // 2. Filtramos el historial de ventas (db.salesHistory)
+      const todaySales = (db.salesHistory || []).filter(s => 
+          s.timestamp >= startOfDay && s.timestamp < endOfDay
+      );
+      
+      // 3. Sumamos el total de las ventas de hoy
+      const totalIncome = todaySales.reduce((acc, curr) => acc + curr.total, 0);
+
+      // 4. Retornamos la estructura que el Dashboard espera
+      return { 
+          totalIncome: totalIncome, 
+          todaySales: todaySales, // Esto habilita el contador de pedidos
+          totalExpenses: 0, 
+          netProfit: totalIncome, 
+          transactions: todaySales 
+      }; 
+  },
+
   getInventoryData: async () => { const db = getDb(); return { ingredients: [...db.ingredients], expenses: [...db.expenses], sales: [...db.salesHistory] }; },
   registerExpense: async (expense: Omit<Expense, 'id' | 'timestamp'>) => { const db = getDb(); db.expenses.push({ ...expense, id: Math.random().toString(), timestamp: Date.now() }); saveDb(db); return true; },
 

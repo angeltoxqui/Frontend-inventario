@@ -7,15 +7,13 @@ import {
   Users, 
   ArrowUpRight, 
   AlertCircle,
-  TrendingUp,
-  Utensils,
   FileText,
   Settings,
   Package,
   Briefcase
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+// Eliminé Button, TrendingUp y Utensils de los imports porque ya no se usan
 
 export const Route = createFileRoute('/_layout/')({
   component: Dashboard,
@@ -42,12 +40,10 @@ function Dashboard() {
     load();
   }, []);
 
-  // BOTONES CON RUTAS INTELIGENTES
+  // BOTONES CON RUTAS INTELIGENTES (Esto se mantiene intacto)
   const quickLinks = [
     { title: 'Reportes', url: '/reports', icon: FileText },
-    // Envía ?tab=users para abrir directo en RRHH
     { title: 'RRHH', url: '/admin?tab=users', icon: Briefcase }, 
-    // Envía ?view=insumos para filtrar la tabla
     { title: 'Insumos', url: '/items?view=insumos', icon: Package }, 
     { title: 'Ajustes', url: '/settings', icon: Settings },
   ];
@@ -55,24 +51,13 @@ function Dashboard() {
   return (
     <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
       
-      {/* HEADER */}
+      {/* HEADER LIMPIO */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard General</h1>
           <p className="text-slate-500 mt-2 text-lg">Bienvenido de nuevo. Aquí tienes el pulso de tu restaurante hoy.</p>
         </div>
-        <div className="flex gap-3">
-           <Link to="/reports">
-             <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
-               <TrendingUp className="mr-2 h-4 w-4" /> Ver Reportes
-             </Button>
-           </Link>
-           <Link to="/cocina">
-             <Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
-               <Utensils className="mr-2 h-4 w-4" /> Ir a Cocina
-             </Button>
-           </Link>
-        </div>
+        {/* Se eliminó el div con los botones de Reportes y Cocina */}
       </div>
 
       {/* METRICS GRID */}

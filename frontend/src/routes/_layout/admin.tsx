@@ -477,11 +477,14 @@ const MenuTab = ({ toast }: { toast: any }) => {
 // ------------------------------------------------------------------
 const HRTab = ({ toast }: { toast: any }) => {
     const [users, setUsers] = useState<User[]>([]);
+    
     useEffect(() => { loadUsers(); }, []);
+
     const loadUsers = async () => {
         const u = await MockService.getUsers();
-        setUsers(u);
+        setUsers(u.filter(user => user.role !== 'superadmin'));
     }
+
     const toggleShift = async (user: User) => {
         const newStatus = !user.en_turno;
         await MockService.updateUser(user.id, { ...user, en_turno: newStatus });
