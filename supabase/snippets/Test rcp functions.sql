@@ -1,0 +1,1 @@
+SELECT public.create_store_tenant(2, 'Test Store2', 'basic', NULL, 'Admin', 'admin@test.com');
