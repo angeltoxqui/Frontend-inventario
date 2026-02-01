@@ -15,6 +15,12 @@ export * from "./types_tenant_user_management.ts";
 // Import and re-export all schema management types
 export * from "./types_schema_management.ts";
 
+// Import and re-export all POS management types
+export * from "./types_product_management.ts";
+export * from "./types_ingredient_management.ts";
+export * from "./types_table_management.ts";
+export * from "./types_order_management.ts";
+
 /**
  * Helper para crear respuestas JSON
  */
