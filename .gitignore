@@ -2,3 +2,13 @@ node_modules/
 frontend/node_modules/
 dist/
 .env
+.env.local
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.pyc
+venv/
+.DS_Store
+response_dump.json
+billing.db
