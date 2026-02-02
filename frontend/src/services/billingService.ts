@@ -2,10 +2,24 @@
 // Servicio para facturación electrónica con Factus (DIAN Colombia)
 
 import { OrderItem } from '../types';
+import { supabase } from '../supabaseClient';
 
 // URL del backend de facturación
 const BILLING_API_URL = import.meta.env.VITE_BILLING_API_URL || 'http://127.0.0.1:8000';
 const DEFAULT_RESTAURANT_ID = Number(import.meta.env.VITE_RESTAURANT_ID) || 1;
+
+/**
+ * Obtiene los headers de autenticación con el JWT de Supabase
+ */
+const getAuthHeaders = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+};
 
 /**
  * Tipos para facturación
@@ -99,16 +113,20 @@ export const BillingService = {
    * Sincroniza los rangos de numeración desde Factus
    */
   async syncRanges(restaurantId: number = DEFAULT_RESTAURANT_ID): Promise<SyncResult> {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${BILLING_API_URL}/api/billing/sync-ranges?restaurant_id=${restaurantId}`,
-      { method: 'POST' }
+      {
+        method: 'POST',
+        headers
+      }
     );
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Error sincronizando rangos');
     }
-    
+
     return response.json();
   },
 
@@ -116,14 +134,16 @@ export const BillingService = {
    * Obtiene todos los rangos de un restaurante
    */
   async getRanges(restaurantId: number = DEFAULT_RESTAURANT_ID): Promise<BillingRange[]> {
+    const headers = await getAuthHeaders();
     const response = await fetch(
-      `${BILLING_API_URL}/api/billing/ranges?restaurant_id=${restaurantId}`
+      `${BILLING_API_URL}/api/billing/ranges?restaurant_id=${restaurantId}`,
+      { headers }
     );
-    
+
     if (!response.ok) {
       throw new Error('Error obteniendo rangos');
     }
-    
+
     return response.json();
   },
 
@@ -132,18 +152,20 @@ export const BillingService = {
    */
   async getActiveRange(restaurantId: number = DEFAULT_RESTAURANT_ID): Promise<ActiveRange | null> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(
-        `${BILLING_API_URL}/api/billing/ranges/active?restaurant_id=${restaurantId}`
+        `${BILLING_API_URL}/api/billing/ranges/active?restaurant_id=${restaurantId}`,
+        { headers }
       );
-      
+
       if (response.status === 404) {
         return null; // No hay rango activo
       }
-      
+
       if (!response.ok) {
         throw new Error('Error obteniendo rango activo');
       }
-      
+
       return response.json();
     } catch (error) {
       console.error('[BillingService] Error obteniendo rango activo:', error);
@@ -155,14 +177,18 @@ export const BillingService = {
    * Activa un rango específico
    */
   async activateRange(
-    rangeId: number, 
+    rangeId: number,
     restaurantId: number = DEFAULT_RESTAURANT_ID
   ): Promise<boolean> {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${BILLING_API_URL}/api/billing/ranges/${rangeId}/activate?restaurant_id=${restaurantId}`,
-      { method: 'POST' }
+      {
+        method: 'POST',
+        headers
+      }
     );
-    
+
     return response.ok;
   },
 
@@ -170,17 +196,18 @@ export const BillingService = {
    * Crea una factura electrónica
    */
   async createInvoice(request: InvoiceRequest): Promise<InvoiceResponse> {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${BILLING_API_URL}/api/billing/invoices/from-order`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(request),
       }
     );
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       return {
         success: false,
@@ -188,7 +215,7 @@ export const BillingService = {
         message: data.detail,
       };
     }
-    
+
     return {
       success: true,
       invoice_number: data.invoice_number || data.number,
@@ -197,6 +224,38 @@ export const BillingService = {
       qr_url: data.qr_url,
       message: 'Factura electrónica emitida exitosamente',
     };
+  },
+
+  /**
+   * Valida una factura en Factus
+   */
+  async validateInvoice(invoiceNumber: string): Promise<InvoiceResponse> {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${BILLING_API_URL}/api/billing/invoices/${invoiceNumber}/validate`,
+      {
+        method: 'POST',
+        headers
+      }
+    );
+    return response.json();
+  },
+
+  /**
+   * Obtiene datos del ticket para impresión
+   */
+  async getTicketData(invoiceNumber: string): Promise<any> {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${BILLING_API_URL}/api/billing/invoices/${invoiceNumber}/ticket-data`,
+      {
+        headers
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Error obteniendo datos del ticket');
+    }
+    return response.json();
   },
 
   /**
@@ -215,7 +274,7 @@ export const BillingService = {
   ): Promise<InvoiceResponse> {
     // 1. Obtener rango activo
     const activeRange = await this.getActiveRange();
-    
+
     if (!activeRange) {
       return {
         success: false,
@@ -223,7 +282,7 @@ export const BillingService = {
         message: 'Error de configuración',
       };
     }
-    
+
     if (!activeRange.is_valid) {
       return {
         success: false,
@@ -231,7 +290,7 @@ export const BillingService = {
         message: 'Rango inválido',
       };
     }
-    
+
     // 2. Mapear método de pago
     const paymentMethodMap: Record<string, 'efectivo' | 'tarjeta' | 'nequi' | 'otro'> = {
       'efectivo': 'efectivo',
@@ -240,7 +299,7 @@ export const BillingService = {
       'credito': 'tarjeta',
       'debito': 'tarjeta',
     };
-    
+
     // 3. Crear request
     const request: InvoiceRequest = {
       order_id: orderId,
@@ -256,7 +315,7 @@ export const BillingService = {
         quantity: item.quantity,
       })),
     };
-    
+
     // 4. Emitir factura
     return this.createInvoice(request);
   },
@@ -270,16 +329,16 @@ export const BillingService = {
       if (!healthOk) {
         return { configured: false, error: 'Backend de facturación no responde' };
       }
-      
+
       const activeRange = await this.getActiveRange();
       if (!activeRange) {
         return { configured: false, error: 'No hay un rango de numeración activo' };
       }
-      
+
       if (!activeRange.is_valid) {
         return { configured: false, error: 'El rango activo está vencido o agotado' };
       }
-      
+
       return { configured: true };
     } catch (error) {
       return { configured: false, error: String(error) };
