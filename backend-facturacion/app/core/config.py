@@ -39,6 +39,12 @@ class Settings(BaseSettings):
         description="Margen en segundos antes de expiración para renovar token (5 min)"
     )
     
+    # Supabase Auth
+    supabase_jwt_secret: str = Field(
+        ...,
+        description="Secreto para verificar tokens JWT de Supabase"
+    )
+    
     # Tax Configuration
     impoconsumo_rate: float = Field(
         default=8.0,

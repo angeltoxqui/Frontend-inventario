@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.encryption import decrypt_credential, get_encryptor
-from app.db.models import Restaurant
+from app.db.models import Tenant
 from app.services.factus.client import FactusClient
 from app.services.factus.service import FactusService
 
@@ -30,10 +30,10 @@ class FactusServiceFactory:
 
     async def create_service_for_tenant(self, tenant_id: int) -> FactusService:
         """
-        Crea un servicio de Factus configurado con las credenciales del restaurante/tenant.
+        Crea un servicio de Factus configurado con las credenciales del tenant (restaurante).
 
         Args:
-            tenant_id: ID del restaurante (Tenant)
+            tenant_id: ID del Tenant
 
         Returns:
             Instancia configurada de FactusService
@@ -42,29 +42,29 @@ class FactusServiceFactory:
             HTTPException: Si el tenant no existe o faltan credenciales
         """
         # 1. Buscar tenant en BD
-        stmt = select(Restaurant).where(Restaurant.id == tenant_id)
+        stmt = select(Tenant).where(Tenant.id == tenant_id)
         result = await self.session.exec(stmt)
-        restaurant = result.first()
+        tenant = result.first()
 
-        if not restaurant:
+        if not tenant:
             logger.error(f"Tenant ID {tenant_id} no encontrado.")
-            raise HTTPException(status_code=404, detail="Restaurante no encontrado")
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
 
-        if not restaurant.is_active:
-            logger.warning(f"Intento de usar tenant inactivo: {restaurant.name} ({tenant_id})")
-            raise HTTPException(status_code=400, detail="El restaurante está inactivo")
+        if not tenant.is_active:
+            logger.warning(f"Intento de usar tenant inactivo: {tenant.name} ({tenant_id})")
+            raise HTTPException(status_code=400, detail="El tenant está inactivo")
 
         # 2. Validar existencia de credenciales
         if not all([
-            restaurant.factus_client_id,
-            restaurant.factus_client_secret,
-            restaurant.factus_email,
-            restaurant.factus_password
+            tenant.factus_client_id,
+            tenant.factus_client_secret,
+            tenant.factus_email,
+            tenant.factus_password
         ]):
             logger.error(f"Credenciales incompletas para tenant {tenant_id}")
             raise HTTPException(
                 status_code=500,
-                detail="El restaurante no tiene configuradas las credenciales de facturación"
+                detail="El tenant no tiene configuradas las credenciales de facturación"
             )
 
         # 3. Desencriptar credenciales
@@ -74,19 +74,19 @@ class FactusServiceFactory:
         encryptor = get_encryptor()
         
         try:
-            client_id = restaurant.factus_client_id
+            client_id = tenant.factus_client_id
             if encryptor.is_encrypted(client_id):
                 client_id = decrypt_credential(client_id)
                 
-            client_secret = restaurant.factus_client_secret
+            client_secret = tenant.factus_client_secret
             if encryptor.is_encrypted(client_secret):
                 client_secret = decrypt_credential(client_secret)
                 
-            email = restaurant.factus_email
+            email = tenant.factus_email
             if encryptor.is_encrypted(email):
                 email = decrypt_credential(email)
                 
-            password = restaurant.factus_password
+            password = tenant.factus_password
             if encryptor.is_encrypted(password):
                 password = decrypt_credential(password)
                 

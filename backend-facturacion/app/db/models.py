@@ -9,36 +9,41 @@ from decimal import Decimal
 from sqlmodel import SQLModel, Field, Relationship
 
 
+
 # =============================================================================
-# MODELO: RESTAURANT (TENANT)
+# MODELO: TENANT (Antes Restaurant)
 # =============================================================================
 
-class Restaurant(SQLModel, table=True):
+class Tenant(SQLModel, table=True):
     """
-    Representa un restaurante/tenant en el sistema.
-    Cada restaurante tiene sus propias credenciales de Factus y rangos de numeración.
+    Representa un tenant (negocio/restaurante) en el sistema.
+    Base de datos: 'tenants' (compartida con Supabase Auth/Public).
     """
-    __tablename__ = "restaurants"
+    __tablename__ = "tenants"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Identificación del restaurante
+    # Identificación del tenant
     name: str = Field(max_length=255, index=True)
-    nit: str = Field(max_length=20, unique=True, index=True)
+    nit: Optional[str] = Field(default=None, max_length=20, unique=True, index=True) # Puede ser nulo al inicio
     
     # Credenciales de Factus (encriptadas en producción)
+    # Son opcionales porque un tenant puede no tener facturación activa
     factus_client_id: Optional[str] = Field(default=None, max_length=255)
     factus_client_secret: Optional[str] = Field(default=None, max_length=255)
     factus_email: Optional[str] = Field(default=None, max_length=255)
     factus_password: Optional[str] = Field(default=None, max_length=255)
     
-    # Estado
+    # Flags configuración
+    billing_active: bool = Field(default=False)
+    
+    # Estado (Compatibilidad)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
     
     # Relación con rangos de numeración
-    billing_resolutions: List["BillingResolution"] = Relationship(back_populates="restaurant")
+    billing_resolutions: List["BillingResolution"] = Relationship(back_populates="tenant")
 
 
 # =============================================================================
@@ -48,10 +53,6 @@ class Restaurant(SQLModel, table=True):
 class BillingResolution(SQLModel, table=True):
     """
     Rango de numeración autorizado por la DIAN.
-    Cada restaurante puede tener múltiples rangos, pero solo uno activo.
-    
-    IMPORTANTE: Los datos se sincronizan desde Factus y se persisten localmente
-    para evitar consultar la API en cada venta.
     """
     __tablename__ = "billing_resolutions"
     
@@ -86,9 +87,9 @@ class BillingResolution(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
     
-    # Relación con restaurante (Foreign Key)
-    restaurant_id: int = Field(foreign_key="restaurants.id", index=True)
-    restaurant: Optional[Restaurant] = Relationship(back_populates="billing_resolutions")
+    # Relación con Tenant (Foreign Key)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    tenant: Optional[Tenant] = Relationship(back_populates="billing_resolutions")
     
     def is_valid(self) -> bool:
         """
@@ -172,5 +173,5 @@ class Invoice(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     validated_at: Optional[datetime] = Field(default=None)
     
-    # Relación con Restaurante
-    restaurant_id: int = Field(foreign_key="restaurants.id", index=True)
+    # Relación con Tenant
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)

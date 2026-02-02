@@ -18,8 +18,9 @@ from app.core.exceptions import (
     FactusInvoiceError,
     FactusValidationError,
 )
+from app.core.security import get_current_tenant
 from app.db.database import get_session
-from app.db.models import Invoice, BillingResolution, Restaurant
+from app.db.models import Invoice, BillingResolution, Tenant
 from app.schemas.factus import (
     InvoiceCreateSchema,
     InvoiceResponseSchema,
@@ -94,35 +95,35 @@ class ErrorResponse(BaseModel):
     summary="Verificar estado del servicio"
 )
 async def health_check(
-    restaurant_id: int = Query(..., description="ID del restaurante para probar conexión"),
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
-    Verifica que el servicio de facturación esté funcionando para un tenant específico.
+    Verifica que el servicio de facturación esté funcionando para el tenant autenticado.
     """
     try:
         factory = FactusServiceFactory(db)
         # Usamos el context manager para asegurar cierre del cliente HTTP
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             # Intentar obtener información básica
             await service.get_payment_methods()
             
         return HealthCheckResponse(
             status="ok",
-            message=f"Conexión exitosa con Factus para tenant {restaurant_id}",
+            message=f"Conexión exitosa con Factus para tenant {current_tenant.name} ({current_tenant.id})",
             authenticated=True
         )
     except HTTPException as e:
         return HealthCheckResponse(
             status="error",
             message=e.detail,
-            authenticated=False
+            authenticated=True
         )
     except Exception as e:
         return HealthCheckResponse(
             status="error",
             message=f"Error: {str(e)}",
-            authenticated=False
+            authenticated=True
         )
 
 
@@ -136,15 +137,15 @@ async def health_check(
     summary="Obtener rangos de numeración DIAN"
 )
 async def get_numbering_ranges(
-    restaurant_id: int = Query(..., description="ID del restaurante"),
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
-    Retorna los rangos de numeración autorizados por la DIAN para un restaurante.
+    Retorna los rangos de numeración autorizados por la DIAN para el tenant.
     """
     try:
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             return await service.get_numbering_ranges()
     except FactusAuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -158,7 +159,7 @@ async def get_numbering_ranges(
     summary="Obtener catálogo de municipios"
 )
 async def get_municipalities(
-    restaurant_id: int = Query(..., description="ID del restaurante"),
+    current_tenant: Tenant = Depends(get_current_tenant),
     search: Optional[str] = Query(None, description="Término de búsqueda"),
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
@@ -166,11 +167,10 @@ async def get_municipalities(
 ):
     """
     Retorna el catálogo de municipios colombianos.
-    Requiere tenant_id para autenticación API.
     """
     try:
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             return await service.get_municipalities(search, page, per_page)
     except FactusAPIError as e:
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
@@ -182,7 +182,7 @@ async def get_municipalities(
     summary="Obtener catálogo de tributos"
 )
 async def get_tributes(
-    restaurant_id: int = Query(..., description="ID del restaurante"),
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -190,7 +190,7 @@ async def get_tributes(
     """
     try:
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             return await service.get_tributes()
     except FactusAPIError as e:
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
@@ -201,7 +201,7 @@ async def get_tributes(
     summary="Obtener métodos de pago disponibles"
 )
 async def get_payment_methods(
-    restaurant_id: int = Query(..., description="ID del restaurante"),
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -209,7 +209,7 @@ async def get_payment_methods(
     """
     try:
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             return await service.get_payment_methods()
     except FactusAPIError as e:
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
@@ -226,14 +226,15 @@ async def get_payment_methods(
 )
 async def create_invoice(
     invoice_data: InvoiceCreateSchema,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Crea una factura electrónica completa.
-    Determina el tenant basado en el numbering_range_id.
+    Verifica que el rango de numeración pertenezca al tenant autenticado.
     """
     try:
-        # 1. Obtener Restaurant ID desde el Rango de Numeración (antes de crear servicio)
+        # 1. Obtener Resolución desde el ID
         stmt = select(BillingResolution).where(BillingResolution.factus_id == invoice_data.numbering_range_id)
         result = await db.exec(stmt)
         resolution = result.first()
@@ -241,16 +242,19 @@ async def create_invoice(
         if not resolution:
             raise HTTPException(status_code=400, detail="Rango de numeración no encontrado en sistema local")
             
-        restaurant_id = resolution.restaurant_id
+        # 2. Validar que la resolución pertenezca al tenant autenticado
+        if resolution.tenant_id != current_tenant.id:
+            logger.warning(f"Tenant {current_tenant.id} intentó usar resolución de otro tenant ({resolution.tenant_id})")
+            raise HTTPException(status_code=403, detail="El rango de numeración no pertenece a este comercio")
         
-        # 2. Instanciar servicio para ese tenant
+        # 3. Instanciar servicio para ese tenant
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             
-            # 3. Crear en Factus
+            # 4. Crear en Factus
             response = await service.create_invoice(invoice_data)
             
-            # 4. Guardar en Base de Datos
+            # 5. Guardar en Base de Datos
             new_invoice = Invoice(
                 number=response.number,
                 cufe=response.cufe,
@@ -259,7 +263,7 @@ async def create_invoice(
                 status=response.status.upper(), # CREATED
                 pdf_url=response.pdf_url,
                 xml_url=response.xml_url,
-                restaurant_id=restaurant_id,
+                tenant_id=current_tenant.id,
                 api_response=str(response.model_dump())
             )
             db.add(new_invoice)
@@ -291,13 +295,14 @@ async def create_invoice(
 )
 async def create_invoice_from_order(
     order: RestaurantOrderRequest,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Endpoint simplificado para facturar una orden de restaurante.
     """
     try:
-        # 1. Determinar tenant desde numbering_range_id
+        # 1. Validar tenant desde numbering_range_id
         stmt = select(BillingResolution).where(BillingResolution.factus_id == order.numbering_range_id)
         result = await db.exec(stmt)
         resolution = result.first()
@@ -305,11 +310,13 @@ async def create_invoice_from_order(
         if not resolution:
             raise HTTPException(status_code=400, detail="Rango de numeración no válido")
             
-        restaurant_id = resolution.restaurant_id
+        # Validar propiedad
+        if resolution.tenant_id != current_tenant.id:
+            raise HTTPException(status_code=403, detail="El rango de numeración no pertenece a este comercio")
 
         # 2. Crear servicio
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             
             # Convertir items a dicts para el servicio (que usa .get())
             items_dicts = [item.model_dump() for item in order.items]
@@ -338,7 +345,7 @@ async def create_invoice_from_order(
                 status=response.status.upper(),
                 pdf_url=response.pdf_url,
                 xml_url=response.xml_url,
-                restaurant_id=restaurant_id,
+                tenant_id=current_tenant.id,
                 api_response=str(response.model_dump())
             )
             db.add(new_invoice)
@@ -369,15 +376,18 @@ async def create_invoice_from_order(
 )
 async def validate_invoice(
     invoice_number: str,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Realiza la validación final de la factura ante la DIAN/Factus.
     """
     try:
-        # 1. Buscar factura para obtener restaurante
-        # Importante: Buscamos primero la factura local
-        stmt = select(Invoice).where(Invoice.number == invoice_number)
+        # 1. Buscar factura para obtener tenant (y asegurar que pertenece al usuario)
+        stmt = select(Invoice).where(
+            Invoice.number == invoice_number,
+            Invoice.tenant_id == current_tenant.id
+        )
         exec_result = await db.exec(stmt)
         invoice = exec_result.first()
         
@@ -386,7 +396,7 @@ async def validate_invoice(
 
         # 2. Crear servicio
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(invoice.restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             
             # 3. Llamar servicio de validación
             result = await service.validate_invoice(invoice_number)
@@ -453,14 +463,18 @@ async def validate_invoice(
 )
 async def create_credit_note(
     data: CreditNoteCreate,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Crea una Nota Crédito para anular una factura existente.
     """
     try:
-        # 1. Buscar factura original en BD local
-        stmt = select(Invoice).where(Invoice.number == data.invoice_number)
+        # 1. Buscar factura original en BD local (filtrada por tenant)
+        stmt = select(Invoice).where(
+            Invoice.number == data.invoice_number,
+            Invoice.tenant_id == current_tenant.id
+        )
         result = await db.exec(stmt)
         invoice = result.first()
         
@@ -475,7 +489,7 @@ async def create_credit_note(
              
         # 2. Buscar Rango de Numeración para Notas Crédito
         stmt_res = select(BillingResolution).where(
-            BillingResolution.restaurant_id == invoice.restaurant_id,
+            BillingResolution.tenant_id == current_tenant.id,
             BillingResolution.is_active == True,
             BillingResolution.prefix.like("NC%")
         )
@@ -490,7 +504,7 @@ async def create_credit_note(
 
         # 3. Crear servicio y procesar
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(invoice.restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             
             # Obtener detalles completos de la factura desde Factus
             original_invoice_data = await service.get_invoice(data.invoice_number)
@@ -515,7 +529,7 @@ async def create_credit_note(
                 status="CREATED",
                 document_type="CREDIT_NOTE",
                 related_invoice_id=invoice.id,
-                restaurant_id=invoice.restaurant_id,
+                tenant_id=current_tenant.id,
                 pdf_url=response.pdf_url,
                 xml_url=response.xml_url,
                 qr_url=response.qr_code,
@@ -554,14 +568,18 @@ async def create_credit_note(
 )
 async def get_invoice(
     invoice_number: str,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Consulta los detalles de una factura por su número.
     """
     try:
-        # Buscar localmente para saber tenant
-        stmt = select(Invoice).where(Invoice.number == invoice_number)
+        # Buscar localmente para verificar ownership
+        stmt = select(Invoice).where(
+            Invoice.number == invoice_number,
+            Invoice.tenant_id == current_tenant.id
+        )
         result = await db.exec(stmt)
         invoice = result.first()
         
@@ -569,7 +587,7 @@ async def get_invoice(
             raise HTTPException(status_code=404, detail="Factura no encontrada")
 
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(invoice.restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             return await service.get_invoice(invoice_number)
             
     except FactusAPIError as e:
@@ -582,13 +600,17 @@ async def get_invoice(
 )
 async def get_invoice_pdf(
     invoice_number: str,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Obtiene la URL para descargar el PDF de la factura.
     """
     try:
-        stmt = select(Invoice).where(Invoice.number == invoice_number)
+        stmt = select(Invoice).where(
+            Invoice.number == invoice_number,
+            Invoice.tenant_id == current_tenant.id
+        )
         result = await db.exec(stmt)
         invoice = result.first()
         
@@ -596,7 +618,7 @@ async def get_invoice_pdf(
             raise HTTPException(status_code=404, detail="Factura no encontrada")
 
         factory = FactusServiceFactory(db)
-        async with await factory.create_service_for_tenant(invoice.restaurant_id) as service:
+        async with await factory.create_service_for_tenant(current_tenant.id) as service:
             pdf_url = await service.download_invoice_pdf(invoice_number)
             if not pdf_url:
                 raise HTTPException(status_code=404, detail="PDF no disponible")
@@ -614,19 +636,27 @@ async def get_invoice_pdf(
     "/invoices/{invoice_number}/ticket-data",
     summary="Obtener datos para impresión de tirilla"
 )
+@router.get(
+    "/invoices/{invoice_number}/ticket-data",
+    summary="Obtener datos para impresión de tirilla"
+)
 async def get_invoice_ticket_data(
     invoice_number: str,
+    current_tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_session)
 ):
     """
     Retorna un JSON optimizado para imprimir en tirilla térmica (80mm).
     Incluye datos del restaurante, resolución, ítems simplificados y desglose de impuestos.
     """
-    # 1. Obtener Factura + Restaurante
+    # 1. Obtener Factura + Tenant (Restaurant -> Tenant)
     stmt = (
-        select(Invoice, Restaurant)
-        .join(Restaurant, Invoice.restaurant_id == Restaurant.id)
-        .where(Invoice.number == invoice_number)
+        select(Invoice, Tenant)
+        .join(Tenant, Invoice.tenant_id == Tenant.id)
+        .where(
+            Invoice.number == invoice_number,
+            Invoice.tenant_id == current_tenant.id
+        )
     )
     result = await db.exec(stmt)
     record = result.first()
@@ -634,9 +664,9 @@ async def get_invoice_ticket_data(
     if not record:
         raise HTTPException(status_code=404, detail="Factura no encontrada")
         
-    invoice, restaurant = record
+    invoice, tenant = record
     
-    # 2. Obtener Resolución (asociada a la factura o activa del restaurante)
+    # 2. Obtener Resolución (asociada a la factura o activa del tenant)
     # Intentamos buscar la resolución por el prefijo de la factura
     prefix = ""
     # Si la factura tiene prefijo (ej: SETT-123), extraerlo
@@ -644,7 +674,7 @@ async def get_invoice_ticket_data(
         prefix = invoice.number.split("-")[0]
         
     stmt_res = select(BillingResolution).where(
-        BillingResolution.restaurant_id == restaurant.id,
+        BillingResolution.tenant_id == tenant.id,
         BillingResolution.prefix == prefix,
         BillingResolution.is_active == True # Preferir la activa
     )
@@ -654,7 +684,7 @@ async def get_invoice_ticket_data(
     # Si no se encuentra exacta (ej: histórica), buscar cualquiera que coincida con prefijo
     if not resolution and prefix:
          stmt_res_hist = select(BillingResolution).where(
-            BillingResolution.restaurant_id == restaurant.id,
+            BillingResolution.tenant_id == tenant.id,
             BillingResolution.prefix == prefix
          ).order_by(BillingResolution.created_at.desc())
          result_res_hist = await db.exec(stmt_res_hist)
@@ -763,8 +793,8 @@ async def get_invoice_ticket_data(
     
     return {
         "restaurant": {
-            "name": restaurant.name,
-            "nit": restaurant.nit,
+            "name": tenant.name,
+            "nit": tenant.nit,
             "address": "Dirección registrada" 
         },
         "invoice": {
