@@ -48,6 +48,17 @@ class FactusService:
         """
         self._client = client
         self._settings = settings
+
+    async def close(self):
+        """Cierra la conexión HTTP subyacente."""
+        if hasattr(self._client, "_client"):
+            await self._client._client.aclose()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.close()
     
     # =========================================================================
     # CATÁLOGOS
@@ -405,9 +416,10 @@ class FactusService:
             
             taxes = []
             
-            # Lógica de impuestos dinámica
-            tax_type = item.get("tax_type", "ICO" if item.get("is_taxed", True) else None)
-            
+            # Lógica de impuestos estricta por ítem (Normativa DIAN)
+            tax_type = item.get("tax_type")            
+            is_taxed = item.get("is_taxed", True) # Compatibilidad hacia atrás
+
             if tax_type == "IVA":
                 # IVA 19%
                 tax_id = 1
@@ -415,10 +427,15 @@ class FactusService:
             elif tax_type == "ICO":
                 # Impoconsumo 8%
                 tax_id = 22
-                tax_rate = Decimal(str(self._settings.impoconsumo_rate)) # Usar config o fijo 8.00
+                tax_rate = Decimal("8.00")
+            elif not is_taxed:
+                # Excluido / No responsable (IVA 0%)
+                tax_id = 1
+                tax_rate = Decimal("0.00")
             else:
-                tax_id = None
-                tax_rate = Decimal("0")
+                 # Default para Restaurantes si no se especifica: Impoconsumo 8%
+                 tax_id = 22
+                 tax_rate = Decimal("8.00")
                 
             if tax_id:
                 tax_amount = subtotal * (tax_rate / 100)

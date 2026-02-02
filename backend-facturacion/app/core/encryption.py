@@ -36,12 +36,12 @@ class CredentialEncryptor:
         key = encryption_key or os.getenv("ENCRYPTION_KEY")
         
         if not key:
-            # Generar una clave temporal para desarrollo
-            logger.warning(
-                "ENCRYPTION_KEY no configurada. Usando clave temporal. "
-                "CONFIGURA UNA CLAVE SEGURA EN PRODUCCIÓN."
+            # En producción y desarrollo seguro, la clave es OBLIGATORIA
+            logger.critical("CRITICAL: ENCRYPTION_KEY no encontrada en variables de entorno.")
+            raise ValueError(
+                "ENCRYPTION_KEY enviroment variable is missing. "
+                "Application cannot start securely."
             )
-            key = "dev-key-not-for-production-use-"
         
         # Derivar clave Fernet de 32 bytes
         self._fernet = self._create_fernet(key)
