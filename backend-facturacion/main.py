@@ -1,144 +1,91 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
-import requests
-import os
-from dotenv import load_dotenv
-from datetime import datetime
+"""
+Módulo de Facturación Electrónica - SETOI / Gastro POS Pro
+API Backend para integración con Factus (Facturación electrónica Colombia)
+Sistema Multi-Tenant para múltiples restaurantes.
+"""
 
-# Cargar variables de entorno
+import logging
+from contextlib import asynccontextmanager
+
+# IMPORTANTE: Cargar variables de entorno ANTES de imports de la app
+# para que ENCRYPTION_KEY esté disponible al crear el singleton del encriptador
+from dotenv import load_dotenv
 load_dotenv()
 
-app = FastAPI(title="Módulo de Facturación Electrónica")
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# CONFIGURACIÓN CORS (Para que tu React pueda hablar con este Python)
+from app.db.database import init_db
+from app.routers import billing
+from app.routers import ranges
+from app.routers import restaurants
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle hook para startup/shutdown."""
+    logger.info("Iniciando módulo de facturación electrónica...")
+    
+    # Inicializar base de datos (crear tablas)
+    await init_db()
+    logger.info("Base de datos inicializada")
+    
+    yield
+    
+    logger.info("Cerrando módulo de facturación electrónica...")
+
+
+app = FastAPI(
+    title="Gastro POS Pro - Facturación Electrónica",
+    description="API Multi-Tenant para facturación electrónica de restaurantes con Factus",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+# Configuración CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"], # Puertos comunes de Vite/React
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev
+        "http://localhost:3000",  # React dev
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- MODELOS DE DATOS (Lo que esperamos recibir de React) ---
-class ClientData(BaseModel):
-    nit: str
-    name: str
-    email: str
-    phone: str
-    address: Optional[str] = "Ciudad Genérica"
+# Incluir routers
+app.include_router(restaurants.router)
+app.include_router(billing.router)
+app.include_router(ranges.router)
 
-class ItemData(BaseModel):
-    id: str
-    name: str
-    price: float
-    quantity: int
-    is_taxed: bool = False # Por si manejan IVA o no
 
-class InvoiceRequest(BaseModel):
-    orderId: str
-    paymentMethod: str
-    client: ClientData
-    items: List[ItemData]
-    total: float
-
-# --- LÓGICA DE NEGOCIO ---
-@app.post("/api/billing/emit")
-async def emit_invoice(data: InvoiceRequest):
-    """
-    Recibe la venta, formatea el JSON para Plemsi y retorna el CUFE/PDF.
-    """
-    
-    # 1. Mapeo de Método de Pago a código DIAN
-    payment_map = {
-        "efectivo": 10,
-        "tarjeta": 48,
-        "transferencia": 47,
-        "nequi": 47
-    }
-    payment_code = payment_map.get(data.paymentMethod.lower(), 10)
-
-    # 2. Construir Payload para Plemsi (Basado en la doc oficial)
-    invoice_payload = {
-        "resolution_id": int(os.getenv("PLEMSI_RESOLUTION", 0)),
-        "prefix": os.getenv("PLEMSI_PREFIX", "SETT"),
-        "number": int(datetime.now().timestamp()), # EN PROD: Usar consecutivo real de BD
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "payment_form": {
-            "payment_method_id": payment_code,
-            "duration_measure": 0,
-            "payment_due_date": datetime.now().strftime("%Y-%m-%d")
-        },
-        "customer": {
-            "identification_number": data.client.nit,
-            "name": data.client.name,
-            "email": data.client.email,
-            "phone": data.client.phone,
-            "address": data.client.address,
-            "merchant_registration": "000000" # Genérico
-        },
-        "items": []
+@app.get("/", tags=["Root"])
+async def root():
+    """Endpoint raíz para verificar que la API está funcionando."""
+    return {
+        "service": "Gastro POS Pro - Facturación Electrónica",
+        "status": "running",
+        "version": "2.0.0",
+        "features": [
+            "Multi-Tenant",
+            "Factus Integration",
+            "DIAN Compliant"
+        ],
+        "docs": "/docs"
     }
 
-    # Agregar items
-    for item in data.items:
-        line_item = {
-            "unit_measure_id": 70, # Unidad estándar
-            "line_extension_amount": item.price * item.quantity,
-            "free_of_charge_indicator": False,
-            "quantity": item.quantity,
-            "description": item.name,
-            "code": item.id,
-            "price_amount": item.price,
-            "base_quantity": item.quantity,
-            "tax_totals": []
-        }
-        
-        # Ejemplo simple de IVA 19% si el producto lo requiere
-        if item.is_taxed:
-            line_item["tax_totals"].append({
-                "tax_id": 1,
-                "tax_amount": (item.price * item.quantity) * 0.19,
-                "taxable_amount": item.price * item.quantity,
-                "percent": 19
-            })
-            
-        invoice_payload["items"].append(line_item)
 
-    # 3. ENVIAR A PLEMSI (O MOCK SI NO HAY TOKEN)
-    plemsi_token = os.getenv("PLEMSI_TOKEN")
-    
-    if not plemsi_token or plemsi_token == "TU_TOKEN_DE_PRUEBAS_AQUI_12345":
-        # MODO SIMULACIÓN (Para que puedas entregar funcionando sin pagar API aún)
-        import time
-        time.sleep(2) # Simular espera de red
-        return {
-            "status": "success",
-            "message": "Factura simulada (Falta Token Real)",
-            "data": {
-                "cufe": f"cufe-simulado-{data.orderId}",
-                "qr_image": "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg",
-                "xml_url": "http://ejemplo.com/factura.xml",
-                "number": invoice_payload["number"]
-            }
-        }
-
-    # MODO REAL (Descomentar cuando tengas Token)
-    """
-    headers = {
-        "Authorization": f"Bearer {plemsi_token}",
-        "Content-Type": "application/json"
-    }
-    try:
-        url = f"{os.getenv('PLEMSI_URL')}/invoices"
-        res = requests.post(url, json=invoice_payload, headers=headers)
-        res.raise_for_status()
-        return {"status": "success", "data": res.json()}
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Error comunicando con la DIAN")
-    """
-
-# Para correrlo: uvicorn main:app --reload
+# Para desarrollo: python -m uvicorn main:app --reload
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
