@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { POSService } from '../../services/posService';
+import { supabase } from '../../supabaseClient';
 import { Product, Table, OrderItem } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -62,156 +63,204 @@ function POS() {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
 
+
   const { data: tables = [], isLoading: loadingTables } = useQuery({
     queryKey: ['tables'],
-    queryFn: POSService.getTables,
+    queryFn: POSService.getTables, // Keeping this via Service/EdgeFunction for complex status logic potentially
     refetchInterval: 3000,
   });
 
+  // [MODIFIED] Fetch products directly from Supabase
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: POSService.getProducts,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) {
+        toast("Error cargando productos", "error");
+        throw error;
+      }
+
+      // Map snake_case to frontend camelCase if needed, or stick to Product type
+      // Assuming Supabase structure matches frontend expects or we map it
+      return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        category: p.category_id || 'general', // Adjust based on schema
+        // Add other fields mapping
+      }));
+    },
     staleTime: 1000 * 60,
   });
 
+  // [MODIFIED] Fetch ingredients via POSService (from Python Backend)
   const { data: ingredients = [] } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: POSService.getIngredients,
+    queryFn: async () => {
+      // Use POSService to get ingredients from the correct source (Python Backend)
+      return await POSService.getIngredients();
+    },
     staleTime: 1000 * 60,
   });
 
+  // --- HELPERS & HANDLERS ---
+  const getElapsedMinutes = (timestamp?: number) => {
+    if (!timestamp) return 0;
+    return Math.floor((Date.now() - timestamp) / 60000);
+  };
+
+  const getTableVisuals = (status: Table['status']) => {
+    switch (status) {
+      case 'libre': return {
+        container: 'bg-card border-2 border-dashed border-border hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer shadow-sm',
+        badge: 'bg-muted text-muted-foreground',
+        icon: <Armchair size={16} className="text-muted-foreground" />,
+        label: 'Libre',
+        glow: ''
+      };
+      case 'cocinando': return {
+        container: 'bg-orange-500/10 border-2 border-orange-500 shadow-lg shadow-orange-500/10',
+        badge: 'bg-orange-600 text-white shadow-sm',
+        icon: <ChefHat size={16} className="text-orange-600 dark:text-orange-400 animate-pulse" />,
+        label: 'Cocina',
+        glow: 'ring-2 ring-orange-500/20'
+      };
+      case 'comiendo': return {
+        container: 'bg-blue-500/10 border-2 border-blue-500 shadow-md',
+        badge: 'bg-blue-600 text-white',
+        icon: <Utensils size={16} className="text-blue-600 dark:text-blue-400" />,
+        label: 'Ocupado',
+        glow: ''
+      };
+      case 'servir': return {
+        container: 'bg-emerald-500/10 border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 animate-bounce-subtle',
+        badge: 'bg-emerald-600 text-white animate-pulse',
+        icon: <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />,
+        label: 'Listo',
+        glow: 'ring-4 ring-emerald-500/10'
+      };
+      case 'pagando': return {
+        container: 'bg-purple-500/10 border-2 border-purple-500 shadow-md',
+        badge: 'bg-purple-600 text-white',
+        icon: <Wallet size={16} className="text-purple-600 dark:text-purple-400" />,
+        label: 'Pagando',
+        glow: ''
+      };
+      default: return { container: 'bg-card', badge: '', icon: null, label: status, glow: '' };
+    }
+  };
+
+  const handleTableClick = (table: Table) => {
+    setSelectedTable(table);
+    if (table.status !== 'libre') {
+      setIsActionModalOpen(true);
+    } else {
+      // If free, just select and show menu immediately
+      setView('order');
+    }
+  };
+
   const filteredProducts = useMemo(() => {
-    return products.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (!searchTerm) return products;
+    return products.filter((p: any) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [products, searchTerm]);
 
   const getProductIngredientsNames = (product: Product) => {
-    if (!product.recipe || product.recipe.length === 0) return [];
-    return product.recipe.map(item => {
-      const ing = ingredients.find(i => i.id === item.ingredientId);
-      return ing ? ing.name : 'Desconocido';
+    if (!product.recipe) return [];
+    return product.recipe.map(r => {
+      const ing = ingredients.find((i: any) => i.id === r.ingredientId);
+      return ing ? ing.name : '';
+    }).filter(Boolean);
+  };
+
+  const addToCart = (product: Product) => {
+    setCart(prev => [
+      ...prev,
+      {
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        quantity: 1,
+        notes: '',
+        assignedTo: 'Mesa'
+      }
+    ]);
+    toast(`${product.name} agregado`, "info");
+  };
+
+  const removeFromCart = (index: number) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateItemNote = (index: number, note: string) => {
+    setCart(prev => {
+      const n = [...prev];
+      n[index].notes = note;
+      return n;
     });
   };
 
   const toggleIngredients = (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
-    setExpandedProductId(prev => prev === productId ? null : productId);
+    setExpandedProductId(curr => curr === productId ? null : productId);
   };
 
-  // [CORRECCIÓN] Colores de mesa adaptados a dark mode
-  const getTableVisuals = (status: string) => {
-    switch (status) {
-      case 'libre':
-        return {
-          container: 'bg-card border-2 border-border text-muted-foreground hover:border-green-500/50 hover:bg-green-500/10',
-          icon: <Armchair size={24} className="text-muted-foreground group-hover:text-green-500 transition-colors" />,
-          glow: 'shadow-sm hover:shadow-green-500/20',
-          label: 'Disponible',
-          badge: 'bg-muted text-muted-foreground group-hover:bg-green-500/20 group-hover:text-green-600 dark:group-hover:text-green-400'
-        };
-      case 'cocinando':
-        return {
-          container: 'bg-gradient-to-br from-orange-500/10 to-card border-2 border-orange-500/50 text-orange-700 dark:text-orange-400',
-          icon: <ChefHat size={24} className="text-orange-500 animate-pulse" />,
-          glow: 'shadow-lg shadow-orange-500/20 ring-2 ring-orange-500/20 ring-offset-2 ring-offset-background',
-          label: 'Cocina',
-          badge: 'bg-orange-500/20 text-orange-700 dark:text-orange-400'
-        };
-      case 'servir':
-        return {
-          container: 'bg-gradient-to-br from-emerald-500/10 to-card border-2 border-emerald-500 text-emerald-700 dark:text-emerald-400',
-          icon: <CheckCircle2 size={24} className="text-emerald-500 animate-bounce" />,
-          glow: 'shadow-xl shadow-emerald-500/20 ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-background',
-          label: 'Listo',
-          badge: 'bg-emerald-500 text-white shadow-md'
-        };
-      case 'comiendo':
-        return {
-          container: 'bg-card border-2 border-blue-500/50 text-blue-700 dark:text-blue-400',
-          icon: <Utensils size={24} className="text-blue-500" />,
-          glow: 'shadow-md shadow-blue-500/10',
-          label: 'Ocupada',
-          badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
-        };
-      case 'pagando':
-        return {
-          container: 'bg-gradient-to-br from-purple-500/10 to-card border-2 border-purple-500/50 text-purple-700 dark:text-purple-400',
-          icon: <Wallet size={24} className="text-purple-600 dark:text-purple-400" />,
-          glow: 'shadow-lg shadow-purple-500/20',
-          label: 'Pagando',
-          badge: 'bg-purple-500/20 text-purple-700 dark:text-purple-400 font-bold'
-        };
-      default:
-        return {
-          container: 'bg-muted',
-          icon: <Info />,
-          glow: '',
-          label: status,
-          badge: 'bg-muted-foreground/20'
-        };
-    }
-  };
-
-  const getElapsedMinutes = (timestamp?: number) => {
-    if (!timestamp) return 0;
-    const now = Date.now();
-    const diff = now - timestamp;
-    return Math.floor(diff / 60000);
-  };
-
-  const handleTableClick = (t: Table) => {
-    const freshTable = tables.find(table => table.id === t.id) || t;
-    setSelectedTable(freshTable);
-
-    if (freshTable.status === 'libre') {
-      const savedTable = localStorage.getItem('pos_selected_table');
-      const parsedSaved = savedTable ? JSON.parse(savedTable) : null;
-
-      if (parsedSaved && parsedSaved.id !== freshTable.id) {
-        setCart([]);
-      }
-      setView('order');
-    } else {
-      setIsActionModalOpen(true);
-    }
-  };
-
-  const addToCart = (p: Product) => {
-    setCart(prev => [...prev, { productId: p.id, productName: p.name, price: p.price, quantity: 1, assignedTo: 'Mesa', notes: '' }]);
-  };
-
-  const removeFromCart = (indexToRemove: number) => {
-    setCart(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  const updateItemNote = (index: number, note: string) => {
-    const newCart = [...cart];
-    newCart[index].notes = note;
-    setCart(newCart);
-  };
 
   const sendOrder = async () => {
     if (!selectedTable) return;
-    await POSService.createOrder({
-      id: Math.random().toString().slice(2, 8),
-      tableId: selectedTable.id,
-      items: cart,
-      status: 'pendiente',
-      timestamp: Date.now(),
-      total: cart.reduce((acc, i) => acc + i.price, 0)
-    });
 
-    await queryClient.invalidateQueries({ queryKey: ['tables'] });
-    await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    try {
+      // [MODIFIED] Direct Supabase Insert
+      const orderPayload = {
+        table_id: selectedTable.id, // Assuming table.id matches database
+        status: 'pending', // 'pendiente' -> 'pending'
+        total: cart.reduce((acc, i) => acc + i.price, 0),
+        created_at: new Date().toISOString()
+      };
 
-    setCart([]);
-    setSelectedTable(null);
-    localStorage.removeItem('pos_current_cart');
-    localStorage.removeItem('pos_selected_table');
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select() // Select to get ID
+        .single();
 
-    toast("Pedido enviado a Cocina", "success");
-    setView('map');
+      if (orderError) throw orderError;
+
+      if (orderData) {
+        const itemsPayload = cart.map(item => ({
+          order_id: orderData.id,
+          product_id: item.productId, // Ensure mapping
+          quantity: item.quantity,
+          price: item.price,
+          notes: item.notes
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsPayload);
+
+        if (itemsError) throw itemsError;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['tables'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] }); // If we have an orders list
+
+      setCart([]);
+      setSelectedTable(null);
+      localStorage.removeItem('pos_current_cart');
+      localStorage.removeItem('pos_selected_table');
+
+      toast("Pedido enviado a Cocina (Supabase)", "success");
+      setView('map');
+
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      toast(`Error al enviar: ${error.message || 'Error desconocido'}`, "error");
+    }
   };
 
   const handleServe = async () => {

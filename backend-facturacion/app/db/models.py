@@ -178,3 +178,28 @@ class Invoice(SQLModel, table=True):
     
     # Relación con Tenant
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
+
+
+# =============================================================================
+# MODELO: INGREDIENT (INSUMO)
+# =============================================================================
+
+class Ingredient(SQLModel, table=True):
+    """
+    Representa un insumo/ingrediente para el control de inventario.
+    Migrado de Supabase a backend local para evitar problemas de RLS/CORS.
+    """
+    __tablename__ = "ingredients"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    
+    name: str = Field(max_length=255, index=True)
+    unit: str = Field(max_length=50, description="Unidad de medida (kg, gr, und, lt, ml)")
+    cost: float = Field(default=0)
+    current_stock: float = Field(default=0)
+    notes: Optional[str] = Field(default=None)
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+

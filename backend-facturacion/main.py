@@ -19,6 +19,7 @@ from app.db.database import init_db
 from app.routers import billing
 from app.routers import ranges
 from app.routers import restaurants
+from app.routers import inventory
 
 # Configurar logging
 logging.basicConfig(
@@ -67,6 +68,7 @@ app.add_middleware(
 app.include_router(restaurants.router)
 app.include_router(billing.router)
 app.include_router(ranges.router)
+app.include_router(inventory.router)
 
 
 @app.get("/", tags=["Root"])
