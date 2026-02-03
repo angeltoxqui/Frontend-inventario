@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.encryption import decrypt_credential
 from app.core.exceptions import FactusAPIError, FactusAuthError
-from app.db.models import Restaurant, BillingResolution
+from app.db.models import Tenant, BillingResolution
 from app.schemas.billing_ranges import (
     BillingRangeFactusResponse,
     BillingRangeInternal,
@@ -54,7 +54,7 @@ class BillingRangeService:
     
     async def sync_ranges_from_factus(
         self, 
-        restaurant_id: int
+        tenant_id: int
     ) -> SyncRangesResponse:
         """
         Sincroniza los rangos de numeración desde Factus.
@@ -64,7 +64,7 @@ class BillingRangeService:
         - Si no existe, lo crea
         
         Args:
-            restaurant_id: ID del restaurante/tenant
+            tenant_id: ID del restaurante/tenant
             
         Returns:
             Resultado de la sincronización
@@ -73,27 +73,27 @@ class BillingRangeService:
             FactusAuthError: Si no hay credenciales válidas
             FactusAPIError: Si hay error en la API
         """
-        logger.info(f"Sincronizando rangos para restaurante {restaurant_id}")
+        logger.info(f"Sincronizando rangos para tenant {tenant_id}")
         
         # 1. Obtener credenciales del tenant
-        restaurant = await self._get_restaurant_with_credentials(restaurant_id)
-        if not restaurant:
+        tenant = await self._get_tenant_with_credentials(tenant_id)
+        if not tenant:
             return SyncRangesResponse(
                 success=False,
-                message="Restaurante no encontrado",
+                message="Tenant no encontrado",
                 synced_count=0
             )
         
-        if not self._has_valid_credentials(restaurant):
+        if not self._has_valid_credentials(tenant):
             return SyncRangesResponse(
                 success=False,
-                message="El restaurante no tiene credenciales de Factus configuradas",
+                message="El tenant no tiene credenciales de Factus configuradas",
                 synced_count=0
             )
         
         # 2. Crear cliente Factus con credenciales del tenant
         try:
-            ranges_data = await self._fetch_ranges_from_factus(restaurant)
+            ranges_data = await self._fetch_ranges_from_factus(tenant)
         except (FactusAuthError, FactusAPIError) as e:
             logger.error(f"Error al obtener rangos de Factus: {e}")
             return SyncRangesResponse(
@@ -110,7 +110,7 @@ class BillingRangeService:
         for range_data in ranges_data:
             existing = await self._get_range_by_factus_id(
                 range_data.id, 
-                restaurant_id
+                tenant_id
             )
             
             if existing:
@@ -120,7 +120,7 @@ class BillingRangeService:
                 updated_count += 1
             else:
                 # INSERT
-                new_range = await self._create_range(range_data, restaurant_id)
+                new_range = await self._create_range(range_data, tenant_id)
                 synced_ranges.append(new_range)
                 created_count += 1
         
@@ -141,7 +141,7 @@ class BillingRangeService:
     
     async def _fetch_ranges_from_factus(
         self, 
-        restaurant: Restaurant
+        tenant: Tenant
     ) -> List[BillingRangeFactusResponse]:
         """
         Obtiene los rangos desde la API de Factus usando credenciales del tenant.
@@ -150,24 +150,24 @@ class BillingRangeService:
         se desencriptan aquí antes de usarlas.
         """
         # Desencriptar credenciales sensibles
-        logger.info(f"Desencriptando credenciales de restaurant ID={restaurant.id}")
+        logger.info(f"Desencriptando credenciales de tenant ID={tenant.id}")
         try:
-            decrypted_secret = decrypt_credential(restaurant.factus_client_secret)
-            decrypted_password = decrypt_credential(restaurant.factus_password)
-            logger.info(f"Credenciales desencriptadas OK: email={restaurant.factus_email}")
+            decrypted_secret = decrypt_credential(tenant.factus_client_secret)
+            decrypted_password = decrypt_credential(tenant.factus_password)
+            logger.info(f"Credenciales desencriptadas OK: email={tenant.factus_email}")
         except Exception as e:
             logger.error(f"Error al desencriptar credenciales: {e}")
             raise FactusAPIError(
-                message=f"Error al desencriptar credenciales del restaurante: {str(e)}",
+                message=f"Error al desencriptar credenciales del tenant: {str(e)}",
                 status_code=500
             )
         
         # Crear settings temporales con credenciales desencriptadas
         temp_settings = Settings(
             factus_base_url=self._settings.factus_base_url,
-            factus_client_id=restaurant.factus_client_id,
+            factus_client_id=tenant.factus_client_id,
             factus_client_secret=decrypted_secret,
-            factus_email=restaurant.factus_email,
+            factus_email=tenant.factus_email,
             factus_password=decrypted_password,
         )
         
@@ -222,14 +222,14 @@ class BillingRangeService:
     async def _get_range_by_factus_id(
         self, 
         factus_id: int,
-        restaurant_id: int
+        tenant_id: int
     ) -> Optional[BillingResolution]:
         """Busca un rango por su ID de Factus, filtrado por tenant."""
         result = await self._session.execute(
             select(BillingResolution).where(
                 and_(
                     BillingResolution.factus_id == factus_id,
-                    BillingResolution.restaurant_id == restaurant_id
+                    BillingResolution.tenant_id == tenant_id
                 )
             )
         )
@@ -238,7 +238,7 @@ class BillingRangeService:
     async def _create_range(
         self, 
         data: BillingRangeFactusResponse,
-        restaurant_id: int
+        tenant_id: int
     ) -> BillingResolution:
         """Crea un nuevo rango en la BD."""
         new_range = BillingResolution(
@@ -254,7 +254,7 @@ class BillingRangeService:
             is_expired=data.is_expired,
             is_active=False,  # Por defecto inactivo, el admin debe activar
             last_synced_at=datetime.utcnow(),
-            restaurant_id=restaurant_id
+            tenant_id=tenant_id
         )
         
         self._session.add(new_range)
@@ -288,16 +288,16 @@ class BillingRangeService:
     
     async def get_active_range_id(
         self, 
-        restaurant_id: int
+        tenant_id: int
     ) -> Optional[ActiveRangeResponse]:
         """
-        Obtiene el rango activo para un restaurante.
+        Obtiene el rango activo para un tenant.
         
         CONSULTA ULTRA-RÁPIDA a la BD local.
         Esta función es llamada por el módulo de "Crear Factura".
         
         Args:
-            restaurant_id: ID del restaurante/tenant
+            tenant_id: ID del restaurante/tenant
             
         Returns:
             Datos del rango activo o None si no hay ninguno válido
@@ -305,7 +305,7 @@ class BillingRangeService:
         result = await self._session.execute(
             select(BillingResolution).where(
                 and_(
-                    BillingResolution.restaurant_id == restaurant_id,
+                    BillingResolution.tenant_id == tenant_id,
                     BillingResolution.is_active == True,
                     BillingResolution.is_expired == False
                 )
@@ -328,20 +328,20 @@ class BillingRangeService:
     
     async def get_all_ranges(
         self, 
-        restaurant_id: int
+        tenant_id: int
     ) -> List[BillingRangeInternal]:
         """
-        Obtiene todos los rangos de un restaurante.
+        Obtiene todos los rangos de un tenant.
         
         Args:
-            restaurant_id: ID del restaurante (SIEMPRE filtrar por tenant)
+            tenant_id: ID del tenant (SIEMPRE filtrar por tenant)
             
         Returns:
-            Lista de rangos del restaurante
+            Lista de rangos del tenant
         """
         result = await self._session.execute(
             select(BillingResolution).where(
-                BillingResolution.restaurant_id == restaurant_id
+                BillingResolution.tenant_id == tenant_id
             ).order_by(BillingResolution.is_active.desc(), BillingResolution.created_at.desc())
         )
         
@@ -350,23 +350,23 @@ class BillingRangeService:
     
     async def set_active_range(
         self, 
-        restaurant_id: int,
+        tenant_id: int,
         range_id: int
     ) -> bool:
         """
         Establece un rango como activo y desactiva los demás.
         
         Args:
-            restaurant_id: ID del restaurante (seguridad multi-tenant)
+            tenant_id: ID del tenant (seguridad multi-tenant)
             range_id: ID interno del rango a activar
             
         Returns:
             True si se activó correctamente
         """
-        # Desactivar todos los rangos del restaurante
+        # Desactivar todos los rangos del tenant
         all_ranges = await self._session.execute(
             select(BillingResolution).where(
-                BillingResolution.restaurant_id == restaurant_id
+                BillingResolution.tenant_id == tenant_id
             )
         )
         
@@ -375,19 +375,19 @@ class BillingRangeService:
             resolution.updated_at = datetime.utcnow()
         
         await self._session.commit()
-        logger.info(f"Rango {range_id} activado para restaurante {restaurant_id}")
+        logger.info(f"Rango {range_id} activado para tenant {tenant_id}")
         return True
     
     async def increment_current_number(
         self,
-        restaurant_id: int,
+        tenant_id: int,
         range_id: int
     ) -> int:
         """
         Incrementa el número actual del rango después de facturar.
         
         Args:
-            restaurant_id: ID del restaurante (seguridad)
+            tenant_id: ID del tenant (seguridad)
             range_id: ID del rango
             
         Returns:
@@ -397,7 +397,7 @@ class BillingRangeService:
             select(BillingResolution).where(
                 and_(
                     BillingResolution.id == range_id,
-                    BillingResolution.restaurant_id == restaurant_id
+                    BillingResolution.tenant_id == tenant_id
                 )
             )
         )
@@ -415,23 +415,23 @@ class BillingRangeService:
     # HELPERS
     # =========================================================================
     
-    async def _get_restaurant_with_credentials(
+    async def _get_tenant_with_credentials(
         self, 
-        restaurant_id: int
-    ) -> Optional[Restaurant]:
-        """Obtiene un restaurante por ID."""
+        tenant_id: int
+    ) -> Optional[Tenant]:
+        """Obtiene un tenant por ID."""
         result = await self._session.execute(
-            select(Restaurant).where(Restaurant.id == restaurant_id)
+            select(Tenant).where(Tenant.id == tenant_id)
         )
         return result.scalar_one_or_none()
     
-    def _has_valid_credentials(self, restaurant: Restaurant) -> bool:
-        """Verifica si el restaurante tiene credenciales de Factus."""
+    def _has_valid_credentials(self, tenant: Tenant) -> bool:
+        """Verifica si el tenant tiene credenciales de Factus."""
         return all([
-            restaurant.factus_client_id,
-            restaurant.factus_client_secret,
-            restaurant.factus_email,
-            restaurant.factus_password
+            tenant.factus_client_id,
+            tenant.factus_client_secret,
+            tenant.factus_email,
+            tenant.factus_password
         ])
     
     def _parse_date(self, date_str: Optional[str]) -> Optional[date]:

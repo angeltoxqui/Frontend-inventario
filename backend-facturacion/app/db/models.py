@@ -67,8 +67,8 @@ class BillingResolution(SQLModel, table=True):
     prefix: Optional[str] = Field(default=None, max_length=10, description="Prefijo (ej: SETT)")
     
     # Rango de numeración
-    from_number: Optional[int] = Field(default=0, description="Número inicial del rango")
-    to_number: Optional[int] = Field(default=0, description="Número final del rango")
+    number_from: Optional[int] = Field(default=0, description="Número inicial del rango")
+    number_to: Optional[int] = Field(default=0, description="Número final del rango")
     current_number: Optional[int] = Field(default=0, description="Consecutivo actual (control local)")
     
     # Fechas
@@ -104,7 +104,7 @@ class BillingResolution(SQLModel, table=True):
         if self.expiration_date and self.expiration_date < date.today():
             return False
         
-        if self.current_number >= self.to_number:
+        if self.current_number >= self.number_to:
             return False
         
         return True
@@ -112,22 +112,22 @@ class BillingResolution(SQLModel, table=True):
     @property
     def remaining_numbers(self) -> int:
         """Números restantes en el rango."""
-        if self.to_number is None or self.current_number is None:
+        if self.number_to is None or self.current_number is None:
             return 0
-        return max(0, self.to_number - self.current_number)
+        return max(0, self.number_to - self.current_number)
     
     @property
     def usage_percentage(self) -> float:
         """Porcentaje de uso del rango."""
-        if self.to_number is None or self.from_number is None:
+        if self.number_to is None or self.number_from is None:
             return 0.0
             
-        total = self.to_number - self.from_number
+        total = self.number_to - self.number_from
         if total <= 0:
             return 100.0
         
-        current = self.current_number or self.from_number
-        used = current - self.from_number
+        current = self.current_number or self.number_from
+        used = current - self.number_from
         return (used / total) * 100
 
 
@@ -151,6 +151,9 @@ class Invoice(SQLModel, table=True):
     
     # Referencia interna (Orden)
     order_reference: str = Field(index=True, description="ID de la orden de restaurante")
+    
+    # Monto Total
+    total: Decimal = Field(default=0, max_digits=20, decimal_places=2)
     
     # Estado: CREATED, VALIDATED, ERROR, ANNULLED
     status: str = Field(default="CREATED", index=True)

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.encryption import encrypt_credential, decrypt_credential
-from app.db.models import Restaurant
+from app.db.models import Tenant
 from app.schemas.restaurants import (
     RestaurantCreate,
     RestaurantUpdate,
@@ -40,7 +40,7 @@ class RestaurantService:
     # CRUD
     # =========================================================================
     
-    async def create(self, data: RestaurantCreate) -> Restaurant:
+    async def create(self, data: RestaurantCreate) -> Tenant:
         """
         Crea un nuevo restaurante con credenciales encriptadas.
         
@@ -64,7 +64,7 @@ class RestaurantService:
         
         logger.info(f"Creando restaurante: {data.name} (NIT: {data.nit})")
         
-        restaurant = Restaurant(
+        restaurant = Tenant(
             name=data.name,
             nit=data.nit,
             factus_client_id=data.factus_client_id,
@@ -82,26 +82,26 @@ class RestaurantService:
         logger.info(f"Restaurante creado con ID: {restaurant.id}")
         return restaurant
     
-    async def get_by_id(self, restaurant_id: int) -> Optional[Restaurant]:
+    async def get_by_id(self, restaurant_id: int) -> Optional[Tenant]:
         """Obtiene un restaurante por ID."""
         result = await self._session.execute(
-            select(Restaurant).where(Restaurant.id == restaurant_id)
+            select(Tenant).where(Tenant.id == restaurant_id)
         )
         return result.scalar_one_or_none()
     
-    async def get_by_nit(self, nit: str) -> Optional[Restaurant]:
+    async def get_by_nit(self, nit: str) -> Optional[Tenant]:
         """Obtiene un restaurante por NIT."""
         result = await self._session.execute(
-            select(Restaurant).where(Restaurant.nit == nit)
+            select(Tenant).where(Tenant.nit == nit)
         )
         return result.scalar_one_or_none()
     
-    async def get_all(self, active_only: bool = True) -> List[Restaurant]:
+    async def get_all(self, active_only: bool = True) -> List[Tenant]:
         """Obtiene todos los restaurantes."""
-        query = select(Restaurant)
+        query = select(Tenant)
         if active_only:
-            query = query.where(Restaurant.is_active == True)
-        query = query.order_by(Restaurant.created_at.desc())
+            query = query.where(Tenant.is_active == True)
+        query = query.order_by(Tenant.created_at.desc())
         
         result = await self._session.execute(query)
         return list(result.scalars().all())
@@ -110,7 +110,7 @@ class RestaurantService:
         self, 
         restaurant_id: int, 
         data: RestaurantUpdate
-    ) -> Optional[Restaurant]:
+    ) -> Optional[Tenant]:
         """
         Actualiza un restaurante.
         Si se actualizan credenciales, serán encriptadas.
@@ -191,7 +191,7 @@ class RestaurantService:
             logger.error(f"Error desencriptando credenciales: {e}")
             return None
     
-    def _has_credentials(self, restaurant: Restaurant) -> bool:
+    def _has_credentials(self, restaurant: Tenant) -> bool:
         """Verifica si el restaurante tiene credenciales configuradas."""
         return all([
             restaurant.factus_client_id,
@@ -204,7 +204,7 @@ class RestaurantService:
     # HELPERS
     # =========================================================================
     
-    def to_response(self, restaurant: Restaurant) -> RestaurantResponse:
+    def to_response(self, restaurant: Tenant) -> RestaurantResponse:
         """Convierte modelo a respuesta (sin credenciales)."""
         return RestaurantResponse(
             id=restaurant.id,

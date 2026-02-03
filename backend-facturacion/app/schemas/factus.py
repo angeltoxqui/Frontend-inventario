@@ -252,6 +252,15 @@ class WithholdingTaxSchema(BaseModel):
 # MODELOS DE ÍTEMS DE FACTURA
 # =============================================================================
 
+class RestaurantOrderItemSchema(BaseModel):
+    """Ítem simplificado para orden de restaurante."""
+    id: str = Field(default="PROD", description="ID o código del producto")
+    name: str = Field(default="Producto", description="Nombre del producto")
+    price: Decimal = Field(..., ge=0, description="Precio unitario")
+    quantity: int = Field(default=1, gt=0, description="Cantidad")
+    tax_type: Optional[str] = Field(default=None, description="Tipo de impuesto: 'IVA' o 'ICO'")
+    is_taxed: bool = Field(default=True, description="Si aplica impuesto (por defecto 8% impoconsumo)")
+
 class InvoiceItemSchema(BaseModel):
     """Ítem/producto de la factura electrónica."""
     model_config = ConfigDict(str_strip_whitespace=True)
