@@ -18,16 +18,16 @@ graph TD
     User((Usuario))
     
     subgraph "Cliente"
-        Frontend[Frontend PWA<br/>(React + Vite)]
+        Frontend["Frontend PWA<br/>(React + Vite)"]
     end
     
     subgraph "Backend Core"
-        Supabase[Supabase<br/>(PostgreSQL + Auth)]
-        EdgeFunctions[Edge Functions<br/>(Deno)]
+        Supabase["Supabase<br/>(PostgreSQL + Auth)"]
+        EdgeFunctions["Edge Functions<br/>(Deno)"]
     end
     
     subgraph "Microservicios"
-        Billing[Billing Microservice<br/>(Python FastAPI)]
+        Billing["Billing Microservice<br/>(Python FastAPI)"]
     end
     
     subgraph "Externos"
