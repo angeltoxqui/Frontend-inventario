@@ -4,11 +4,10 @@
 import { Store, SuperAdminUser, MigrationLog, Product, Ingredient, Table, Order, ProductCategory, TableStatus } from '../types';
 
 // Configuración - estas variables deben estar en .env
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Detectar si Supabase está configurado
-const isSupabaseConfigured = () => Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+import { supabase } from '../supabaseClient';
 
 /**
  * Llamar a una Edge Function de Supabase
@@ -17,28 +16,25 @@ async function callEdgeFunction<T>(
     functionName: string,
     payload: Record<string, unknown>
 ): Promise<T> {
-    if (!isSupabaseConfigured()) {
-        throw new Error('Supabase no está configurado. Revisa las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY');
-    }
-
-    const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
-
-    const response = await fetch(url, {
+    const { data: responseData, error } = await supabase.functions.invoke(functionName, {
+        body: payload,
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
-
-    if (!data.success) {
-        throw new Error(data.error || `Error en ${functionName}: ${data.error_code || 'unknown'}`);
+    if (error) {
+        throw error;
     }
 
-    return data;
+    // El backend devuelve { success: boolean, ...data, error?: string }
+    // A veces el invoke exitoso devuelve data directamente, pero según nuestro backend
+    // siempre devuelve un JSON.
+
+    // Verificamos si la respuesta del backend indica error de negocio
+    if (responseData && typeof responseData === 'object' && 'success' in responseData && !responseData.success) {
+        throw new Error((responseData as any).error || `Error en ${functionName}`);
+    }
+
+    return responseData as T;
 }
 
 // ============================================================================
@@ -271,7 +267,10 @@ export const SupabaseService = {
     /**
      * Verificar si Supabase está configurado
      */
-    isConfigured: isSupabaseConfigured,
+    /**
+     * Verificar si Supabase está configurado
+     */
+    isConfigured: () => Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY),
 
     /**
      * Trigger de migración (placeholder - requiere implementación backend)

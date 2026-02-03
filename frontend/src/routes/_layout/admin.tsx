@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import React, { useState, useEffect } from 'react';
 import { MockService } from '../../services/mockService';
-import { POSService } from '../../services/posService';
+
 import { supabase } from '../../supabaseClient'; // [NEW] Import Supabase
 import { User, Product, Table, Ingredient, CashClosingLog, ProductCategory } from '../../types';
 import {
     Users, Package, Grid3X3, Trash2, Plus, Edit,
     UtensilsCrossed, Wallet, AlertTriangle, CheckCircle2, Lock,
-    Calculator, Scale, Info, Clock, Save
+    Calculator, Scale, Info, Clock, Save, Loader2
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { Switch } from '../../components/ui/switch';
@@ -170,6 +170,7 @@ const FinanceTab = ({ toast }: { toast: any }) => {
 const InventoryTab = ({ toast }: { toast: any }) => {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // Add loading state
 
     const [formData, setFormData] = useState({
         id: '', name: '', baseUnit: 'gr' as 'gr' | 'ml' | 'und', buyUnit: 'libra' as any,
@@ -180,10 +181,29 @@ const InventoryTab = ({ toast }: { toast: any }) => {
 
     const loadIngredients = async () => {
         try {
-            const data = await POSService.getIngredients();
-            setIngredients(data);
-        } catch (error) {
-            toast("Error cargando insumos", "error");
+            setIsLoading(true);
+            const { data, error } = await supabase
+                .from('ingredients')
+                .select('*')
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+
+            const mapped = data.map((i: any) => ({
+                id: i.id,
+                name: i.name,
+                unit: i.unit,
+                cost: i.cost,
+                currentStock: i.current_stock,
+                maxStock: 0,
+                lastUpdated: Date.now()
+            }));
+            setIngredients(mapped);
+        } catch (error: any) {
+            console.error(error);
+            toast("Error cargando insumos: " + error.message, "error");
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -219,48 +239,29 @@ const InventoryTab = ({ toast }: { toast: any }) => {
         const factor = getConversionFactor();
         const costPerBase = calculateCostPerBaseUnit();
         const stockInBase = (parseFloat(formData.currentStockBuyUnits) || 0) * factor;
-        const minStockInBase = (parseFloat(formData.minStockBuyUnits) || 0) * factor;
-
-        const oldIngredient = ingredients.find(i => i.id === formData.id);
-        const oldStock = oldIngredient ? oldIngredient.currentStock : 0;
-        const stockDifference = stockInBase - oldStock;
-
-        if (stockDifference > 0) {
-            const purchaseCost = stockDifference * costPerBase;
-            await MockService.registerExpense({
-                concept: `Compra Insumo: ${formData.name}`,
-                amount: purchaseCost,
-                category: 'insumos',
-                registeredBy: 'Admin Inventario'
-            });
-        }
-
-        const ingredientData = {
-            name: formData.name,
-            unit: formData.baseUnit,
-            cost: costPerBase,
-            current_stock: stockInBase,
-            // max_stock: minStockInBase, // [FIX] Removed max_stock column usage
-            // lastUpdated: new Date() // Supabase handles this
-
-        };
 
         try {
+            const payload = {
+                name: formData.name,
+                unit: formData.baseUnit,
+                cost: costPerBase,
+                current_stock: stockInBase,
+                tenant_id: 1 // TODO: Obtener del usuario real
+            };
+
             if (formData.id) {
                 // Update
-                await POSService.updateIngredient(formData.id, {
-                    nombre: formData.name,
-                    unidad_medida: formData.baseUnit,
-                    costo: costPerBase
-                });
+                const { error } = await supabase
+                    .from('ingredients')
+                    .update(payload)
+                    .eq('id', formData.id);
+                if (error) throw error;
             } else {
                 // Create
-                await POSService.createIngredient({
-                    nombre: formData.name,
-                    unidad_medida: formData.baseUnit,
-                    costo: costPerBase,
-                    stock_actual: stockInBase
-                });
+                const { error } = await supabase
+                    .from('ingredients')
+                    .insert([payload]);
+                if (error) throw error;
             }
 
             toast(formData.id ? "Insumo actualizado" : "Insumo creado", "success");
@@ -280,9 +281,14 @@ const InventoryTab = ({ toast }: { toast: any }) => {
     };
 
     const handleDelete = async (id: string) => {
-        await MockService.deleteIngredient(id);
-        toast("Eliminado", "success");
-        loadIngredients();
+        try {
+            const { error } = await supabase.from('ingredients').delete().eq('id', id);
+            if (error) throw error;
+            toast("Eliminado", "success");
+            loadIngredients();
+        } catch (e: any) {
+            toast("Error al eliminar: " + e.message, "error");
+        }
     };
 
     return (
@@ -300,11 +306,15 @@ const InventoryTab = ({ toast }: { toast: any }) => {
                         <tr><th className="p-4">Insumo</th><th className="p-4">Costo Interno (Base)</th><th className="p-4">Stock Total (Base)</th><th className="p-4">Valor Artículo</th><th className="p-4 text-right">Acciones</th></tr>
                     </thead>
                     <tbody className="divide-y divide-border text-sm">
-                        {ingredients.map(ing => (
+                        {isLoading ? (
+                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground"><Loader2 className="animate-spin mx-auto mb-2" /> Cargando insumos...</td></tr>
+                        ) : ingredients.length === 0 ? (
+                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No hay insumos registrados.</td></tr>
+                        ) : ingredients.map(ing => (
                             <tr key={ing.id} className="hover:bg-muted/30 group">
                                 <td className="p-4 font-bold text-foreground">{ing.name}</td>
                                 <td className="p-4 text-muted-foreground">${ing.cost.toFixed(1)} / {ing.unit}</td>
-                                <td className="p-4"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${ing.currentStock < ing.maxStock ? 'bg-red-500' : 'bg-green-500'}`} /><span className="font-mono font-medium text-foreground">{ing.currentStock.toLocaleString()} {ing.unit}</span></div></td>
+                                <td className="p-4"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${ing.currentStock < 10 ? 'bg-red-500' : 'bg-green-500'}`} /><span className="font-mono font-medium text-foreground">{ing.currentStock.toLocaleString()} {ing.unit}</span></div></td>
                                 <td className="p-4 font-mono text-foreground">${(ing.currentStock * ing.cost).toLocaleString()}</td>
                                 <td className="p-4 text-right space-x-2">
                                     <button onClick={() => openEdit(ing)} className="text-blue-500 hover:bg-blue-500/10 p-2 rounded"><Edit size={16} /></button>
@@ -380,8 +390,18 @@ const MenuTab = ({ toast }: { toast: any }) => {
         }
 
         // Load Ingredients
-        const iData = await POSService.getIngredients();
-        setIngredients(iData);
+        const { data: iData, error: iError } = await supabase.from('ingredients').select('*');
+        if (iData) {
+            setIngredients(iData.map((i: any) => ({
+                id: i.id,
+                name: i.name,
+                unit: i.unit,
+                cost: i.cost,
+                currentStock: i.current_stock,
+                maxStock: 0,
+                lastUpdated: Date.now()
+            })));
+        }
     }
 
     const addIngredientToRecipe = () => {
