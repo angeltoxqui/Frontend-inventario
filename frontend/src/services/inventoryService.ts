@@ -1,56 +1,37 @@
 import { api } from '../lib/axios';
-import type {
-    Ingredient,
-    CreateIngredientDTO,
-    UpdateIngredientDTO
-} from '../types/models';
+import type { Ingredient, CreateIngredientDTO, UpdateIngredientDTO } from '../types/models';
 
 export const inventoryService = {
-    /**
-     * Health check
-     */
-    checkHealth: async (): Promise<{ status: string }> => {
-        const response = await api.get<{ status: string }>('/api/v1/inventory/');
-        return response.data;
-    },
-
-    /**
-     * List all ingredients
-     */
+    // List ingredients
     getIngredients: async (): Promise<Ingredient[]> => {
-        const response = await api.get<Ingredient[]>('/api/v1/inventory/insumos/');
-        return response.data;
+        const { data } = await api.get<Ingredient[]>('/api/v1/inventory/insumos/');
+        return data;
     },
 
-    /**
-     * Create a new ingredient
-     */
+    // Create ingredient
     createIngredient: async (data: CreateIngredientDTO): Promise<Ingredient> => {
-        const response = await api.post<Ingredient>('/api/v1/inventory/insumos/', data);
-        return response.data;
+        const { data: newItem } = await api.post<Ingredient>('/api/v1/inventory/insumos/', data);
+        return newItem;
     },
 
-    /**
-     * Update an ingredient
-     */
+    // Update ingredient
     updateIngredient: async (id: number, data: UpdateIngredientDTO): Promise<void> => {
         await api.patch(`/api/v1/inventory/insumos/${id}`, data);
     },
 
-    /**
-     * Delete an ingredient
-     */
+    // Delete ingredient
     deleteIngredient: async (id: number): Promise<void> => {
         await api.delete(`/api/v1/inventory/insumos/${id}`);
     },
 
-    /**
-     * Adjust ingredient stock
-     * @param id Ingredient ID
-     * @param cantidad Amount to add (positive) or subtract (negative)
-     */
+    // Adjust stock
     adjustStock: async (id: number, cantidad: number): Promise<Ingredient> => {
-        const response = await api.post<Ingredient>(`/api/v1/inventory/insumos/${id}/ajustar_stock?cantidad=${cantidad}`);
-        return response.data;
+        // cantidad can be negative (subtract) or positive (add)
+        const { data } = await api.post<Ingredient>(
+            `/api/v1/inventory/insumos/${id}/ajustar_stock`,
+            null,
+            { params: { cantidad } } // Query param
+        );
+        return data;
     }
 };
