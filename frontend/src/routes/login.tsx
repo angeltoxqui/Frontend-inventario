@@ -1,47 +1,60 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { ChefHat, Loader2, Globe } from 'lucide-react';
+import { useAuthStore } from '../hooks/useAuth';
+import { authService } from '../services/authService';
+import { ChefHat, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const Route = createFileRoute('/login')({
   component: Login,
 })
 
 function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) return;
+    if (!email.trim() || !password.trim()) return;
 
     setIsSubmitting(true);
-    
-    // Login con el contexto
-    const success = await login(username);
-    
-    if (success) {
-        let target = '/admin'; // Default
-        
-        // Redirecciones según usuario (Hardcoded para demo)
-        if (username === 'owner') target = '/super-admin'; 
-        if (username === 'juan') target = '/pos';
-        if (username === 'maria') target = '/cocina';
-        if (username === 'pedro') target = '/caja';
-        if (username === 'admin') target = '/admin';
-        
-        // Navegación
-        navigate({ to: target });
+
+    try {
+      const response = await authService.login({ email, password });
+      // Assuming response has { message, user_id, access_token? }
+      // We need to fetch the full user object or construct it
+      // The service 'me' endpoint returns User.
+
+      // Let's store token if present
+      if ((response as any).access_token) {
+        localStorage.setItem('auth_token', (response as any).access_token);
+      }
+
+      // Fetch user details immediately to populate store
+      const user = await authService.me();
+      const token = (response as any).access_token || null;
+
+      setAuth({ id: user.user_id }, token);
+      toast.success('Bienvenido de nuevo');
+
+      // Redirect logic
+      // If we had role in user object, we could route better.
+      // For now default to /admin or root
+      navigate({ to: '/' });
+
+    } catch (error: any) {
+      console.error(error);
+      // Toast is handled by axios interceptor usually, but safe to add if not
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
-    // [CORRECCIÓN] Fondo bg-muted/40 para dark mode
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      {/* [CORRECCIÓN] Tarjeta con bg-card */}
       <div className="bg-card text-card-foreground p-8 rounded-2xl shadow-xl w-full max-w-md border border-border">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-primary p-4 rounded-full mb-4 shadow-lg text-primary-foreground">
@@ -54,32 +67,36 @@ function Login() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-bold text-foreground mb-2 uppercase tracking-wide">
-              Usuario de Acceso
+              Email
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={`
-                w-full px-4 py-3 rounded-xl border bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-medium placeholder:text-muted-foreground
-                ${!username && isSubmitting ? 'border-destructive' : 'border-input'}
-              `}
-              placeholder="Ej: admin, owner, juan..."
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none transition-all font-medium placeholder:text-muted-foreground border-input"
+              placeholder="admin@example.com"
               autoFocus
             />
-            {!username && isSubmitting && (
-              <span className="text-xs text-destructive mt-1 block font-bold">Campo requerido</span>
-            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-2 uppercase tracking-wide">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none transition-all font-medium placeholder:text-muted-foreground border-input"
+              placeholder="••••••••"
+            />
           </div>
 
           <div className="bg-muted/50 p-4 rounded-xl text-xs text-muted-foreground border border-border">
-            <p className="font-bold mb-2 text-foreground uppercase opacity-70">Usuarios Demo Disponibles:</p>
+            <p className="font-bold mb-2 text-foreground uppercase opacity-70">Usuarios Demo:</p>
             <ul className="space-y-1">
-              <li className="flex justify-between"><span>👑 Super Admin (Dueño):</span> <code className="bg-primary/10 text-primary px-1 rounded font-bold">owner</code></li>
-              <li className="flex justify-between"><span>🛡️ Admin Tienda:</span> <code className="bg-muted px-1 rounded font-bold text-foreground">admin</code></li>
-              <li className="flex justify-between"><span>🍽️ Mesero:</span> <code className="bg-muted px-1 rounded font-bold text-foreground">juan</code></li>
-              <li className="flex justify-between"><span>👨‍🍳 Cocina:</span> <code className="bg-muted px-1 rounded font-bold text-foreground">maria</code></li>
-              <li className="flex justify-between"><span>💰 Caja:</span> <code className="bg-muted px-1 rounded font-bold text-foreground">pedro</code></li>
+              <li className="flex justify-between"><span>👑 Owner:</span> <code className="bg-primary/10 text-primary px-1 rounded font-bold">owner@setoi.com / 12345678</code></li>
+              <li className="flex justify-between"><span>🛡️ Admin:</span> <code className="bg-muted px-1 rounded font-bold text-foreground">admin@demo.com / 12345678</code></li>
             </ul>
           </div>
 

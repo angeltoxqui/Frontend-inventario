@@ -1,95 +1,43 @@
 import { api } from '../lib/axios';
-import type {
-    Order,
-    AddItemDTO,
-    OrderState,
-    KitchenOrder
-} from '../types/models';
+import { Action, AsyncState, KitchenOrder, Order, Table } from "../types/api";
 
 export const posService = {
-    // --- POS (Orders) ---
-
-    /**
-     * Open an order for a table
-     */
-    openOrder: async (mesaId: number): Promise<{ ok: boolean; orden_id: number }> => {
-        const response = await api.post<{ ok: boolean; orden_id: number }>(`/api/v1/orders/ordenes/abrir/${mesaId}`);
-        return response.data;
+    // --- Tables ---
+    getTables: async () => {
+        const { data } = await api.get<Table[]>('/api/v1/tables/');
+        return data;
     },
 
-    /**
-     * Get active order for a table
-     */
-    getActiveOrder: async (mesaId: number): Promise<Order> => {
-        const response = await api.get<Order>(`/api/v1/orders/ordenes/mesa/${mesaId}/activa`);
-        return response.data;
+    // --- Orders ---
+    openOrder: async (mesaId: number) => {
+        const { data } = await api.post<{ ok: boolean; orden_id: number }>(`/api/v1/orders/ordenes/abrir/${mesaId}`);
+        return data;
     },
 
-    /**
-     * Get order by ID
-     */
-    getOrder: async (ordenId: number): Promise<Order> => {
-        const response = await api.get<Order>(`/api/v1/orders/ordenes/${ordenId}`);
-        return response.data;
+    getActiveOrder: async (mesaId: number) => {
+        try {
+            const { data } = await api.get<Order>(`/api/v1/orders/ordenes/mesa/${mesaId}/activa`);
+            return data;
+        } catch (error) {
+            return null; // Return null if no active order found
+        }
     },
 
-    /**
-     * Add item to order
-     */
-    addItem: async (ordenId: number, data: AddItemDTO): Promise<{ ok: boolean }> => {
-        const response = await api.post<{ ok: boolean }>(`/api/v1/orders/ordenes/${ordenId}/agregar`, data);
-        return response.data;
+    addItemToOrder: async (ordenId: number, item: { producto_id: number; cantidad: number; notas?: string }) => {
+        const { data } = await api.post(`/api/v1/orders/ordenes/${ordenId}/agregar`, item);
+        return data;
     },
 
-    /**
-     * Update order state (Generic)
-     */
-    updateOrderState: async (ordenId: number, estado: OrderState): Promise<{ ok: boolean; orden_id: number }> => {
-        const response = await api.patch<{ ok: boolean; orden_id: number }>(`/api/v1/orders/ordenes/${ordenId}?estado=${estado}`);
-        return response.data;
+    // --- State Machine Actions ---
+    markReady: async (ordenId: number) => {
+        return api.post(`/api/v1/ordenes/${ordenId}/marcar_listo`);
     },
 
-    /**
-     * Cancel order
-     */
-    cancelOrder: async (ordenId: number): Promise<{ ok: boolean }> => {
-        const response = await api.post<{ ok: boolean }>(`/api/v1/orders/ordenes/${ordenId}/cancelar`);
-        return response.data;
+    deliverOrder: async (ordenId: number) => {
+        return api.post(`/api/v1/ordenes/${ordenId}/entregar_mesa`);
     },
 
-    // --- Specific State Transitions (Order State Service) ---
-
-    /**
-     * Mark order as ready (Kitchen)
-     */
-    markOrderReady: async (ordenId: number): Promise<{ ok: boolean }> => {
-        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/marcar_listo`);
-        return response.data;
-    },
-
-    /**
-     * Mark order as delivered (Waiter)
-     */
-    markOrderDelivered: async (ordenId: number): Promise<{ ok: boolean }> => {
-        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/entregar_mesa`);
-        return response.data;
-    },
-
-    /**
-     * Request bill (Waiter/Customer)
-     */
-    requestBill: async (ordenId: number): Promise<{ ok: boolean }> => {
-        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/solicitar_cuenta`);
-        return response.data;
-    },
-
-    // --- Kitchen (KDS) ---
-
-    /**
-     * Get pending kitchen orders
-     */
-    getPendingKitchenOrders: async (): Promise<KitchenOrder[]> => {
-        const response = await api.get<KitchenOrder[]>('/api/v1/kitchen/pendientes');
-        return response.data;
-    },
+    requestBill: async (ordenId: number) => {
+        return api.post(`/api/v1/ordenes/${ordenId}/solicitar_cuenta`);
+    }
 };

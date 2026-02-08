@@ -1,28 +1,29 @@
 import { api } from '../lib/axios';
-import type { LoginCredentials, AuthResponse, User, RegisterCredentials } from '../types/models';
+import type { LoginResponse, User } from '../types/api';
 
 export const authService = {
-    login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-        const { data } = await api.post<AuthResponse>('/api/v1/auth/login', credentials);
+    login: async (credentials: { email: string; password: string }) => {
+        const { data } = await api.post<LoginResponse>('/api/v1/auth/login', credentials);
         return data;
     },
 
-    register: async (credentials: RegisterCredentials): Promise<AuthResponse> => {
-        const { data } = await api.post<AuthResponse>('/api/v1/auth/register', credentials);
+    register: async (credentials: { email: string; password: string }) => {
+        const { data } = await api.post<{ message: string; user_id: string }>('/api/v1/auth/register', credentials);
         return data;
     },
 
-    logout: async (): Promise<void> => {
-        await api.post('/api/v1/auth/logout');
+    logout: async () => {
+        const { data } = await api.post<{ message: string }>('/api/v1/auth/logout');
+        return data;
     },
 
-    // Get current user (validates cookie session)
-    me: async (): Promise<User> => {
+    refresh: async () => {
+        const { data } = await api.post<{ message: string; user_id: string }>('/api/v1/auth/refresh');
+        return data;
+    },
+
+    me: async () => {
         const { data } = await api.get<User>('/api/v1/auth/me');
         return data;
-    },
-
-    refresh: async (): Promise<void> => {
-        await api.post('/api/v1/auth/refresh');
     },
 };

@@ -3,6 +3,7 @@ import {
   createFileRoute,
   Link as RouterLink,
   redirect,
+  useNavigate
 } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -18,7 +19,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
-import useAuth, { isLoggedIn } from "@/hooks/useAuth"
+import { useAuthStore } from "@/hooks/useAuth"
+import { authService } from "@/services/authService"
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 const formSchema = z
   .object({
@@ -42,23 +46,34 @@ type FormData = z.infer<typeof formSchema>
 export const Route = createFileRoute("/signup")({
   component: SignUp,
   beforeLoad: async () => {
-    if (isLoggedIn()) {
+    if (useAuthStore.getState().isAuthenticated) {
       throw redirect({
         to: "/",
       })
     }
   },
-  head: () => ({
-    meta: [
-      {
-        title: "Sign Up - FastAPI Cloud",
-      },
-    ],
-  }),
 })
 
 function SignUp() {
-  const { signUpMutation } = useAuth()
+  const navigate = useNavigate()
+
+  const signUpMutation = useMutation({
+    mutationFn: async (data: { email: string; password: string; full_name: string }) => {
+      // We only have email/password in core auth, full_name might need to be passed elsewhere or ignored if API doesn't support it yet.
+      // User provided 'register' in authService takes {email, password}.
+      // If we need fullname, we might need to adjust authService or API. 
+      // For now, let's just pass email/password.
+      await authService.register({ email: data.email, password: data.password });
+    },
+    onSuccess: () => {
+      toast.success("Account created successfully. Please login.")
+      navigate({ to: "/login" })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Registration failed")
+    }
+  })
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
@@ -74,7 +89,6 @@ function SignUp() {
   const onSubmit = (data: FormData) => {
     if (signUpMutation.isPending) return
 
-    // exclude confirm_password from submission data
     const { confirm_password: _confirm_password, ...submitData } = data
     signUpMutation.mutate(submitData)
   }

@@ -1,7 +1,7 @@
 // src/services/supabaseService.ts
 // Cliente para consumir las Edge Functions de Supabase
 
-import { Store, SuperAdminUser, MigrationLog, Product, Ingredient, Table, Order, ProductCategory, TableStatus } from '../types';
+import { Store, SuperAdminUser, MigrationLog, Product, Ingredient, Table, Order, ProductCategory, TableStatus } from '../types/legacy';
 
 // Configuración - estas variables deben estar en .env
 // const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -323,7 +323,9 @@ export const SupabaseService = {
             name: p.nombre,
             price: Number(p.precio),
             category: 'fuertes' as ProductCategory, // Default category
-            status: 'disponible',
+            status: 'Activo',
+            recipe: [],
+            stock: 0,
         }));
     },
 
