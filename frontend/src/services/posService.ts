@@ -1,300 +1,95 @@
-// src/services/posService.ts
-// Servicio unificado para POS que usa Supabase con fallback a MockService
+import { api } from '../lib/axios';
+import type {
+    Order,
+    AddItemDTO,
+    OrderState,
+    KitchenOrder
+} from '../types/models';
 
-import { SupabaseService } from './supabaseService';
-import { MockService } from './mockService';
-import { Product, Ingredient, Table, Order, OrderItem } from '../types';
+export const posService = {
+    // --- POS (Orders) ---
 
-// Tenant ID por defecto (en producción vendría del contexto de autenticación)
-const DEFAULT_TENANT_ID = 1;
-
-/**
- * Determina qué servicio usar basándose en la configuración de Supabase
- */
-const useSupabase = () => SupabaseService.isConfigured();
-
-/**
- * POSService - Servicio unificado con fallback automático
- * Intenta usar Supabase primero, si falla usa MockService
- */
-export const POSService = {
     /**
-     * Obtiene el origen de datos actual
+     * Open an order for a table
      */
-    getDataSource: (): 'supabase' | 'mock' => {
-        return useSupabase() ? 'supabase' : 'mock';
+    openOrder: async (mesaId: number): Promise<{ ok: boolean; orden_id: number }> => {
+        const response = await api.post<{ ok: boolean; orden_id: number }>(`/api/v1/orders/ordenes/abrir/${mesaId}`);
+        return response.data;
     },
 
-    // ============================================================================
-    // PRODUCTS
-    // ============================================================================
-
-    getProducts: async (): Promise<Product[]> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.getProducts(DEFAULT_TENANT_ID);
-            } catch (error) {
-                console.warn('[POSService] Supabase getProducts failed, using mock:', error);
-                return MockService.getProducts();
-            }
-        }
-        return MockService.getProducts();
+    /**
+     * Get active order for a table
+     */
+    getActiveOrder: async (mesaId: number): Promise<Order> => {
+        const response = await api.get<Order>(`/api/v1/orders/ordenes/mesa/${mesaId}/activa`);
+        return response.data;
     },
 
-    createProduct: async (data: {
-        nombre: string;
-        precio: number;
-        nota?: string;
-    }): Promise<{ producto_id: number } | Product> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.createProduct(DEFAULT_TENANT_ID, data);
-            } catch (error) {
-                console.warn('[POSService] Supabase createProduct failed:', error);
-                throw error;
-            }
-        }
-        // MockService doesn't have createProduct, return mock response
-        return { producto_id: Math.floor(Math.random() * 1000) };
+    /**
+     * Get order by ID
+     */
+    getOrder: async (ordenId: number): Promise<Order> => {
+        const response = await api.get<Order>(`/api/v1/orders/ordenes/${ordenId}`);
+        return response.data;
     },
 
-    updateProduct: async (productId: string, data: {
-        nombre?: string;
-        precio?: number;
-        nota?: string;
-    }): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                // Ensure productId is number for SupabaseService
-                return await SupabaseService.updateProduct(DEFAULT_TENANT_ID, Number(productId), data);
-            } catch (error) {
-                console.warn('[POSService] Supabase updateProduct failed:', error);
-                throw error;
-            }
-        }
-        return true;
+    /**
+     * Add item to order
+     */
+    addItem: async (ordenId: number, data: AddItemDTO): Promise<{ ok: boolean }> => {
+        const response = await api.post<{ ok: boolean }>(`/api/v1/orders/ordenes/${ordenId}/agregar`, data);
+        return response.data;
     },
 
-    deleteProduct: async (productId: string): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.deleteProduct(DEFAULT_TENANT_ID, Number(productId));
-            } catch (error) {
-                console.warn('[POSService] Supabase deleteProduct failed:', error);
-                throw error;
-            }
-        }
-        return true;
+    /**
+     * Update order state (Generic)
+     */
+    updateOrderState: async (ordenId: number, estado: OrderState): Promise<{ ok: boolean; orden_id: number }> => {
+        const response = await api.patch<{ ok: boolean; orden_id: number }>(`/api/v1/orders/ordenes/${ordenId}?estado=${estado}`);
+        return response.data;
     },
 
-    // ============================================================================
-    // INGREDIENTS
-    // ============================================================================
-
-    getIngredients: async (): Promise<Ingredient[]> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.getIngredients(DEFAULT_TENANT_ID);
-            } catch (error) {
-                console.warn('[POSService] Supabase getIngredients failed, using mock:', error);
-                return MockService.getIngredients();
-            }
-        }
-        return MockService.getIngredients();
+    /**
+     * Cancel order
+     */
+    cancelOrder: async (ordenId: number): Promise<{ ok: boolean }> => {
+        const response = await api.post<{ ok: boolean }>(`/api/v1/orders/ordenes/${ordenId}/cancelar`);
+        return response.data;
     },
 
-    createIngredient: async (data: {
-        nombre: string;
-        unidad_medida: string;
-        costo?: number;
-        stock_actual?: number;
-    }): Promise<{ insumo_id: number }> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.createIngredient(DEFAULT_TENANT_ID, data);
-            } catch (error) {
-                console.warn('[POSService] Supabase createIngredient failed:', error);
-                throw error;
-            }
-        }
-        return { insumo_id: Math.floor(Math.random() * 1000) };
+    // --- Specific State Transitions (Order State Service) ---
+
+    /**
+     * Mark order as ready (Kitchen)
+     */
+    markOrderReady: async (ordenId: number): Promise<{ ok: boolean }> => {
+        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/marcar_listo`);
+        return response.data;
     },
 
-    updateIngredient: async (ingredientId: string, data: {
-        nombre?: string;
-        unidad_medida?: string;
-        costo?: number;
-        stock_actual?: number;
-    }): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.updateIngredient(DEFAULT_TENANT_ID, Number(ingredientId), data);
-            } catch (error) {
-                console.warn('[POSService] Supabase updateIngredient failed:', error);
-                throw error;
-            }
-        }
-        return true;
+    /**
+     * Mark order as delivered (Waiter)
+     */
+    markOrderDelivered: async (ordenId: number): Promise<{ ok: boolean }> => {
+        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/entregar_mesa`);
+        return response.data;
     },
 
-    adjustStock: async (ingredientId: string, cantidad: number, motivo?: string): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.adjustIngredientStock(DEFAULT_TENANT_ID, Number(ingredientId), cantidad, motivo);
-            } catch (error) {
-                console.warn('[POSService] Supabase adjustStock failed:', error);
-                throw error;
-            }
-        }
-        return true;
+    /**
+     * Request bill (Waiter/Customer)
+     */
+    requestBill: async (ordenId: number): Promise<{ ok: boolean }> => {
+        const response = await api.post<{ ok: boolean }>(`/api/v1/ordenes/${ordenId}/solicitar_cuenta`);
+        return response.data;
     },
 
-    // ============================================================================
-    // TABLES
-    // ============================================================================
+    // --- Kitchen (KDS) ---
 
-    getTables: async (): Promise<Table[]> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.getTables(DEFAULT_TENANT_ID);
-            } catch (error) {
-                console.warn('[POSService] Supabase getTables failed, using mock:', error);
-                return MockService.getTables();
-            }
-        }
-        return MockService.getTables();
+    /**
+     * Get pending kitchen orders
+     */
+    getPendingKitchenOrders: async (): Promise<KitchenOrder[]> => {
+        const response = await api.get<KitchenOrder[]>('/api/v1/kitchen/pendientes');
+        return response.data;
     },
-
-    createTable: async (nombre: string): Promise<{ mesa_id: number }> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.createTable(DEFAULT_TENANT_ID, nombre);
-            } catch (error) {
-                console.warn('[POSService] Supabase createTable failed:', error);
-                throw error;
-            }
-        }
-        return { mesa_id: Math.floor(Math.random() * 1000) };
-    },
-
-    updateTableStatus: async (tableId: string, ocupada: boolean): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.updateTableStatus(DEFAULT_TENANT_ID, Number(tableId), ocupada);
-            } catch (error) {
-                console.warn('[POSService] Supabase updateTableStatus failed:', error);
-                throw error;
-            }
-        }
-        return true;
-    },
-
-    // ============================================================================
-    // ORDERS
-    // ============================================================================
-
-    getOrders: async (filters?: { estado?: string; mesa_id?: number }): Promise<Order[]> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.getOrders(DEFAULT_TENANT_ID, filters);
-            } catch (error) {
-                console.warn('[POSService] Supabase getOrders failed, using mock:', error);
-                return MockService.getOrders();
-            }
-        }
-        return MockService.getOrders();
-    },
-
-    createOrder: async (order: Order): Promise<Order> => {
-        if (useSupabase()) {
-            try {
-                const result = await SupabaseService.createOrder(DEFAULT_TENANT_ID, {
-                    mesa_id: Number(order.tableId),
-                    items: order.items.map(i => ({
-                        producto_id: Number(i.productId),
-                        cantidad: i.quantity,
-                        nota: i.notes
-                    }))
-                });
-
-                // Reconstruct full order object as frontend expects it back immediately
-                return {
-                    ...order,
-                    id: String(result.orden_id),
-                    status: 'pendiente',
-                    total: result.total
-                };
-            } catch (error) {
-                console.warn('[POSService] Supabase createOrder failed, using mock:', error);
-                return MockService.createOrder(order);
-            }
-        }
-        return MockService.createOrder(order);
-    },
-
-    updateOrderStatus: async (orderId: string, estado: string): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.updateOrderStatus(DEFAULT_TENANT_ID, Number(orderId), estado);
-            } catch (error) {
-                console.warn('[POSService] Supabase updateOrderStatus failed:', error);
-                throw error;
-            }
-        }
-        return true;
-    },
-
-    addItemToOrder: async (orderId: string, item: OrderItem): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.addItemToOrder(DEFAULT_TENANT_ID, Number(orderId), {
-                    producto_id: Number(item.productId),
-                    cantidad: item.quantity,
-                    nota: item.notes
-                });
-            } catch (error) {
-                console.warn('[POSService] Supabase addItemToOrder failed:', error);
-                throw error;
-            }
-        }
-        return true;
-    },
-
-    payOrder: async (orderId: string, data: {
-        tipo_pago: 'efectivo' | 'tarjeta' | 'nequi' | 'otro';
-        propina?: number;
-        es_factura_electronica?: boolean;
-    }): Promise<boolean> => {
-        if (useSupabase()) {
-            try {
-                return await SupabaseService.payOrder(DEFAULT_TENANT_ID, Number(orderId), data);
-            } catch (error) {
-                console.warn('[POSService] Supabase payOrder failed:', error);
-                throw error;
-            }
-        }
-        return true;
-    },
-
-    // ============================================================================
-    // LEGACY COMPATIBILITY - Métodos que usan MockService directamente
-    // Estos métodos mantienen compatibilidad con componentes existentes
-    // ============================================================================
-
-    serveTable: async (tableId: string): Promise<void> => {
-        // En backend real esto se maneja por estado de orden, aquí es solo compatibilidad UI mock
-        await MockService.serveTable(tableId);
-    },
-
-    requestBill: async (tableId: string, options: { isSplit: boolean; items: OrderItem[] }): Promise<void> => {
-        await MockService.requestBill(tableId, options);
-    },
-
-    // Funciones de compatibilidad que solo usan MockService
-    getSalesReport: async () => MockService.getSalesReport(),
-    getFinancialData: async () => MockService.getFinancialData(),
-    getUsers: async () => MockService.getUsers(),
-    getBoxSession: async () => MockService.getBoxSession(),
-    getClosingLogs: async () => MockService.getClosingLogs(),
 };
-
