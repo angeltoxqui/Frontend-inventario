@@ -1,32 +1,34 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
-import { useAuthStore } from '../hooks/useAuth'; // Asumimos un store simple
+// Asegúrate de que esta ruta sea correcta según tu estructura
+import { useAuthStore } from '../hooks/useAuth'; 
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Usamos la variable estandarizada
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export const api = axios.create({
     baseURL,
-    withCredentials: true, // Crucial para las cookies HttpOnly
+    withCredentials: true, // Vital para cookies y CORS
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Request Interceptor
+// --- Interceptor de Solicitud (Inyectar Token y Tenant) ---
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const { token, tenantId } = useAuthStore.getState();
 
-        // 1. Inyectar Token si existe (para Superadmin o fallback)
+        // 1. Inyectar Token (Bearer)
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // 2. Lógica de X-Tenant-Id
-        // NO inyectar si es endpoint de superadmin (doble /api/ check)
-        const isSuperAdminEndpoint = config.url?.includes('/api/v1/api/super-admin');
-
-        if (tenantId && !isSuperAdminEndpoint && config.headers) {
+        // 2. Inyectar Tenant ID (Lógica SaaS)
+        // Evitamos enviarlo si es una ruta de SuperAdmin para no causar conflictos
+        const isSuperAdmin = config.url?.includes('/super-admin');
+        
+        if (tenantId && !isSuperAdmin && config.headers) {
             config.headers['X-Tenant-Id'] = tenantId;
         }
 
@@ -35,24 +37,32 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response Interceptor
+// --- Interceptor de Respuesta (Manejo de Errores Global) ---
 api.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
+    (error) => {
         const status = error.response?.status;
-        const data: any = error.response?.data;
+        const message = error.response?.data?.detail || 'Ocurrió un error inesperado';
 
-        if (status === 401) {
-            // Redirigir a login si falla la auth
-            toast.error('Sesión expirada. Por favor inicie sesión nuevamente.');
-            useAuthStore.getState().logout();
-            window.location.href = '/login';
-        } else if (status === 403) {
-            toast.warning('No tienes permisos para realizar esta acción.');
-        } else if (status === 500) {
-            toast.error('Error interno del servidor. Contacte soporte.');
-        } else {
-            toast.error(data?.detail || 'Ocurrió un error inesperado');
+        // Manejo centralizado de errores
+        switch (status) {
+            case 401:
+                toast.error('Sesión expirada. Inicie sesión nuevamente.');
+                useAuthStore.getState().logout();
+                // Opcional: window.location.href = '/login'; 
+                // (Mejor dejar que React Router maneje la redirección por estado)
+                break;
+            case 403:
+                toast.warning('No tienes permisos para esta acción.');
+                break;
+            case 500:
+                toast.error('Error del servidor. Intente más tarde.');
+                break;
+            default:
+                // Solo mostramos error si no fue cancelado por el usuario
+                if (error.code !== 'ERR_CANCELED') {
+                    toast.error(message);
+                }
         }
 
         return Promise.reject(error);

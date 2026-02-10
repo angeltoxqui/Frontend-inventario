@@ -1,5 +1,6 @@
 import { api } from '../lib/axios';
 import type { PaymentDTO } from '../types/api';
+import type { OrderBillingDetails } from '../types/models';
 
 export const billingService = {
   payOrder: async (ordenId: number, paymentData: PaymentDTO) => {
@@ -12,5 +13,10 @@ export const billingService = {
 
     const { data } = await api.post(url, paymentData);
     return data;
-  }
+  },
+
+  getOrderBillingDetails: async (ordenId: number): Promise<OrderBillingDetails> => {
+    const { data } = await api.get<OrderBillingDetails>(`/api/v1/billing/${ordenId}`);
+    return data;
+  },
 };

@@ -1,14 +1,12 @@
 import { api } from '../lib/axios';
 import type { Product, CreateProductDTO, Insumo } from '../types/api';
+import type { UpdateProductDTO } from '../types/models';
 
 export const inventoryService = {
     getInsumos: async () => {
         const { data } = await api.get<Insumo[]>('/api/v1/inventory/insumos/');
         return data;
     },
-    // Placeholder for other inventory methods if needed by components, 
-    // but strictly following user's snippet for now which only showed getInsumos in this file context
-    // or it was split. Since the user combined them in the prompt, placing them here.
 };
 
 export const productsService = {
@@ -18,13 +16,27 @@ export const productsService = {
     },
 
     createProduct: async (product: CreateProductDTO) => {
-        // La API espera { nombre, precio, ingredientes: [{ insumo_id, cantidad_requerida }] }
         const { data } = await api.post<Product>('/api/v1/products/', product);
         return data;
     },
 
+    getProduct: async (id: number) => {
+        const { data } = await api.get<Product>(`/api/v1/products/${id}`);
+        return data;
+    },
+
+    // Alias for backward compatibility
     getProductById: async (id: number) => {
         const { data } = await api.get<Product>(`/api/v1/products/${id}`);
         return data;
-    }
+    },
+
+    updateProduct: async (id: number, product: UpdateProductDTO) => {
+        const { data } = await api.put<Product>(`/api/v1/products/${id}`, product);
+        return data;
+    },
+
+    deleteProduct: async (id: number) => {
+        await api.delete(`/api/v1/products/${id}`);
+    },
 };

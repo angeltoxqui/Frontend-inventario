@@ -6,22 +6,22 @@ type Middleware<T> = (value: T) => T | Promise<T>;
 type Resolver<T> = (options: ApiRequestOptions<T>) => Promise<T>;
 
 export class Interceptors<T> {
-  _fns: Middleware<T>[];
+	_fns: Middleware<T>[];
 
-  constructor() {
-    this._fns = [];
-  }
+	constructor() {
+		this._fns = [];
+	}
 
-  eject(fn: Middleware<T>): void {
-    const index = this._fns.indexOf(fn);
-    if (index !== -1) {
-      this._fns = [...this._fns.slice(0, index), ...this._fns.slice(index + 1)];
-    }
-  }
+	eject(fn: Middleware<T>): void {
+		const index = this._fns.indexOf(fn);
+		if (index !== -1) {
+			this._fns = [...this._fns.slice(0, index), ...this._fns.slice(index + 1)];
+		}
+	}
 
-  use(fn: Middleware<T>): void {
-    this._fns = [...this._fns, fn];
-  }
+	use(fn: Middleware<T>): void {
+		this._fns = [...this._fns, fn];
+	}
 }
 
 export type OpenAPIConfig = {
@@ -40,16 +40,25 @@ export type OpenAPIConfig = {
 	};
 };
 
+import { useAuthStore } from '../../hooks/useAuth';
+
 export const OpenAPI: OpenAPIConfig = {
-	BASE: '',
+	// 1. Conexión dinámica al Backend
+	BASE: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+
+	// 2. Configuración de Seguridad
+	VERSION: '1.0',
+	WITH_CREDENTIALS: true, // Importante
 	CREDENTIALS: 'include',
-	ENCODE_PATH: undefined,
-	HEADERS: undefined,
-	PASSWORD: undefined,
-	TOKEN: undefined,
-	USERNAME: undefined,
-	VERSION: '0.1.0',
-	WITH_CREDENTIALS: false,
+
+	// 3. ¡El Truco Senior! Inyección dinámica del Token
+	// Esto hace que todas las peticiones generadas usen el token de tu estado
+	TOKEN: async () => {
+		const token = useAuthStore.getState().token;
+		return token || '';
+	},
+
+	// Inicialización de interceptores (Déjalo como estaba)
 	interceptors: {
 		request: new Interceptors(),
 		response: new Interceptors(),
