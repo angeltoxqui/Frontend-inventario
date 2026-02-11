@@ -20,7 +20,7 @@ export enum ProductCategory {
 
 export interface User {
     id: string; // Legacy used 'id', api.ts uses 'user_id'
-    username: string;
+    username?: string; // Made optional - Supabase user mappings may not have usernames
     pin?: string;
     fullName?: string;
     role: UserRole | string;
@@ -39,12 +39,17 @@ export interface Ingredient {
     lastUpdated: number;
 }
 
+export interface RecipeItem {
+    ingredientId: string;
+    quantity: number;
+}
+
 export interface Product {
     id: string;
     name: string;
     price: number;
     category: ProductCategory | string;
-    recipe: { ingredientId: string; quantity: number }[];
+    recipe: RecipeItem[];
     stock: number;
     status: 'Activo' | 'Inactivo';
 }
@@ -64,13 +69,14 @@ export interface OrderItem {
     quantity: number;
     price: number;
     notes?: string;
+    assignedTo?: string;
 }
 
 export interface Order {
     id: string;
     tableId: string;
     items: OrderItem[];
-    status: 'pendiente' | 'cocinando' | 'servir' | 'entregado' | 'pagando' | 'pagado' | 'cancelado' | 'listo'; // Mixed legacy statuses
+    status: 'pendiente' | 'cocinando' | 'servir' | 'entregado' | 'pagando' | 'pagado' | 'cancelado' | 'listo' | 'por_cobrar'; // Mixed legacy statuses + caja mapped status
     timestamp: number;
     total: number;
     tip?: number;
@@ -86,6 +92,10 @@ export interface SaleRecord {
     timestamp: number;
     items: OrderItem[];
     proofUrl?: string;
+    // Fields populated by MockService for reports
+    itemsSummary?: { name: string; quantity: number; price: number }[];
+    waiterName?: string;
+    tableNumber?: number;
 }
 
 export interface CashClosingLog {
@@ -95,6 +105,13 @@ export interface CashClosingLog {
     totalReal: number;
     difference: number;
     notes?: string;
+    // Extended fields used by admin.tsx and caja.tsx
+    status?: 'ok' | 'faltante' | 'sobrante';
+    user?: string;
+    openingBase?: number;
+    systemExpected?: number;
+    realCounted?: number;
+    justification?: string;
 }
 
 export interface Expense {
@@ -104,6 +121,9 @@ export interface Expense {
     amount: number;
     category: string;
     authorizedBy: string;
+    // Aliases used by reports page
+    concept?: string;
+    registeredBy?: string;
 }
 
 export interface CashierSession {

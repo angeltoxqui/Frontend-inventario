@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { MockService } from '../services/mockService'; // Importamos el servicio
-import { User } from '../types'; // Importamos el tipo User
+import { User } from '../types/legacy'; // Uses legacy User type (has id, username, fullName)
 
 interface AuthContextType {
   user: User | null; // Ahora guardamos el objeto completo
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const users = await MockService.getUsers();
       const found = users.find(u => u.username === username);
-      
+
       if (found) {
         setUser(found);
         localStorage.setItem('access_token', 'mock-token-123');
@@ -58,12 +58,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated: !!user, 
-      login, 
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      login,
       logout,
-      refreshUser 
+      refreshUser
     }}>
       {!loading && children}
     </AuthContext.Provider>

@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, DollarSign, Package, ShoppingCart, AlertTriangle } from "lucide-react";
+import { DollarSign, Package, ShoppingCart, AlertTriangle } from "lucide-react";
 
 // Tipos de datos para nuestro inventario
 export type ProductStatus = "En Stock" | "Stock Bajo" | "Sin Stock";
@@ -32,7 +32,7 @@ export const inventoryData: Product[] = [
     name: "Hamburguesa Clásica",
     category: "Comida Rápida",
     // Usamos una imagen por defecto o placeholder
-    image: "https://ui.shadcn.com/avatars/01.png", 
+    image: "https://ui.shadcn.com/avatars/01.png",
     status: "En Stock",
     lastUpdated: "10 Mar 2024",
     price: "$12.000",

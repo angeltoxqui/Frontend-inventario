@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '../../services/adminService';
-import type { CreateStoreDTO, CreateTenantUserDTO } from '../../types/models';
+import type { CreateTenantUserDTO } from '../../types/models';
 import { toast } from 'sonner';
 
 // Keys for admin queries

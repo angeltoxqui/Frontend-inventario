@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useAuthStore } from '../hooks/useAuth'
-import { useToast } from '../components/ui/Toast'
+// Toast provider is used at the top level, not here
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '../components/ui/sidebar'
 import AppSidebar from '../components/Sidebar/AppSidebar'
 import { Separator } from '../components/ui/separator'

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsService } from '../../services/productsService';
-import type { CreateProductDTO, UpdateProductDTO } from '../../types/models';
+import type { UpdateProductDTO } from '../../types/models';
 import { toast } from 'sonner';
 
 const PRODUCTS_KEYS = {

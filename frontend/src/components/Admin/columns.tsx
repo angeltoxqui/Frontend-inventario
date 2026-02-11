@@ -1,6 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { UserPublic } from "../../client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -11,10 +10,10 @@ import { UserActionsMenu } from "./UserActionsMenu" // <--- ¡AQUÍ ESTABA EL ER
 // Componente auxiliar para el Switch dentro de la celda
 const TurnoSwitch = ({ user }: { user: UserPublic }) => {
   const queryClient = useQueryClient()
-  
+
   const mutation = useMutation({
-    mutationFn: (checked: boolean) => 
-      UsersService.updateUser({ userId: user.id, requestBody: { ...user, is_active: checked } }), 
+    mutationFn: (checked: boolean) =>
+      UsersService.updateUser({ userId: user.id, requestBody: { ...user, is_active: checked } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       toast.success("Estado de turno actualizado")
@@ -24,8 +23,8 @@ const TurnoSwitch = ({ user }: { user: UserPublic }) => {
 
   return (
     <div className="flex items-center space-x-2">
-      <Switch 
-        checked={user.is_active} 
+      <Switch
+        checked={user.is_active}
         onCheckedChange={(checked) => mutation.mutate(checked)}
       />
       <span className="text-xs text-muted-foreground">{user.is_active ? "Activo" : "Fuera"}</span>
@@ -45,10 +44,10 @@ export const columns: ColumnDef<UserPublic>[] = [
   {
     accessorKey: "role",
     header: "Rol",
-    cell: ({ row }) => <Badge>{row.original.role || "N/A"}</Badge>,
+    cell: ({ row }) => <Badge>{(row.original as any).role || "N/A"}</Badge>,
   },
   {
-    id: "en_turno", 
+    id: "en_turno",
     header: "Turno Activo",
     cell: ({ row }) => <TurnoSwitch user={row.original} />,
   },

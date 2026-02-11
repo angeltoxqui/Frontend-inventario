@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
 import { useAuthStore } from "@/hooks/useAuth"
-import { authService } from "@/services/authService"
+import { supabase } from "@/supabaseClient"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -59,18 +59,21 @@ function SignUp() {
 
   const signUpMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; full_name: string }) => {
-      // We only have email/password in core auth, full_name might need to be passed elsewhere or ignored if API doesn't support it yet.
-      // User provided 'register' in authService takes {email, password}.
-      // If we need fullname, we might need to adjust authService or API. 
-      // For now, let's just pass email/password.
-      await authService.register({ email: data.email, password: data.password });
+      const { error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: { full_name: data.full_name },
+        },
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Account created successfully. Please login.")
+      toast.success("Account created successfully. Please check your email to confirm.")
       navigate({ to: "/login" })
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Registration failed")
+      toast.error(error.message || "Registration failed")
     }
   })
 

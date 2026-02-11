@@ -23,31 +23,34 @@ function Login() {
     setIsSubmitting(true);
 
     try {
-      const response = await authService.login({ email, password });
-      // Assuming response has { message, user_id, access_token? }
-      // We need to fetch the full user object or construct it
-      // The service 'me' endpoint returns User.
+      const { session, user } = await authService.login({ email, password });
 
-      // Let's store token if present
-      if ((response as any).access_token) {
-        localStorage.setItem('auth_token', (response as any).access_token);
-      }
+      if (!session) throw new Error('No session created');
 
-      // Fetch user details immediately to populate store
-      const user = await authService.me();
-      const token = (response as any).access_token || null;
+      const token = session.access_token;
 
-      setAuth({ id: user.user_id }, token);
+      // For now, use a default tenant or one from env as per guide recommendation for dev
+      // In a real multi-tenant app, this might come from user metadata or a separate selection screen
+      const defaultTenant = import.meta.env.VITE_DEFAULT_TENANT || 'tenant_000001';
+
+      // Update Zustand Store
+      setAuth({
+        user_id: user?.id || '',
+        email: user?.email,
+        role: 'admin' // defaulting role for now, should come from metadata
+      }, token);
+
+      // We also need to set the tenant in the store/axios
+      // The useAuthStore has setTenant method? Let's check. Yes it does.
+      const { setTenant } = useAuthStore.getState();
+      setTenant(defaultTenant);
+
       toast.success('Bienvenido de nuevo');
-
-      // Redirect logic
-      // If we had role in user object, we could route better.
-      // For now default to /admin or root
       navigate({ to: '/' });
 
     } catch (error: any) {
       console.error(error);
-      // Toast is handled by axios interceptor usually, but safe to add if not
+      toast.error(error.message || 'Error al iniciar sesión');
     } finally {
       setIsSubmitting(false);
     }

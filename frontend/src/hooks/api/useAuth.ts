@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../../services/authService';
-import type { LoginCredentials, RegisterCredentials } from '../../types/models';
+import type { LoginCredentials } from '../../types/models';
+import { useAuthStore } from '../useAuth';
 import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -13,7 +14,7 @@ export const useAuth = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
-    // 1. Query to get active user (runs on app load)
+    // 1. Query to get active Supabase user (runs on app load)
     const {
         data: user,
         isLoading,
@@ -22,35 +23,40 @@ export const useAuth = () => {
         refetch: checkSession
     } = useQuery({
         queryKey: AUTH_KEYS.user,
-        queryFn: authService.me,
-        retry: false, // Don't retry if 401/fail
+        queryFn: authService.getUser,
+        retry: false,
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
     });
 
-    // 2. Login Mutation
+    // 2. Login Mutation (Supabase)
     const loginMutation = useMutation({
         mutationFn: (creds: LoginCredentials) => authService.login(creds),
         onSuccess: (data) => {
             toast.success('Bienvenido de nuevo');
 
-            // Update cache
-            // If login returns user object, we could set it directly. 
-            // But typically it returns { message, user_id, access_token? }
-            // So we invalidate to fetch full /me details or manually construct if possible.
-            queryClient.invalidateQueries({ queryKey: AUTH_KEYS.user });
+            // Supabase returns { session, user }
+            const session = data.session;
+            const supaUser = data.user;
 
-            // Store token if returned (Hybrid approach)
-            // The interface AuthResponse usually has message, user_id. 
-            // If access_token is there, save it.
-            if ((data as any).access_token) {
-                localStorage.setItem('auth_token', (data as any).access_token);
+            if (session) {
+                // Update Zustand store
+                const { setAuth, setTenant } = useAuthStore.getState();
+                setAuth({
+                    user_id: supaUser?.id || '',
+                    email: supaUser?.email,
+                    role: 'admin', // TODO: extract from user metadata
+                }, session.access_token);
+
+                const defaultTenant = import.meta.env.VITE_DEFAULT_TENANT || 'tenant_000001';
+                setTenant(defaultTenant);
             }
 
-            navigate({ to: '/' }); // Redirect to dashboard
+            queryClient.invalidateQueries({ queryKey: AUTH_KEYS.user });
+            navigate({ to: '/' });
         },
         onError: (error: any) => {
-            // Toast handled by axios interceptor usually, but can add specifics here
             console.error('Login failed', error);
+            toast.error(error.message || 'Error al iniciar sesión');
         },
     });
 
@@ -59,26 +65,13 @@ export const useAuth = () => {
         mutationFn: authService.logout,
         onSuccess: () => {
             queryClient.setQueryData(AUTH_KEYS.user, null);
-            queryClient.clear(); // Clear all cache
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('tenant_id'); // Clear tenant on logout
+            queryClient.clear();
+            useAuthStore.getState().logout();
             toast.info('Sesión cerrada');
             navigate({ to: '/login' });
         },
         onError: (error: any) => {
             console.error('Logout failed', error);
-        }
-    });
-
-    // 4. Register Mutation
-    const registerMutation = useMutation({
-        mutationFn: (creds: RegisterCredentials) => authService.register(creds),
-        onSuccess: () => {
-            toast.success('Registro exitoso');
-            navigate({ to: '/' });
-        },
-        onError: (error: any) => {
-            console.error('Registration failed', error);
         }
     });
 
@@ -90,10 +83,8 @@ export const useAuth = () => {
         error,
         login: loginMutation.mutate,
         logout: logoutMutation.mutate,
-        register: registerMutation.mutate,
         isLoggingIn: loginMutation.isPending,
         isLoggingOut: logoutMutation.isPending,
-        isRegistering: registerMutation.isPending,
         checkSession,
     };
 };

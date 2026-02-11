@@ -37,7 +37,7 @@ export function useKitchen() {
 
             return { previousOrders };
         },
-        onError: (err, ordenId, context) => {
+        onError: (_err, _ordenId, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(KITCHEN_KEYS.orders, context.previousOrders);
             }

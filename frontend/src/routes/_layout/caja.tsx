@@ -1,14 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../components/ui/Toast';
 import { MockService } from '../../services/mockService';
-import { BillingService } from '../../services/billingService';
+import { billingService } from '../../services/billingService';
 import { supabase } from '../../supabaseClient';
-import { Order, OrderItem, Product } from '../../types';
+import { Order, OrderItem, Product } from '../../types/legacy';
 import {
     Wallet, Receipt, CreditCard, Smartphone, Banknote,
     Calculator, User, AlertTriangle, CheckCircle2, ShieldAlert, FileText,
-    Lock, Search, PackagePlus, Trash2, Coins, Printer, X, Loader2, Camera, CloudUpload
+    Lock, Search, PackagePlus, Trash2, Printer, X, Loader2, Camera, CloudUpload
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
@@ -136,7 +136,10 @@ function Caja() {
                 id: p.id,
                 name: p.name,
                 price: p.price,
-                category: 'general' as any
+                category: 'general' as any,
+                recipe: [],
+                stock: p.stock ?? 0,
+                status: 'Activo' as const,
             })));
         }
     };
@@ -301,8 +304,16 @@ function Caja() {
                 if (needsInvoice) {
                     try {
                         toast("Conectando con DIAN...", "info");
-                        const response = await BillingService.emitInvoice(
-                            selectedOrder, itemsToPay, clientInfo, paymentMethod
+                        const response = await billingService.payOrder(
+                            Number(selectedOrder.id), {
+                            metodo_pago: paymentMethod === 'efectivo' ? 'efectivo' : (paymentMethod === 'tarjeta' ? 'tarjeta' : 'transferencia'),
+                            factura_electronica: true,
+                            cliente_doc: clientInfo.nit,
+                            cliente_nombre: clientInfo.name,
+                            cliente_email: clientInfo.email,
+                            cliente_tel: clientInfo.phone,
+                            propina: calculateTip(),
+                        }
                         );
                         invoiceData = response; // Assuming response is the data directly or response.data
                         toast("¡Factura Electrónica Generada!", "success");
@@ -403,6 +414,8 @@ function Caja() {
         }
         await MockService.registerClosing({
             user: 'Cajero Turno',
+            totalSystem: systemCash,
+            totalReal: parseFloat(realCash),
             systemExpected: systemCash,
             realCounted: parseFloat(realCash),
             difference: arqueoDiff,

@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { billingService } from '../../services/billingService';
-import type { PaymentDTO } from '../../types/models';
+import type { PaymentDTO } from '../../types/api';
 import { toast } from 'sonner';
-import { useNavigate } from '@tanstack/react-router';
 
 const BILLING_KEYS = {
     order: (ordenId: number) => ['billing', 'order', ordenId] as const,
@@ -10,7 +9,7 @@ const BILLING_KEYS = {
 
 export function useBilling() {
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
+
 
     const payOrderMutation = useMutation({
         mutationFn: ({ ordenId, data }: { ordenId: number; data: PaymentDTO }) =>

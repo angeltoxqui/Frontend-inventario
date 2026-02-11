@@ -8,7 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import useAuth from "@/hooks/useAuth"
+import { useAuth } from "@/context/AuthContext"
 import DeleteUser from "./DeleteUser"
 import EditUser from "./EditUser"
 

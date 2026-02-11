@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MockService } from '../../services/mockService';
 
 import { supabase } from '../../supabaseClient'; // [NEW] Import Supabase
-import { User, Product, Table, Ingredient, CashClosingLog, ProductCategory } from '../../types';
+import { User, Product, Table, Ingredient, CashClosingLog, ProductCategory } from '../../types/legacy';
 import {
     Users, Package, Grid3X3, Trash2, Plus, Edit,
     UtensilsCrossed, Wallet, AlertTriangle, CheckCircle2, Lock,
@@ -94,7 +94,7 @@ function AdminPanel() {
 // ------------------------------------------------------------------
 // 1. FINANZAS
 // ------------------------------------------------------------------
-const FinanceTab = ({ toast }: { toast: any }) => {
+const FinanceTab = ({ toast: _toast }: { toast: any }) => {
     const [closingLogs, setClosingLogs] = useState<CashClosingLog[]>([]);
 
     useEffect(() => {
@@ -146,8 +146,8 @@ const FinanceTab = ({ toast }: { toast: any }) => {
                                             <Lock size={12} className="opacity-50" /> ${log.openingBase?.toLocaleString() || '0'}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-right font-mono text-foreground">${log.systemExpected.toLocaleString()}</td>
-                                    <td className="p-4 text-right font-mono font-bold text-foreground">${log.realCounted.toLocaleString()}</td>
+                                    <td className="p-4 text-right font-mono text-foreground">${(log.systemExpected ?? 0).toLocaleString()}</td>
+                                    <td className="p-4 text-right font-mono font-bold text-foreground">${(log.realCounted ?? 0).toLocaleString()}</td>
                                     <td className={`p-4 text-right font-mono font-bold ${log.difference < 0 ? 'text-red-600 dark:text-red-400' : (log.difference > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400')}`}>
                                         {log.difference > 0 ? '+' : ''}{log.difference.toLocaleString()}
                                     </td>
@@ -384,13 +384,15 @@ const MenuTab = ({ toast }: { toast: any }) => {
                 id: p.id,
                 name: p.name,
                 price: p.price,
-                category: p.category_id || 'fuertes', // Adjust mapping
-                // recipe: p.recipe // Need to handle recipe loading probably via separate table or jsonb
+                category: (p.category_id || 'fuertes') as ProductCategory,
+                recipe: p.recipe || [],
+                stock: p.stock ?? 0,
+                status: p.is_active !== false ? 'Activo' as const : 'Inactivo' as const,
             })));
         }
 
         // Load Ingredients
-        const { data: iData, error: iError } = await supabase.from('ingredients').select('*');
+        const { data: iData, error: _iError } = await supabase.from('ingredients').select('*');
         if (iData) {
             setIngredients(iData.map((i: any) => ({
                 id: i.id,
@@ -469,7 +471,7 @@ const MenuTab = ({ toast }: { toast: any }) => {
                     <div key={p.id} className="border border-border rounded-xl p-4 bg-card text-card-foreground hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-2">
                             <h3 className="font-bold text-lg">{p.name}</h3>
-                            <span className={`text-xs px-2 py-1 rounded border uppercase font-bold ${getCategoryColor(p.category)}`}>{p.category}</span>
+                            <span className={`text-xs px-2 py-1 rounded border uppercase font-bold ${getCategoryColor(p.category as ProductCategory)}`}>{p.category}</span>
                         </div>
                         <p className="text-xl font-mono font-medium text-foreground mb-4">${p.price.toLocaleString()}</p>
                         <div className="bg-muted/50 p-3 rounded-lg mb-4 border border-border">
@@ -554,7 +556,8 @@ const HRTab = ({ toast }: { toast: any }) => {
 
         const mapped = data.map((u: any) => ({
             id: u.id,
-            fullName: u.full_name || u.email,
+            username: u.username || u.id,
+            fullName: u.full_name || u.email || 'Sin nombre',
             role: u.role,
             en_turno: u.is_active_shift || false, // Mapping snake_case
             permissions: u.permissions || []
@@ -605,7 +608,7 @@ const HRTab = ({ toast }: { toast: any }) => {
                     <div key={u.id} className={`border rounded-xl bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${u.role === 'admin' ? 'border-purple-500/30' : 'border-border'}`}>
                         <div className="p-4 flex items-center gap-4 border-b border-border">
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl text-white shadow-sm ${u.role === 'admin' ? 'bg-purple-600' : 'bg-secondary text-secondary-foreground'}`}>
-                                {u.fullName.charAt(0)}
+                                {(u.fullName || '?').charAt(0)}
                             </div>
                             <div className="flex-1">
                                 <h3 className="font-bold text-foreground text-lg leading-tight">{u.fullName}</h3>

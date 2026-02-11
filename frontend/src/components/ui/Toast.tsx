@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 // Tipos de alerta
@@ -69,14 +69,13 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
 
             {/* Contenido */}
             <div className="flex-1">
-              <h4 className={`font-bold text-sm capitalize ${
-                 t.type === 'success' ? 'text-green-800' : 
-                 t.type === 'error' ? 'text-red-800' : 
-                 t.type === 'warning' ? 'text-orange-800' : 'text-blue-800'
-              }`}>
-                {t.type === 'success' ? '¡Éxito!' : 
-                 t.type === 'error' ? 'Error' : 
-                 t.type === 'warning' ? 'Cuidado' : 'Información'}
+              <h4 className={`font-bold text-sm capitalize ${t.type === 'success' ? 'text-green-800' :
+                  t.type === 'error' ? 'text-red-800' :
+                    t.type === 'warning' ? 'text-orange-800' : 'text-blue-800'
+                }`}>
+                {t.type === 'success' ? '¡Éxito!' :
+                  t.type === 'error' ? 'Error' :
+                    t.type === 'warning' ? 'Cuidado' : 'Información'}
               </h4>
               <p className="text-sm text-slate-600 font-medium leading-tight mt-1">
                 {t.message}
@@ -84,7 +83,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
 
             {/* Botón Cerrar */}
-            <button 
+            <button
               onClick={() => removeToast(t.id)}
               className="text-slate-400 hover:text-slate-600 transition-colors"
             >
@@ -92,17 +91,16 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
             </button>
 
             {/* Barra de Progreso (Animación CSS pura) */}
-            <div className={`absolute bottom-0 left-0 h-1 w-full opacity-20 ${
-                t.type === 'success' ? 'bg-green-500' : 
-                t.type === 'error' ? 'bg-red-500' : 
-                t.type === 'warning' ? 'bg-orange-500' : 'bg-blue-500'
-            }`}>
-                <div className="h-full bg-current w-full origin-left animate-[shrink_4s_linear_forwards]" />
+            <div className={`absolute bottom-0 left-0 h-1 w-full opacity-20 ${t.type === 'success' ? 'bg-green-500' :
+                t.type === 'error' ? 'bg-red-500' :
+                  t.type === 'warning' ? 'bg-orange-500' : 'bg-blue-500'
+              }`}>
+              <div className="h-full bg-current w-full origin-left animate-[shrink_4s_linear_forwards]" />
             </div>
           </div>
         ))}
       </div>
-      
+
       {/* Estilos para la animación de la barra */}
       <style>{`
         @keyframes shrink {

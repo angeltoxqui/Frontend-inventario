@@ -1,7 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import { Check, Copy } from "lucide-react"
 
-import type { ItemPublic } from "@/client"
+import type { Product } from "@/types/legacy"
 import { Button } from "@/components/ui/button"
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard"
 import { cn } from "@/lib/utils"
@@ -31,35 +31,42 @@ function CopyId({ id }: { id: string }) {
   )
 }
 
-export const columns: ColumnDef<ItemPublic>[] = [
+export const columns: ColumnDef<Product>[] = [
   {
     accessorKey: "id",
     header: "ID",
     cell: ({ row }) => <CopyId id={row.original.id} />,
   },
   {
-    accessorKey: "title",
-    header: "Title",
+    accessorKey: "name",
+    header: "Nombre",
     cell: ({ row }) => (
-      <span className="font-medium">{row.original.title}</span>
+      <span className="font-medium">{row.original.name}</span>
     ),
   },
   {
-    accessorKey: "description",
-    header: "Description",
+    accessorKey: "category",
+    header: "Categoría",
     cell: ({ row }) => {
-      const description = row.original.description
+      const category = row.original.category
       return (
         <span
           className={cn(
-            "max-w-xs truncate block text-muted-foreground",
-            !description && "italic",
+            "max-w-xs truncate block text-muted-foreground capitalize",
+            !category && "italic",
           )}
         >
-          {description || "No description"}
+          {category || "Sin categoría"}
         </span>
       )
     },
+  },
+  {
+    accessorKey: "price",
+    header: "Precio",
+    cell: ({ row }) => (
+      <span className="font-mono">${row.original.price.toLocaleString()}</span>
+    ),
   },
   {
     id: "actions",
@@ -71,3 +78,4 @@ export const columns: ColumnDef<ItemPublic>[] = [
     ),
   },
 ]
+

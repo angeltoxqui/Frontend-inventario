@@ -1,29 +1,30 @@
-import { api } from '../lib/axios';
-import type { LoginResponse } from '../types/api';
+import { supabase } from '../supabaseClient';
 
 export const authService = {
-  login: async (credentials: { email: string; password: string }) => {
-    const { data } = await api.post<LoginResponse>('/api/v1/auth/login', credentials);
-    return data;
-  },
-
-  register: async (credentials: { email: string; password: string }) => {
-    const { data } = await api.post<{ message: string; user_id: string }>('/api/v1/auth/register', credentials);
+  login: async ({ email, password }: { email: string; password: string }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
     return data;
   },
 
   logout: async () => {
-    const { data } = await api.post<{ message: string }>('/api/v1/auth/logout');
-    return data;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   },
 
-  refresh: async () => {
-    const { data } = await api.post<{ message: string; user_id: string }>('/api/v1/auth/refresh');
-    return data;
+  getSession: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session;
   },
 
-  me: async () => {
-    const { data } = await api.get<{ message: string; user_id: string }>('/api/v1/auth/me');
-    return data;
+  getUser: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
   },
+
+  // Legacy/Compatibility methods if needed, or remove if unused. 
+  // keeping simple for now as per plan.
 };

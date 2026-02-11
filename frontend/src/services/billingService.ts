@@ -4,9 +4,7 @@ import type { OrderBillingDetails } from '../types/models';
 
 export const billingService = {
   payOrder: async (ordenId: number, paymentData: PaymentDTO) => {
-    // Endpoint 44 para facturación electrónica
-    // Endpoint 40 para cajero simple (cashier)
-
+    // Determine endpoint based on billing type as per guide
     const url = paymentData.factura_electronica
       ? `/api/v1/billing/orders/${ordenId}/pay`
       : `/api/v1/cashier/pay/${ordenId}`;
@@ -16,6 +14,8 @@ export const billingService = {
   },
 
   getOrderBillingDetails: async (ordenId: number): Promise<OrderBillingDetails> => {
+    // Not explicitly in guide, assuming legacy or extra endpoint. 
+    // If it fails, we might need to fetch /orders/{id} instead.
     const { data } = await api.get<OrderBillingDetails>(`/api/v1/billing/${ordenId}`);
     return data;
   },

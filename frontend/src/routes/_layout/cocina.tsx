@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MockService } from '../../services/mockService';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabaseClient'; // [NEW] Import Supabase
-import { Order } from '../../types';
+import { Order } from '../../types/legacy';
 import { Button } from '../../components/ui/button';
 import { useToast } from '../../components/ui/Toast';
 import { Loader2, ChefHat, Clock, CheckCircle2, AlertCircle, UtensilsCrossed } from 'lucide-react';
@@ -13,7 +12,7 @@ export const Route = createFileRoute('/_layout/cocina')({
 })
 
 function Cocina() {
-    const queryClient = useQueryClient();
+    // queryClient available if needed for cache invalidation
     const { toast } = useToast();
 
 

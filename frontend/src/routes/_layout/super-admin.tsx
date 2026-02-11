@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useMemo } from 'react';
 import { MockService } from '../../services/mockService';
 import { SupabaseService } from '../../services/supabaseService';
-import { Store, SuperAdminUser, MigrationLog } from '../../types';
+import { Store, SuperAdminUser, MigrationLog } from '../../types/legacy';
 import {
     Building2, MoreHorizontal, Plus, Search,
     ShieldCheck, CheckCircle2,
@@ -62,9 +62,9 @@ function SuperAdminDashboard() {
                     // Migraciones requieren schema name, usamos placeholder por ahora
                     const migData = await SupabaseService.getMigrations();
 
-                    setStores(storesData);
-                    setSuperAdmins(saData);
-                    setMigrations(migData);
+                    setStores(storesData as Store[]);
+                    setSuperAdmins(saData as SuperAdminUser[]);
+                    setMigrations(migData as MigrationLog[]);
                     setDataSource('supabase');
                     console.log('[SuperAdmin] Datos cargados desde Supabase');
                     return;
@@ -79,9 +79,9 @@ function SuperAdminDashboard() {
                 MockService.getSuperAdmins(),
                 MockService.getMigrations()
             ]);
-            setStores(storesData);
-            setSuperAdmins(saData);
-            setMigrations(migData);
+            setStores(storesData as Store[]);
+            setSuperAdmins(saData as SuperAdminUser[]);
+            setMigrations(migData as MigrationLog[]);
             setDataSource('mock');
             console.log('[SuperAdmin] Datos cargados desde MockService');
         } catch (e) { console.error(e); }
@@ -134,14 +134,14 @@ function SuperAdminDashboard() {
         }
     };
 
-    const handleMigrateStore = async (id: number) => {
+    const handleMigrateStore = async (_id: number) => {
         toast("Iniciando migración de esquema...", "info");
-        await MockService.triggerMigration(id);
+        await MockService.triggerMigration();
         toast("Migración completada.", "success");
     }
 
-    const handleExportBackup = async (id: number) => {
-        const url = await MockService.exportBackup(id);
+    const handleExportBackup = async (_id: number) => {
+        const url = await MockService.exportBackup();
         window.open(url, '_blank');
         toast("Backup descargado.", "success");
     }
@@ -150,7 +150,7 @@ function SuperAdminDashboard() {
         if (window.confirm("¿Esta acción es destructiva e irreversible. ¿Continuar?")) {
             await MockService.deleteStore(id);
             loadData();
-            toast("Tenant eliminado permanentemente.", "default");
+            toast("Tenant eliminado permanentemente.", "info" as any);
         }
     }
 
@@ -194,13 +194,13 @@ function SuperAdminDashboard() {
     // --- METRICS & FILTERS ---
     const filteredStores = useMemo(() => stores.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.adminName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.adminName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.schema_name.toLowerCase().includes(searchTerm.toLowerCase())
     ), [stores, searchTerm]);
 
     const stats = useMemo(() => {
         const activeTenants = stores.filter(s => s.status === 'active').length;
-        const totalRevenue = stores.reduce((acc, s) => acc + s.revenue, 0);
+        const totalRevenue = stores.reduce((acc, s) => acc + (s.revenue || 0), 0);
         const pendingMigrations = migrations.filter(m => m.status !== 'success').length;
         return { activeTenants, totalRevenue, pendingMigrations };
     }, [stores, migrations]);
@@ -349,7 +349,7 @@ function SuperAdminDashboard() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Avatar className="h-6 w-6 text-[10px]">
-                                                            <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">{store.adminName.charAt(0)}</AvatarFallback>
+                                                            <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">{(store.adminName || 'T').charAt(0)}</AvatarFallback>
                                                         </Avatar>
                                                         <span className="text-sm text-muted-foreground">{store.adminEmail}</span>
                                                     </div>
@@ -381,14 +381,14 @@ function SuperAdminDashboard() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                            <DropdownMenuItem onClick={() => handleMigrateStore(store.tenant_id)}>
+                                                            <DropdownMenuItem onClick={() => handleMigrateStore(Number(store.tenant_id))}>
                                                                 <Database className="mr-2 h-4 w-4" /> Migrar Schema
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleExportBackup(store.tenant_id)}>
+                                                            <DropdownMenuItem onClick={() => handleExportBackup(Number(store.tenant_id))}>
                                                                 <Download className="mr-2 h-4 w-4" /> Exportar Backup
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDeleteStore(store.tenant_id)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/10">
+                                                            <DropdownMenuItem onClick={() => handleDeleteStore(Number(store.tenant_id))} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/10">
                                                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar Tenant
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>

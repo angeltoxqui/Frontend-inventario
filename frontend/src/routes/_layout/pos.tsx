@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { POSService } from '../../services/posService';
+
 import { supabase } from '../../supabaseClient';
-import { Product, Table, OrderItem } from '../../types';
+import { Product, Table, OrderItem } from '../../types/legacy';
 import { useToast } from '../../components/ui/Toast';
 import {
   Search, Send, ArrowLeft, Users, Trash2, ChevronDown, ChevronUp,
@@ -66,7 +66,16 @@ function POS() {
 
   const { data: tables = [], isLoading: loadingTables } = useQuery({
     queryKey: ['tables'],
-    queryFn: POSService.getTables, // Keeping this via Service/EdgeFunction for complex status logic potentially
+    queryFn: async () => {
+      const { data, error } = await supabase.from('tables').select('*');
+      if (error) throw error;
+      return (data || []).map((t: any) => ({
+        id: t.id ?? t.mesa_id,
+        number: t.number ?? t.nombre ?? t.id,
+        status: t.status ?? (t.ocupada ? 'comiendo' : 'libre'),
+        timestamp: t.timestamp,
+      }));
+    },
     refetchInterval: 3000,
   });
 
@@ -88,10 +97,12 @@ function POS() {
       // Assuming Supabase structure matches frontend expects or we map it
       return data.map((p: any) => ({
         id: p.id,
-        name: p.name,
-        price: p.price,
-        category: p.category_id || 'general', // Adjust based on schema
-        // Add other fields mapping
+        name: p.name || p.nombre,
+        price: p.price || p.precio,
+        category: p.category_id || p.category || 'general',
+        recipe: [],
+        stock: p.stock ?? 0,
+        status: 'Activo' as const,
       }));
     },
     staleTime: 1000 * 60,
@@ -101,8 +112,17 @@ function POS() {
   const { data: ingredients = [] } = useQuery({
     queryKey: ['ingredients'],
     queryFn: async () => {
-      // Use POSService to get ingredients from the correct source (Python Backend)
-      return await POSService.getIngredients();
+      const { data, error } = await supabase.from('ingredients').select('*');
+      if (error) throw error;
+      return (data || []).map((i: any) => ({
+        id: i.id,
+        name: i.name ?? i.nombre,
+        unit: i.unit ?? i.unidad_medida,
+        cost: i.cost ?? i.costo,
+        currentStock: i.currentStock ?? i.stock_actual ?? 0,
+        maxStock: i.maxStock ?? 10000,
+        lastUpdated: Date.now(),
+      }));
     },
     staleTime: 1000 * 60,
   });
@@ -265,7 +285,8 @@ function POS() {
 
   const handleServe = async () => {
     if (selectedTable) {
-      await POSService.serveTable(selectedTable.id);
+      // Mark table as served via Supabase
+      await supabase.from('tables').update({ status: 'comiendo' }).eq('id', selectedTable.id);
       setIsActionModalOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast("Mesa servida", "success");
@@ -279,7 +300,7 @@ function POS() {
       setIsActionModalOpen(false);
       setIsSplitModalOpen(true);
     } else {
-      await POSService.requestBill(selectedTable.id, { isSplit: false, items: [] });
+      await supabase.from('orders').update({ status: 'por_cobrar' }).eq('table_id', selectedTable.id);
       setIsActionModalOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast("Cuenta enviada a Caja", "success");
@@ -288,12 +309,7 @@ function POS() {
 
   const confirmSplit = async () => {
     if (!selectedTable) return;
-    const dummyItems: OrderItem[] = [
-      { productId: 'p-1', productName: 'Hamburguesa', price: 25000, quantity: 1, assignedTo: 'Juan', notes: '' },
-      { productId: 'p-2', productName: 'Coca Cola', price: 5000, quantity: 1, assignedTo: 'Juan', notes: '' },
-      { productId: 'p-1', productName: 'Hamburguesa', price: 25000, quantity: 1, assignedTo: 'Maria', notes: '' },
-    ];
-    await POSService.requestBill(selectedTable.id, { isSplit: true, items: dummyItems });
+    await supabase.from('orders').update({ status: 'por_cobrar' }).eq('table_id', selectedTable.id);
     setIsSplitModalOpen(false);
     await queryClient.invalidateQueries({ queryKey: ['tables'] });
     toast("Cuenta dividida enviada a Caja", "success");
@@ -322,7 +338,7 @@ function POS() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 pb-20">
-          {tables.map(t => {
+          {(tables as any[]).map((t: any) => {
             const style = getTableVisuals(t.status);
             return (
               <button
@@ -343,7 +359,7 @@ function POS() {
 
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="text-4xl font-black tracking-tighter opacity-90">
-                    {t.number}
+                    {(t as any).number ?? t.id}
                   </span>
                 </div>
 
@@ -370,12 +386,12 @@ function POS() {
               <div className="bg-muted/50 p-3 rounded-xl text-center border border-border mb-1">
                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Estado</p>
                 <span className="text-xl font-black uppercase text-foreground">
-                  {tables.find(t => t.id === selectedTable?.id)?.status || selectedTable?.status}
+                  {(tables as any[]).find((t: any) => t.id === selectedTable?.id)?.status || selectedTable?.status}
                 </span>
               </div>
 
               {(() => {
-                const currentStatus = tables.find(t => t.id === selectedTable?.id)?.status;
+                const currentStatus = (tables as any[]).find((t: any) => t.id === selectedTable?.id)?.status;
                 return (
                   <>
                     {currentStatus === 'servir' && (

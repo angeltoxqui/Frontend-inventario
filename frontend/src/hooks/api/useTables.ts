@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tablesService } from '../../services/tablesService';
-import type { CreateTableDTO } from '../../types/models';
+// CreateTableDTO is inferred from the service calls
 import { toast } from 'sonner';
 
 const TABLES_KEYS = {

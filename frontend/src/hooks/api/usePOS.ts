@@ -26,7 +26,7 @@ export function usePOS() {
 
     const openOrderMutation = useMutation({
         mutationFn: posService.openOrder,
-        onSuccess: (data, mesaId) => {
+        onSuccess: (_data, mesaId) => {
             queryClient.invalidateQueries({ queryKey: POS_KEYS.activeOrder(mesaId) });
             // Also maybe invalidate tables to show occupied status?
             queryClient.invalidateQueries({ queryKey: ['tables', 'list'] });
@@ -39,9 +39,9 @@ export function usePOS() {
 
     // OPTIMISTIC UPDATE: Add Item
     const addItemMutation = useMutation({
-        mutationFn: ({ ordenId, data }: { ordenId: number; data: AddItemDTO }) =>
+        mutationFn: ({ ordenId, data }: { ordenId: number; data: AddItemDTO; mesaId: number }) =>
             posService.addItem(ordenId, data),
-        onMutate: async ({ ordenId, data, mesaId }: { ordenId: number; data: AddItemDTO; mesaId: number }) => {
+        onMutate: async ({ ordenId: _ordenId, data, mesaId }: { ordenId: number; data: AddItemDTO; mesaId: number }) => {
             // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
             await queryClient.cancelQueries({ queryKey: POS_KEYS.activeOrder(mesaId) });
 
@@ -84,14 +84,14 @@ export function usePOS() {
 
             return { previousOrder };
         },
-        onError: (err, variables, context) => {
+        onError: (_err, variables, context) => {
             // Rollback to snapshot
             if (context?.previousOrder && variables.mesaId) {
                 queryClient.setQueryData(POS_KEYS.activeOrder(variables.mesaId), context.previousOrder);
             }
             toast.error('Failed to add item');
         },
-        onSettled: (data, error, variables) => {
+        onSettled: (_data, _error, variables) => {
             // Always refetch after error or success to ensure sync
             if (variables.mesaId) {
                 queryClient.invalidateQueries({ queryKey: POS_KEYS.activeOrder(variables.mesaId) });
@@ -101,7 +101,7 @@ export function usePOS() {
 
     const cancelOrderMutation = useMutation({
         mutationFn: posService.cancelOrder,
-        onSuccess: (_, ordenId) => {
+        onSuccess: (_, _ordenId) => {
             // We don't have mesaId here easily unless passed. 
             // Invalidate all active orders or require mesaId in mutation.
             // Better to invalidate tables and specific order.

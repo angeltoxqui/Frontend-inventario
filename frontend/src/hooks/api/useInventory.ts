@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
-import type { CreateIngredientDTO, UpdateIngredientDTO } from '../../types/models';
+import type { UpdateIngredientDTO } from '../../types/models';
 import { toast } from 'sonner';
 
 const INVENTORY_KEYS = {

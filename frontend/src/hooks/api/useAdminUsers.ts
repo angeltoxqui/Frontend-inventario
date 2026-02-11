@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminUsersService } from '../../services/adminUsersService';
-import type { CreatePOSUserDTO } from '../../services/adminUsersService';
+// CreatePOSUserDTO is inferred from the service call
 import { toast } from 'sonner';
 
 const ADMIN_USERS_KEYS = {

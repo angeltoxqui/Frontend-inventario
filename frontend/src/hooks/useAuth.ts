@@ -8,7 +8,7 @@ interface AuthState {
   token: string | null;
   tenantId: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token?: string) => void;
+  setAuth: (user: User | any, token?: string) => void;
   setTenant: (tenantId: string) => void;
   logout: () => void;
 }

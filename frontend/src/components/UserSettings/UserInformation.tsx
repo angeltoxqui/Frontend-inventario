@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
-import useAuth from "@/hooks/useAuth"
+import { useAuth } from "@/context/AuthContext"
 import useCustomToast from "@/hooks/useCustomToast"
 import { cn } from "@/lib/utils"
 import { handleError } from "@/utils"
@@ -39,7 +39,7 @@ const UserInformation = () => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      full_name: currentUser?.full_name ?? undefined,
+      full_name: currentUser?.fullName ?? undefined,
       email: currentUser?.email,
     },
   })
@@ -65,7 +65,7 @@ const UserInformation = () => {
     const updateData: UserUpdateMe = {}
 
     // only include fields that have changed
-    if (data.full_name !== currentUser?.full_name) {
+    if (data.full_name !== currentUser?.fullName) {
       updateData.full_name = data.full_name
     }
     if (data.email !== currentUser?.email) {

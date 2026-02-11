@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { Product, ProductCategory, RecipeItem } from "@/types"
+import { Product, ProductCategory, RecipeItem } from "@/types/legacy"
 import { MockService } from "@/services/mockService"
 import { Button } from "@/components/ui/button"
 import {
@@ -50,15 +50,15 @@ const EditItem = ({ item }: EditItemProps) => {
 
   useEffect(() => {
     if (isOpen) {
-        setRecipeItems(item.recipe || []);
+      setRecipeItems(item.recipe || []);
     }
   }, [isOpen, item]);
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: item.name,
-      category: item.category,
+      category: item.category as ProductCategory,
       price: item.price,
       stock: item.stock || 0,
     },
@@ -67,11 +67,11 @@ const EditItem = ({ item }: EditItemProps) => {
   const handleAddIngredient = () => {
     if (!selectedIngId || ingQuantity <= 0) return;
     setRecipeItems(prev => {
-        const existing = prev.find(i => i.ingredientId === selectedIngId);
-        if (existing) {
-            return prev.map(i => i.ingredientId === selectedIngId ? { ...i, quantity: i.quantity + ingQuantity } : i)
-        }
-        return [...prev, { ingredientId: selectedIngId, quantity: ingQuantity }]
+      const existing = prev.find(i => i.ingredientId === selectedIngId);
+      if (existing) {
+        return prev.map(i => i.ingredientId === selectedIngId ? { ...i, quantity: i.quantity + ingQuantity } : i)
+      }
+      return [...prev, { ingredientId: selectedIngId, quantity: ingQuantity }]
     });
     setSelectedIngId("");
     setIngQuantity(1);
@@ -83,9 +83,9 @@ const EditItem = ({ item }: EditItemProps) => {
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => MockService.updateProduct(item.id, {
-        ...data,
-        // --- CAMBIO AQUÍ: Eliminado ingredients ---
-        recipe: recipeItems
+      ...data,
+      // --- CAMBIO AQUÍ: Eliminado ingredients ---
+      recipe: recipeItems
     }),
     onSuccess: () => {
       showSuccessToast("Producto actualizado correctamente")
@@ -93,8 +93,8 @@ const EditItem = ({ item }: EditItemProps) => {
       queryClient.invalidateQueries({ queryKey: ["products"] })
     },
     onError: (err) => {
-        console.error(err)
-        showErrorToast("Error al actualizar")
+      console.error(err)
+      showErrorToast("Error al actualizar")
     },
   })
 
@@ -107,7 +107,7 @@ const EditItem = ({ item }: EditItemProps) => {
       <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsOpen(true)}>
         <Pencil className="mr-2 h-4 w-4" /> Editar
       </DropdownMenuItem>
-      
+
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Editar Producto</DialogTitle>
@@ -124,20 +124,20 @@ const EditItem = ({ item }: EditItemProps) => {
             )} />
 
             <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="price" render={({ field }) => (
+              <FormField control={form.control} name="price" render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Precio</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormMessage />
+                  <FormLabel>Precio</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
                 </FormItem>
-                )} />
-                 <FormField control={form.control} name="stock" render={({ field }) => (
+              )} />
+              <FormField control={form.control} name="stock" render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Stock Manual</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormMessage />
+                  <FormLabel>Stock Manual</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
                 </FormItem>
-                )} />
+              )} />
             </div>
 
             <FormField control={form.control} name="category" render={({ field }) => (
@@ -147,7 +147,7 @@ const EditItem = ({ item }: EditItemProps) => {
                   <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
                     {Object.values(ProductCategory).map((cat) => (
-                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                      <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -156,64 +156,64 @@ const EditItem = ({ item }: EditItemProps) => {
             )} />
 
             <div className="border rounded-md p-4 bg-slate-50 space-y-3">
-                <div className="flex items-center gap-2 mb-2">
-                    <Beaker className="text-primary h-4 w-4" />
-                    <h4 className="font-semibold text-sm text-slate-700">Composición / Receta</h4>
-                </div>
-                
-                <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                        <label className="text-xs font-medium mb-1 block text-slate-500">Ingrediente</label>
-                        <Select value={selectedIngId} onValueChange={setSelectedIngId}>
-                            <SelectTrigger className="bg-white"><SelectValue placeholder="Agregar ingrediente..." /></SelectTrigger>
-                            <SelectContent>
-                                {ingredientsList?.map(ing => (
-                                    <SelectItem key={ing.id} value={ing.id}>
-                                        {ing.name} ({ing.unit})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="w-24">
-                        <label className="text-xs font-medium mb-1 block text-slate-500">Cantidad</label>
-                        <Input 
-                            type="number" 
-                            className="bg-white" 
-                            value={ingQuantity} 
-                            onChange={(e) => setIngQuantity(parseFloat(e.target.value))} 
-                        />
-                    </div>
-                    <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0">
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Beaker className="text-primary h-4 w-4" />
+                <h4 className="font-semibold text-sm text-slate-700">Composición / Receta</h4>
+              </div>
 
-                {recipeItems.length > 0 && (
-                    <ScrollArea className="h-32 border rounded bg-white p-2">
-                        <div className="space-y-2">
-                            {recipeItems.map((item, index) => {
-                                const ingName = ingredientsList?.find(i => i.id === item.ingredientId)?.name || "Desconocido";
-                                const ingUnit = ingredientsList?.find(i => i.id === item.ingredientId)?.unit || "";
-                                return (
-                                    <div key={index} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded border border-slate-100">
-                                        <span className="font-medium text-slate-700">{ingName}</span>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-slate-500 font-mono">{item.quantity} {ingUnit}</span>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => handleRemoveIngredient(item.ingredientId)}
-                                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs font-medium mb-1 block text-slate-500">Ingrediente</label>
+                  <Select value={selectedIngId} onValueChange={setSelectedIngId}>
+                    <SelectTrigger className="bg-white"><SelectValue placeholder="Agregar ingrediente..." /></SelectTrigger>
+                    <SelectContent>
+                      {ingredientsList?.map(ing => (
+                        <SelectItem key={ing.id} value={ing.id}>
+                          {ing.name} ({ing.unit})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-24">
+                  <label className="text-xs font-medium mb-1 block text-slate-500">Cantidad</label>
+                  <Input
+                    type="number"
+                    className="bg-white"
+                    value={ingQuantity}
+                    onChange={(e) => setIngQuantity(parseFloat(e.target.value))}
+                  />
+                </div>
+                <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {recipeItems.length > 0 && (
+                <ScrollArea className="h-32 border rounded bg-white p-2">
+                  <div className="space-y-2">
+                    {recipeItems.map((item, index) => {
+                      const ingName = ingredientsList?.find(i => i.id === item.ingredientId)?.name || "Desconocido";
+                      const ingUnit = ingredientsList?.find(i => i.id === item.ingredientId)?.unit || "";
+                      return (
+                        <div key={index} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded border border-slate-100">
+                          <span className="font-medium text-slate-700">{ingName}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-slate-500 font-mono">{item.quantity} {ingUnit}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIngredient(item.ingredientId)}
+                              className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
-                    </ScrollArea>
-                )}
+                      )
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
 
             <DialogFooter>
