@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { MockService } from '../../services/mockService'
+import { reportsService } from '../../services/reportsService'
+import { tablesService } from '../../services/tablesService'
 import {
   DollarSign,
   ShoppingBag,
@@ -19,15 +20,20 @@ function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      // Nota: Idealmente maneja errores aquí con un try/catch en el futuro
-      const fin = await MockService.getFinancialData();
-      const tables = await MockService.getTables();
-      const busy = tables.filter(t => t.status !== 'libre').length;
-      setStats({
-        income: fin.totalIncome,
-        orders: fin.todaySales.length,
-        activeTables: busy
-      });
+      try {
+        const [dailyReport, tables] = await Promise.all([
+          reportsService.getDailyReport(),
+          tablesService.getTables(),
+        ]);
+        const busy = tables.filter(t => t.ocupada).length;
+        setStats({
+          income: dailyReport.total_dinero_ventas,
+          orders: dailyReport.cantidad_mesas_atendidas,
+          activeTables: busy
+        });
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
     };
     load();
   }, []);

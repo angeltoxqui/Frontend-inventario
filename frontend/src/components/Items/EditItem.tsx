@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 import { Product, ProductCategory, RecipeItem } from "@/types/legacy"
-import { MockService } from "@/services/mockService"
+import { inventoryService } from "@/services/inventoryService"
+import { productsService } from "@/services/productsService"
 import { Button } from "@/components/ui/button"
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -45,7 +46,16 @@ const EditItem = ({ item }: EditItemProps) => {
 
   const { data: ingredientsList } = useQuery({
     queryKey: ["ingredients"],
-    queryFn: MockService.getIngredients,
+    queryFn: async () => {
+      const data = await inventoryService.getIngredients();
+      return data.map((i: any) => ({
+        id: String(i.id),
+        name: i.nombre,
+        unit: i.unidad_medida,
+        cost: i.costo,
+        currentStock: i.stock_actual,
+      }));
+    },
   })
 
   useEffect(() => {
@@ -82,10 +92,14 @@ const EditItem = ({ item }: EditItemProps) => {
   };
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => MockService.updateProduct(item.id, {
-      ...data,
-      // --- CAMBIO AQUÍ: Eliminado ingredients ---
-      recipe: recipeItems
+    mutationFn: (data: FormData) => productsService.updateProduct(Number(item.id), {
+      nombre: data.name,
+      precio: data.price,
+      notas: '',
+      ingredientes: recipeItems.map(r => ({
+        insumo_id: Number(r.ingredientId),
+        cantidad_requerida: r.quantity,
+      })),
     }),
     onSuccess: () => {
       showSuccessToast("Producto actualizado correctamente")

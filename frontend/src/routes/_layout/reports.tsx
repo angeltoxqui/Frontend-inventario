@@ -10,7 +10,8 @@ import {
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
-import { MockService } from '../../services/mockService';
+import { reportsService } from '../../services/reportsService';
+import { inventoryService } from '../../services/inventoryService';
 import { SaleRecord, Ingredient, Expense } from '../../types/legacy';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement, ArcElement);
@@ -33,11 +34,34 @@ function Reports() {
     useEffect(() => {
         const load = async () => {
             try {
-                const report = await MockService.getSalesReport();
-                setHistory(report.history);
-                const invData = await MockService.getInventoryData();
-                setInventoryData({ ingredients: invData.ingredients, expenses: invData.expenses });
-            } catch (e) { console.error(e); } finally { setLoading(false); }
+                // Fetch daily report for sales summary
+                const dailyReport = await reportsService.getDailyReport();
+                // Create a summary record from the daily report
+                const summaryRecord: SaleRecord = {
+                    id: 'today',
+                    orderId: 'today-summary',
+                    timestamp: Date.now(),
+                    total: dailyReport.total_dinero_ventas,
+                    method: 'mixed' as any,
+                    waiterName: 'Equipo',
+                    items: [],
+                    itemsSummary: [],
+                };
+                setHistory(dailyReport.total_dinero_ventas > 0 ? [summaryRecord] : []);
+
+                // Fetch ingredients for inventory tab
+                const ingredients = await inventoryService.getIngredients();
+                const mappedIngredients: Ingredient[] = ingredients.map((i: any) => ({
+                    id: String(i.id),
+                    name: i.nombre,
+                    unit: i.unidad_medida as any,
+                    cost: i.costo,
+                    currentStock: i.stock_actual,
+                    maxStock: i.stock_actual * 2,
+                    lastUpdated: Date.now(),
+                }));
+                setInventoryData({ ingredients: mappedIngredients, expenses: [] });
+            } catch (e) { console.error('Error loading reports:', e); } finally { setLoading(false); }
         };
         load();
     }, []);

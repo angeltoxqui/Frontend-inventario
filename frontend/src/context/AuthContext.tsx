@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { MockService } from '../services/mockService'; // Importamos el servicio
+import { adminUsersService } from '../services/adminUsersService';
 import { User } from '../types/legacy'; // Uses legacy User type (has id, username, fullName)
 
 interface AuthContextType {
@@ -25,9 +25,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const storedUsername = localStorage.getItem('rootventory_user');
     if (storedUsername) {
       try {
-        const users = await MockService.getUsers();
-        const found = users.find(u => u.username === storedUsername);
-        if (found) setUser(found);
+        const posUsers = await adminUsersService.getUsers();
+        const found = posUsers.find(u => u.username === storedUsername);
+        if (found) {
+          setUser({
+            id: String(found.id),
+            username: found.username,
+            fullName: found.username,
+            role: found.rol as any,
+            en_turno: true,
+          });
+        }
       } catch (error) {
         console.error("Error recargando usuario:", error);
       }
@@ -36,12 +44,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (username: string) => {
     try {
-      const users = await MockService.getUsers();
-      const found = users.find(u => u.username === username);
+      const posUsers = await adminUsersService.getUsers();
+      const found = posUsers.find(u => u.username === username);
 
       if (found) {
-        setUser(found);
-        localStorage.setItem('access_token', 'mock-token-123');
+        setUser({
+          id: String(found.id),
+          username: found.username,
+          fullName: found.username,
+          role: found.rol as any,
+          en_turno: true,
+        });
+        localStorage.setItem('access_token', 'pos-token');
         localStorage.setItem('rootventory_user', username);
         return true;
       }

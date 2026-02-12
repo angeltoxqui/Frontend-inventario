@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useMemo } from 'react';
-import { MockService } from '../../services/mockService';
+
 import { SupabaseService } from '../../services/supabaseService';
 import { Store, SuperAdminUser, MigrationLog } from '../../types/legacy';
 import {
@@ -36,7 +36,7 @@ function SuperAdminDashboard() {
     const [migrations, setMigrations] = useState<MigrationLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [dataSource, setDataSource] = useState<'supabase' | 'mock'>('mock');
+
     const { toast } = useToast();
 
     // Modals State
@@ -52,39 +52,16 @@ function SuperAdminDashboard() {
 
     const loadData = async () => {
         try {
-            // Intentar cargar desde Supabase primero, fallback a MockService
-            if (SupabaseService.isConfigured()) {
-                try {
-                    const [storesData, saData] = await Promise.all([
-                        SupabaseService.getTenants(),
-                        SupabaseService.getSuperAdmins(),
-                    ]);
-                    // Migraciones requieren schema name, usamos placeholder por ahora
-                    const migData = await SupabaseService.getMigrations();
-
-                    setStores(storesData as Store[]);
-                    setSuperAdmins(saData as SuperAdminUser[]);
-                    setMigrations(migData as MigrationLog[]);
-                    setDataSource('supabase');
-                    console.log('[SuperAdmin] Datos cargados desde Supabase');
-                    return;
-                } catch (supabaseError) {
-                    console.warn('[SuperAdmin] Error con Supabase, usando MockService:', supabaseError);
-                }
-            }
-
-            // Fallback a MockService
             const [storesData, saData, migData] = await Promise.all([
-                MockService.getStores(),
-                MockService.getSuperAdmins(),
-                MockService.getMigrations()
+                SupabaseService.getTenants(),
+                SupabaseService.getSuperAdmins(),
+                SupabaseService.getMigrations(),
             ]);
             setStores(storesData as Store[]);
             setSuperAdmins(saData as SuperAdminUser[]);
             setMigrations(migData as MigrationLog[]);
-            setDataSource('mock');
-            console.log('[SuperAdmin] Datos cargados desde MockService');
-        } catch (e) { console.error(e); }
+            console.log('[SuperAdmin] Datos cargados desde Supabase');
+        } catch (e) { console.error('[SuperAdmin] Error loading data:', e); }
         finally { setIsLoading(false); }
     };
 
@@ -92,17 +69,11 @@ function SuperAdminDashboard() {
     const toggleStatus = async (store: Store) => {
         try {
             const newStatus = store.status === 'active' ? 'suspended' : 'active';
-
-            if (dataSource === 'supabase') {
-                if (newStatus === 'suspended') {
-                    await SupabaseService.pauseTenant(store.tenant_id);
-                } else {
-                    await SupabaseService.resumeTenant(store.tenant_id);
-                }
+            if (newStatus === 'suspended') {
+                await SupabaseService.pauseTenant(store.tenant_id);
             } else {
-                await MockService.toggleStoreStatus(store.tenant_id, newStatus);
+                await SupabaseService.resumeTenant(store.tenant_id);
             }
-
             setStores(prev => prev.map(s => s.tenant_id === store.tenant_id ? { ...s, status: newStatus } : s));
             toast(newStatus === 'suspended' ? `Tienda "${store.name}" SUSPENDIDA.` : `Tienda "${store.name}" ACTIVADA.`, newStatus === 'suspended' ? "error" : "success");
         } catch (e) {
@@ -114,16 +85,12 @@ function SuperAdminDashboard() {
     const handleCreateStore = async () => {
         if (!newStoreData.name || !newStoreData.adminEmail) return toast("Faltan datos", "error");
         try {
-            if (dataSource === 'supabase') {
-                await SupabaseService.createTenant({
-                    name: newStoreData.name,
-                    adminEmail: newStoreData.adminEmail,
-                    adminName: newStoreData.adminName,
-                    plan: newStoreData.plan as 'basic' | 'pro' | 'enterprise',
-                });
-            } else {
-                await MockService.createStore(newStoreData);
-            }
+            await SupabaseService.createTenant({
+                name: newStoreData.name,
+                adminEmail: newStoreData.adminEmail,
+                adminName: newStoreData.adminName,
+                plan: newStoreData.plan as 'basic' | 'pro' | 'enterprise',
+            });
             setIsStoreModalOpen(false);
             setNewStoreData({ name: '', adminName: '', adminEmail: '', plan: 'basic', owner_password: '' });
             loadData();
@@ -134,21 +101,21 @@ function SuperAdminDashboard() {
         }
     };
 
-    const handleMigrateStore = async (_id: number) => {
+    const handleMigrateStore = async (id: number) => {
         toast("Iniciando migración de esquema...", "info");
-        await MockService.triggerMigration();
+        await SupabaseService.triggerMigration(id);
         toast("Migración completada.", "success");
     }
 
-    const handleExportBackup = async (_id: number) => {
-        const url = await MockService.exportBackup();
-        window.open(url, '_blank');
+    const handleExportBackup = async (id: number) => {
+        const url = await SupabaseService.exportBackup(id);
+        if (url && url !== '#') window.open(url, '_blank');
         toast("Backup descargado.", "success");
     }
 
     const handleDeleteStore = async (id: number) => {
         if (window.confirm("¿Esta acción es destructiva e irreversible. ¿Continuar?")) {
-            await MockService.deleteStore(id);
+            await SupabaseService.deleteTenant(id);
             loadData();
             toast("Tenant eliminado permanentemente.", "info" as any);
         }
@@ -157,11 +124,7 @@ function SuperAdminDashboard() {
     const handleInviteDev = async () => {
         if (!newDevData.email) return;
         try {
-            if (dataSource === 'supabase') {
-                await SupabaseService.createSuperAdmin(newDevData);
-            } else {
-                await MockService.inviteSuperAdmin(newDevData);
-            }
+            await SupabaseService.createSuperAdmin(newDevData);
             setIsInviteModalOpen(false);
             setNewDevData({ email: '', display: '', role: 'dev' });
             loadData();
@@ -174,14 +137,10 @@ function SuperAdminDashboard() {
 
     const toggleDevStatus = async (user: SuperAdminUser) => {
         try {
-            if (dataSource === 'supabase') {
-                if (user.is_active) {
-                    await SupabaseService.pauseSuperAdmin(user.user_id);
-                } else {
-                    await SupabaseService.resumeSuperAdmin(user.user_id);
-                }
+            if (user.is_active) {
+                await SupabaseService.pauseSuperAdmin(user.user_id);
             } else {
-                await MockService.toggleSuperAdmin(user.user_id, !user.is_active);
+                await SupabaseService.resumeSuperAdmin(user.user_id);
             }
             loadData();
             toast("Permisos actualizados.", "success");
@@ -232,8 +191,8 @@ function SuperAdminDashboard() {
                     <p className="text-muted-foreground mt-1">Gestión centralizada de infraestructura y tenants.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={`px-3 py-1 ${dataSource === 'supabase' ? 'border-green-200 text-green-700 bg-green-50 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30' : 'border-amber-200 text-amber-700 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30'}`}>
-                        {dataSource === 'supabase' ? '🔗 Supabase' : '💾 Mock Local'}
+                    <Badge variant="outline" className="px-3 py-1 border-green-200 text-green-700 bg-green-50 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30">
+                        🔗 Supabase
                     </Badge>
                     <Badge variant="outline" className="px-3 py-1 border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30">
                         v1.2.0 Stable

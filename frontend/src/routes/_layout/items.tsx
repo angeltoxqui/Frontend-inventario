@@ -1,6 +1,7 @@
+
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { MockService } from '@/services/mockService'
+import { productsService } from '../../services/productsService';
 import { DataTable } from '@/components/Common/DataTable'
 import { columns } from '@/components/Items/columns'
 import AddItem from '@/components/Items/AddItem'
@@ -26,8 +27,25 @@ function ItemsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const data = await MockService.getProducts();
-      setItems(data);
+      try {
+        const data = await productsService.getProducts();
+        // Map API format (nombre, precio) to legacy format (name, price)
+        const mapped = data.map((p: any) => ({
+          id: String(p.id),
+          name: p.nombre,
+          price: p.precio,
+          category: p.notas || 'fuertes',
+          recipe: (p.ingredientes || []).map((ing: any) => ({
+            ingredientId: String(ing.insumo_id),
+            quantity: ing.cantidad_requerida,
+          })),
+          stock: 0,
+          status: 'Activo' as const,
+        }));
+        setItems(mapped);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      }
     }
     load();
   }, [])

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Trash2 } from "lucide-react"
 import { useState } from "react"
-import { MockService } from "@/services/mockService"
+import { productsService } from "@/services/productsService"
 import { Button } from "@/components/ui/button"
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -20,15 +20,15 @@ const DeleteItem = ({ id }: DeleteItemProps) => {
   const { showSuccessToast, showErrorToast } = useCustomToast()
 
   const mutation = useMutation({
-    mutationFn: (id: string) => MockService.deleteProduct(id),
+    mutationFn: (id: string) => productsService.deleteProduct(Number(id)),
     onSuccess: () => {
       showSuccessToast("Producto eliminado")
       setIsOpen(false)
       queryClient.invalidateQueries({ queryKey: ["products"] })
     },
     onError: (err) => {
-        console.error(err)
-        showErrorToast("Error al eliminar")
+      console.error(err)
+      showErrorToast("Error al eliminar")
     },
   })
 
@@ -46,9 +46,9 @@ const DeleteItem = ({ id }: DeleteItemProps) => {
         </DialogHeader>
         <DialogFooter className="mt-4">
           <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-          <LoadingButton 
-            variant="destructive" 
-            onClick={() => mutation.mutate(id)} 
+          <LoadingButton
+            variant="destructive"
+            onClick={() => mutation.mutate(id)}
             loading={mutation.isPending}
           >
             Eliminar

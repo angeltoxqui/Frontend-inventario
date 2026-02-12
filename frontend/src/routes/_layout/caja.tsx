@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../components/ui/Toast';
-import { MockService } from '../../services/mockService';
+import { reportsService } from '../../services/reportsService';
 import { billingService } from '../../services/billingService';
 import { supabase } from '../../supabaseClient';
 import { Order, OrderItem, Product } from '../../types/legacy';
@@ -61,7 +61,7 @@ function Caja() {
     const [isOpeningOpen, setIsOpeningOpen] = useState(false);
     const [baseCash, setBaseCash] = useState<number>(0);
     const [isBaseSet, setIsBaseSet] = useState(false);
-    const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+    const [_sessionStartTime, setSessionStartTime] = useState<number>(0);
 
     const [isArqueoOpen, setIsArqueoOpen] = useState(false);
     const [stepArqueo, setStepArqueo] = useState<'input' | 'result'>('input');
@@ -78,11 +78,19 @@ function Caja() {
     }, []);
 
     const checkSession = async () => {
-        const session = await MockService.getBoxSession();
-        if (session && session.isOpen) {
-            setBaseCash(session.base);
-            setSessionStartTime(session.startTime);
-            setIsBaseSet(true);
+        // Check cashier session from localStorage (until backend endpoint exists)
+        try {
+            const stored = localStorage.getItem('cashier_session');
+            if (stored) {
+                const session = JSON.parse(stored);
+                if (session && session.isOpen) {
+                    setBaseCash(session.base);
+                    setSessionStartTime(session.startTime);
+                    setIsBaseSet(true);
+                }
+            }
+        } catch (e) {
+            console.error('Error checking cashier session:', e);
         }
     };
 
@@ -147,7 +155,8 @@ function Caja() {
     const handleOpenBox = async () => {
         const base = parseFloat(realCash);
         if (isNaN(base) || base < 0) return toast("Monto inválido", "error");
-        await MockService.openBox(base);
+        // Persist cashier session to localStorage (until backend endpoint exists)
+        localStorage.setItem('cashier_session', JSON.stringify({ isOpen: true, base, startTime: Date.now() }));
         setBaseCash(base);
         setSessionStartTime(Date.now());
         setIsBaseSet(true);
@@ -201,8 +210,16 @@ function Caja() {
             // 2. Iniciar subida automática
             try {
                 setIsUploadingPhoto(true);
-                // Llamamos al servicio mockeado (que luego será real)
-                const uploadedUrl = await MockService.uploadEvidence(file);
+                // Upload evidence to Supabase Storage
+                const fileName = `evidence_${Date.now()}_${file.name}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('payment-evidence')
+                    .upload(fileName, file);
+                if (uploadError) throw uploadError;
+                const { data: urlData } = supabase.storage
+                    .from('payment-evidence')
+                    .getPublicUrl(uploadData.path);
+                const uploadedUrl = urlData.publicUrl;
                 setProofUrl(uploadedUrl);
                 toast("Evidencia subida a la nube correctamente", "success");
             } catch (error) {
@@ -390,9 +407,9 @@ function Caja() {
             setIsOpeningOpen(true);
             return;
         }
-        const report = await MockService.getSalesReport();
-        const salesCash = report.history.filter(s => s.method === 'efectivo' && s.timestamp >= sessionStartTime).reduce((sum, s) => sum + s.total, 0);
-        const totalExpected = salesCash + baseCash;
+        const dailyReport = await reportsService.getDailyReport();
+        // Use daily report total as an approximation for cash sales
+        const totalExpected = dailyReport.total_caja + baseCash;
         setSystemCash(totalExpected);
         setRealCash('');
         setJustification('');
@@ -412,7 +429,9 @@ function Caja() {
             toast("Debes explicar el faltante (mínimo 10 caracteres).", "error");
             return;
         }
-        await MockService.registerClosing({
+        // TODO: Replace with real API endpoint when backend supports cashier closing
+        // For now, persist closing record to localStorage
+        const closingRecord = {
             user: 'Cajero Turno',
             totalSystem: systemCash,
             totalReal: parseFloat(realCash),
@@ -421,8 +440,14 @@ function Caja() {
             difference: arqueoDiff,
             status: arqueoDiff === 0 ? 'ok' : (arqueoDiff < 0 ? 'faltante' : 'sobrante'),
             justification: arqueoDiff < 0 ? justification : undefined,
-            openingBase: baseCash
-        });
+            openingBase: baseCash,
+            timestamp: Date.now(),
+        };
+        const existingLogs = JSON.parse(localStorage.getItem('closing_logs') || '[]');
+        existingLogs.push(closingRecord);
+        localStorage.setItem('closing_logs', JSON.stringify(existingLogs));
+        // Clear the cashier session
+        localStorage.removeItem('cashier_session');
         setBaseCash(0);
         setSessionStartTime(0);
         setIsBaseSet(false);

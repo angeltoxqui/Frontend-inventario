@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LoadingButton } from "@/components/ui/loading-button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import useCustomToast from "@/hooks/useCustomToast"
-import { MockService } from "@/services/mockService"
+import { inventoryService } from "@/services/inventoryService"
+import { productsService } from "@/services/productsService"
 import { ProductCategory, RecipeItem } from "@/types/legacy"
 
 const formSchema = z.object({
@@ -41,7 +42,17 @@ const AddItem = () => {
 
   const { data: ingredientsList } = useQuery({
     queryKey: ["ingredients"],
-    queryFn: MockService.getIngredients,
+    queryFn: async () => {
+      const data = await inventoryService.getIngredients();
+      // Map API format to legacy format for the component
+      return data.map((i: any) => ({
+        id: String(i.id),
+        name: i.nombre,
+        unit: i.unidad_medida,
+        cost: i.costo,
+        currentStock: i.stock_actual,
+      }));
+    },
   })
 
   const form = useForm<FormData>({
@@ -73,11 +84,14 @@ const AddItem = () => {
   };
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => MockService.createProduct({
-      ...data,
-      // --- CAMBIO AQUÍ: Eliminada la línea de 'ingredients', solo enviamos 'recipe' ---
-      recipe: recipeItems,
-      status: 'Activo' as const,
+    mutationFn: (data: FormData) => productsService.createProduct({
+      nombre: data.name,
+      precio: data.price,
+      notas: '',
+      ingredientes: recipeItems.map(r => ({
+        insumo_id: Number(r.ingredientId),
+        cantidad_requerida: r.quantity,
+      })),
     }),
     onSuccess: () => {
       showSuccessToast("Producto con receta creado")

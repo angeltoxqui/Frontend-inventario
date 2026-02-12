@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react';
-import { MockService } from '../../services/mockService';
+
 
 import { supabase } from '../../supabaseClient'; // [NEW] Import Supabase
 import { User, Product, Table, Ingredient, CashClosingLog, ProductCategory } from '../../types/legacy';
@@ -99,8 +99,27 @@ const FinanceTab = ({ toast: _toast }: { toast: any }) => {
 
     useEffect(() => {
         const load = async () => {
-            const logs = await MockService.getClosingLogs();
-            setClosingLogs(logs.sort((a, b) => b.timestamp - a.timestamp));
+            // Read closing logs from localStorage (persisted by caja.tsx)
+            try {
+                const stored = localStorage.getItem('closing_logs');
+                const logs: CashClosingLog[] = stored ? JSON.parse(stored).map((log: any, idx: number) => ({
+                    id: `cl-${idx}`,
+                    timestamp: log.timestamp || Date.now(),
+                    totalSystem: log.totalSystem || 0,
+                    totalReal: log.totalReal || 0,
+                    difference: log.difference || 0,
+                    notes: log.justification,
+                    status: log.status,
+                    user: log.user,
+                    openingBase: log.openingBase,
+                    systemExpected: log.systemExpected,
+                    realCounted: log.realCounted,
+                    justification: log.justification,
+                })) : [];
+                setClosingLogs(logs.sort((a, b) => b.timestamp - a.timestamp));
+            } catch (e) {
+                console.error('Error loading closing logs:', e);
+            }
         };
         load();
     }, []);
@@ -580,7 +599,7 @@ const HRTab = ({ toast }: { toast: any }) => {
         } else {
             newPerms = [...currentPerms, permissionKey];
         }
-        await MockService.updateUser(user.id, { ...user, permissions: newPerms });
+        await supabase.from('users').update({ permissions: newPerms }).eq('id', user.id);
         loadUsers();
         toast(`Permisos de ${user.fullName} actualizados`, "success");
     };
